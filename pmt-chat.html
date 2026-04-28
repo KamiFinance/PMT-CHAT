@@ -1,0 +1,2174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PMT-Chat  -  Decentralized Messenger</title>
+<link rel="icon" type="image/png" id="favicon" href="PMT-logo.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#040407;--panel:#000000;--surface:#000000;--surface2:#000000;
+  --border:#faff63;--border-h:#faff63;
+  --accent:#faff63;--accent2:#a78bfa;--accent3:#34d399;
+  --danger:#f87171;--text:#e8f4ff;--text2:#9daec8;--muted:#5a6882;
+  --mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+html,body,#root{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<script>
+// Override window.ethereum to use real MetaMask, not TronLink
+(function(){
+  function fixProvider(){
+    if(window.ethereum && window.ethereum.providers && window.ethereum.providers.length > 0){
+      var real = window.ethereum.providers.find(function(p){ return p.isMetaMask && !p.isTronLink; });
+      if(real && real !== window.ethereum){
+        try{ Object.defineProperty(window,'ethereum',{get:function(){return real;},configurable:true}); }catch(e){}
+      }
+    }
+  }
+  // Fix immediately
+  fixProvider();
+  // Also fix after wallet extensions inject
+  setTimeout(fixProvider, 100);
+  setTimeout(fixProvider, 500);
+  setTimeout(fixProvider, 1000);
+  // Listen for injection events
+  window.addEventListener('ethereum#initialized', fixProvider);
+})();
+</script>
+<div id="root"></div>
+<script>
+// EIP-6963: Listen for wallet announcements - bypasses window.ethereum hijacking
+window.__eip6963Providers = [];
+window.addEventListener('eip6963:announceProvider', function(e){
+  window.__eip6963Providers.push(e.detail);
+  console.log('EIP-6963 wallet announced:', e.detail.info?.name);
+});
+// Request wallets to announce themselves
+window.dispatchEvent(new Event('eip6963:requestProvider'));
+// Also override window.ethereum early to prefer MetaMask
+setTimeout(function(){
+  if(window.ethereum?.providers?.length){
+    var real = window.ethereum.providers.find(function(p){return p.isMetaMask&&!p.isTronLink;});
+    if(real){
+      try{Object.defineProperty(window,'ethereum',{get:function(){return real;},configurable:true});}catch(e){}
+    }
+  }
+}, 200);
+</script>
+<script>window.PMT_LOGO='PMT-logo.png';document.addEventListener("DOMContentLoaded",function(){var f=document.getElementById("favicon");if(f)f.href=window.PMT_LOGO;});</script>
+
+<script src="pmt-crypto.js"></script>
+
+
+<script>
+window.PMTAuth={
+  // Simple password hash using Web Crypto SHA-256
+  hashPassword:async function(password,salt){
+    salt=salt||Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const enc=new TextEncoder();
+    const key=await crypto.subtle.importKey('raw',enc.encode(password),{name:'PBKDF2'},false,['deriveBits']);
+    const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:100000,hash:'SHA-256'},key,256);
+    const hash=Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    return {hash,salt};
+  },
+  verifyPassword:async function(password,hash,salt){
+    const result=await this.hashPassword(password,salt);
+    return result.hash===hash;
+  },
+  // Encrypt wallet data with password
+  encryptWallet:async function(walletData,password){
+    const enc=new TextEncoder();
+    const keyMat=await crypto.subtle.importKey('raw',enc.encode(password),{name:'PBKDF2'},false,['deriveKey']);
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},keyMat,{name:'AES-GCM',length:256},false,['encrypt']);
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const data=enc.encode(JSON.stringify(walletData));
+    const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data);
+    const result={
+      encrypted:Array.from(new Uint8Array(encrypted)).map(b=>b.toString(16).padStart(2,'0')).join(''),
+      salt:Array.from(salt).map(b=>b.toString(16).padStart(2,'0')).join(''),
+      iv:Array.from(iv).map(b=>b.toString(16).padStart(2,'0')).join('')
+    };
+    return JSON.stringify(result);
+  },
+  decryptWallet:async function(encryptedStr,password){
+    const {encrypted,salt,iv}=JSON.parse(encryptedStr);
+    const enc=new TextEncoder();
+    const toBytes=hex=>new Uint8Array(hex.match(/.{2}/g).map(b=>parseInt(b,16)));
+    const keyMat=await crypto.subtle.importKey('raw',enc.encode(password),{name:'PBKDF2'},false,['deriveKey']);
+    const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:toBytes(salt),iterations:100000,hash:'SHA-256'},keyMat,{name:'AES-GCM',length:256},false,['decrypt']);
+    const decrypted=await crypto.subtle.decrypt({name:'AES-GCM',iv:toBytes(iv)},key,toBytes(encrypted));
+    return JSON.parse(new TextDecoder().decode(decrypted));
+  }
+};
+</script>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+
+/* ── Demo Data ── */
+let BLOCK=18_403_100+Math.floor(Math.random()*500);
+const rndHash=()=>'0x'+Array.from({length:12},()=>'0123456789abcdef'[Math.floor(Math.random()*16)]).join('')+'...';
+const CONTACTS=[
+  {id:1,address:'0x1dB3c...7c4F',name:'vitalik.eth',avatar:'VB',color:'#a78bfa',bg:'#1e1b30',online:true},
+  {id:2,address:'0x9a1Fc...2E5b',name:'satoshi.btc',avatar:'SN',color:'#f59e0b',bg:'#2a1f0a',online:false},
+  {id:3,address:'0x3c7dA...0a1E',name:'alice.defi', avatar:'AD',color:'#34d399',bg:'#0a2a1f',online:true},
+  {id:4,address:'0x7e2aB...b3F8',name:'bob.nft',    avatar:'BN',color:'#63d2ff',bg:'#0a1f2a',online:false},
+  {id:5,address:'0x2b9cC...5D7a',name:'carol.dao',  avatar:'CD',color:'#f43f5e',bg:'#2a0a14',online:true},
+];
+const INIT_MSGS={
+  '0x1dB3c...7c4F':[
+    {id:'m1',out:false,text:'Hey! Did you see the new L2 upgrade proposal?',time:'09:30',block:BLOCK-21,confirms:24,hash:rndHash()},
+    {id:'m2',out:true, text:'Yes! Gas optimization looks ~60% better.',time:'09:32',block:BLOCK-19,confirms:22,hash:rndHash()},
+    {id:'m3',out:false,text:"I'm running benchmarks on testnet now.",time:'09:35',block:BLOCK-16,confirms:18,hash:rndHash()},
+    {id:'m4',out:false,text:'When is the mainnet governance vote?',time:'09:41',block:BLOCK-6,confirms:6,hash:rndHash()},
+  ],
+  '0x9a1Fc...2E5b':[
+    {id:'m5',out:false,text:'Peer-to-peer electronic cash system.',time:'08:10',block:BLOCK-145,confirms:145,hash:rndHash()},
+    {id:'m6',out:true, text:'Satoshi?! Is that really you?!',time:'08:12',block:BLOCK-143,confirms:143,hash:rndHash()},
+    {id:'m7',out:false,text:'Trust the math, not the messengers.',time:'08:20',block:BLOCK-130,confirms:130,hash:rndHash()},
+    {id:'m8',out:false,type:'tx',amount:'0.50',coin:'PMT',time:'08:21',block:BLOCK-129,confirms:129,hash:rndHash()},
+  ],
+  '0x3c7dA...0a1E':[
+    {id:'m9', out:true, text:'Deploying the new staking contract now!',time:'Yesterday 14:22',block:BLOCK-1400,confirms:1400,hash:rndHash()},
+    {id:'m10',out:false,text:'Tx confirmed in block! All functions verified on Etherscan ✓',time:'Yesterday 14:25',block:BLOCK-1396,confirms:1396,hash:rndHash()},
+  ],
+  '0x7e2aB...b3F8':[
+    {id:'m11',out:false,text:"NFT floor price just 3x'd. Rare trait holders printing.",time:'Mon',block:BLOCK-2900,confirms:2900,hash:rndHash()},
+  ],
+  '0x2b9cC...5D7a':[
+    {id:'m12',out:false,text:'Voted yes on proposal #47  -  treasury diversification.',time:'Sun',block:BLOCK-4200,confirms:4200,hash:rndHash()},
+    {id:'m13',out:true, text:'Same. Quorum reached, it passes!',time:'Sun',block:BLOCK-4195,confirms:4195,hash:rndHash()},
+  ],
+};
+
+/* ── Helpers ── */
+const shortAddr=a=>a.length>12?a.slice(0,6)+'...'+a.slice(-4):a;
+const now=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
+/* ── Components ── */
+function Avatar({name,color,bg,online,size=38,fs=13}){
+  return(
+    <div style={{width:size,height:size,borderRadius:'50%',background:bg||'#1e2438',color:color||'var(--accent)',
+      display:'flex',alignItems:'center',justifyContent:'center',fontWeight:600,fontSize:fs,flexShrink:0,position:'relative'}}>
+      {name}
+      {online&&<div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent3)',border:'2px solid var(--panel)',
+        position:'absolute',bottom:0,right:0}}/>}
+    </div>
+  );
+}
+
+function TxCard({msg,isOut}){
+  return(
+    <div style={{animation:'fadeIn .2s ease',background:'var(--surface)',border:'1px solid rgba(167,139,250,.25)',
+      borderRadius:12,padding:'12px 16px',maxWidth:240,margin:'2px 0'}}>
+      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1.5px',marginBottom:6}}>
+        {isOut?'SENT':'RECEIVED'}
+      </div>
+      <div style={{display:'flex',alignItems:'baseline',gap:6}}>
+        <span style={{fontFamily:'var(--mono)',fontSize:24,fontWeight:700,color:'var(--accent3)'}}>{msg.amount}</span>
+        <span style={{fontSize:12,color:'var(--muted)'}}>{msg.coin||'PMT'}</span>
+      </div>
+      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',marginTop:6,display:'flex',gap:8,flexWrap:'wrap'}}>
+        <span>{msg.time}</span>
+        <span style={{color:'var(--accent2)'}}>{msg.hash}</span>
+        <span style={{color:'var(--accent3)'}}>✓{msg.confirms}</span>
+      </div>
+    </div>
+  );
+}
+
+
+function VoiceBubble({msg,isOut,contact}){
+  const [playing,setPlaying]=useState(false);
+  const [progress,setProgress]=useState(0);
+  const audioRef=useRef(null);
+
+  const toggle=()=>{
+    if(!audioRef.current)return;
+    if(playing){audioRef.current.pause();}
+    else{audioRef.current.play();}
+    setPlaying(!playing);
+  };
+
+  useEffect(()=>{
+    const a=audioRef.current;
+    if(!a)return;
+    const onTime=()=>setProgress((a.currentTime/a.duration)*100||0);
+    const onEnd=()=>{setPlaying(false);setProgress(0);};
+    a.addEventListener('timeupdate',onTime);
+    a.addEventListener('ended',onEnd);
+    return()=>{a.removeEventListener('timeupdate',onTime);a.removeEventListener('ended',onEnd);};
+  },[]);
+
+  const bars=msg.waveform||Array.from({length:30},(_,i)=>0.2+Math.abs(Math.sin(i*0.8+(msg.id||0)))*0.8);
+  const dur=msg.duration||0;
+  const mins=Math.floor(dur/60);
+  const secs=String(dur%60).padStart(2,'0');
+
+  return(
+    <div style={{display:'flex',alignItems:'flex-end',gap:8,marginBottom:3,
+      flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
+      {!isOut&&<ProfilePic initials={contact?.avatar} avatarUrl={contact?.avatarUrl}
+        color={contact?.color} bg={contact?.bg} size={26} fs={10}/>}
+      <div style={{maxWidth:'280px',padding:'10px 14px',borderRadius:16,
+        ...(isOut?{background:'#1a2a4a',border:'1px solid rgba(99,210,255,.15)',borderBottomRightRadius:4}
+                 :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4})}}>
+        {msg.audioUrl&&<audio ref={audioRef} src={msg.audioUrl}/>}
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {/* Play button */}
+          <button onClick={toggle} style={{width:36,height:36,borderRadius:'50%',
+            background:isOut?'var(--accent)':'var(--accent2)',border:'none',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            cursor:'pointer',flexShrink:0,fontSize:14,color:'#0a0c14'}}>
+            {playing?'⏸':'▶'}
+          </button>
+          {/* Waveform */}
+          <div style={{flex:1,display:'flex',alignItems:'center',gap:1.5,height:32,position:'relative'}}>
+            {bars.map((h,i)=>{
+              const pct=progress/100;
+              const filled=i/bars.length<pct;
+              return(
+                <div key={i} style={{
+                  width:2.5,borderRadius:2,flexShrink:0,
+                  height:Math.max(3,h*28)+'px',
+                  background:filled
+                    ?(isOut?'var(--accent)':'var(--accent2)')
+                    :'rgba(255,255,255,0.15)',
+                  transition:'background .1s'
+                }}/>
+              );
+            })}
+          </div>
+          {/* Duration */}
+          <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',flexShrink:0}}>
+            {mins}:{secs}
+          </span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginTop:6,flexWrap:'wrap'}}>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)'}}>{msg.time}</span>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',opacity:.7}}>{msg.hash}</span>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent3)'}}>✓{msg.confirms||0}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/* ── Image Bubble ── */
+function ImageBubble({msg,isOut,contact}){
+  const [open,setOpen]=useState(false);
+  const bubbleStyle=isOut
+    ?{background:'#1a2a4a',border:'1px solid rgba(99,210,255,.15)',borderBottomRightRadius:4}
+    :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4};
+  return(
+    <div style={{display:'flex',alignItems:'flex-end',gap:8,marginBottom:3,
+      flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
+      {!isOut&&<ProfilePic initials={contact?.avatar} avatarUrl={contact?.avatarUrl}
+        color={contact?.color} bg={contact?.bg} size={26} fs={10}/>}
+      <div style={{maxWidth:'72%'}}>
+        <div style={{...bubbleStyle,borderRadius:14,overflow:'hidden',cursor:'pointer',position:'relative'}}
+          onClick={()=>setOpen(true)}>
+          <img src={msg.fileUrl} alt={msg.fileName||'image'}
+            style={{display:'block',maxWidth:'100%',maxHeight:280,objectFit:'cover',width:'100%'}}/>
+          <div style={{position:'absolute',bottom:0,left:0,right:0,
+            background:'linear-gradient(transparent,rgba(0,0,0,.5))',
+            padding:'20px 10px 8px',display:'flex',alignItems:'center',gap:6}}>
+            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'rgba(255,255,255,.7)'}}>
+              {msg.fileName||'image'}
+            </span>
+            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'rgba(255,255,255,.5)'}}>
+              {msg.fileSize}
+            </span>
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginTop:4,flexWrap:'wrap',
+          paddingLeft:4}}>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)'}}>{msg.time}</span>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',opacity:.7}}>{msg.hash}</span>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,
+            color:msg.confirms===0?'var(--muted)':msg.confirms<6?'var(--accent)':'var(--accent3)'}}>
+            {msg.pending?'⏳':('✓'+(msg.confirms||0))}
+          </span>
+        </div>
+      </div>
+      {/* Lightbox */}
+      {open&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.9)',zIndex:999,
+          display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={()=>setOpen(false)}>
+          <img src={msg.fileUrl} alt={msg.fileName}
+            style={{maxWidth:'90vw',maxHeight:'90vh',objectFit:'contain',borderRadius:8}}/>
+          <button onClick={()=>{const a=document.createElement('a');a.href=msg.fileUrl;a.download=msg.fileName||'image';a.click();}}
+            style={{position:'absolute',top:20,right:60,background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:8,padding:'6px 14px',color:'var(--text)',fontSize:13,cursor:'pointer'}}
+            onClick={e=>{e.stopPropagation();const a=document.createElement('a');a.href=msg.fileUrl;a.download=msg.fileName||'image';a.click();}}>
+            Download
+          </button>
+          <button onClick={()=>setOpen(false)}
+            style={{position:'absolute',top:20,right:20,background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:8,width:36,height:36,color:'var(--text)',fontSize:18,cursor:'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+            x
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── File Bubble ── */
+function FileBubble({msg,isOut,contact}){
+  const ext=(msg.fileName||'').split('.').pop().toUpperCase().slice(0,4)||'FILE';
+  const extColors={
+    PDF:'#f87171',DOC:'#60a5fa',DOCX:'#60a5fa',XLS:'#34d399',XLSX:'#34d399',
+    ZIP:'#f59e0b',RAR:'#f59e0b',MP4:'#a78bfa',MP3:'#a78bfa',TXT:'#9ca3af',
+  };
+  const color=extColors[ext]||'var(--accent)';
+  const bubbleStyle=isOut
+    ?{background:'#1a2a4a',border:'1px solid rgba(99,210,255,.15)',borderBottomRightRadius:4}
+    :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4};
+  const download=()=>{
+    const a=document.createElement('a');
+    a.href=msg.fileUrl;a.download=msg.fileName||'file';a.click();
+  };
+  return(
+    <div style={{display:'flex',alignItems:'flex-end',gap:8,marginBottom:3,
+      flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
+      {!isOut&&<ProfilePic initials={contact?.avatar} avatarUrl={contact?.avatarUrl}
+        color={contact?.color} bg={contact?.bg} size={26} fs={10}/>}
+      <div style={{maxWidth:'72%'}}>
+        <div style={{...bubbleStyle,borderRadius:14,padding:'10px 14px',
+          display:'flex',alignItems:'center',gap:12,cursor:'pointer',minWidth:200}}
+          onClick={download}>
+          {/* File icon */}
+          <div style={{width:42,height:42,borderRadius:10,background:`${color}20`,
+            border:`1px solid ${color}40`,display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center',flexShrink:0,gap:1}}>
+            <span style={{fontSize:9,fontFamily:'var(--mono)',color,fontWeight:700,letterSpacing:.5}}>{ext}</span>
+            <span style={{fontSize:16}}>📄</span>
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',
+              textOverflow:'ellipsis',color:'var(--text)'}}>{msg.fileName||'file'}</div>
+            <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>{msg.fileSize} · tap to download</div>
+          </div>
+          <div style={{fontSize:18,color:'var(--muted)',flexShrink:0}}>↓</div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginTop:4,flexWrap:'wrap',paddingLeft:4}}>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)'}}>{msg.time}</span>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',opacity:.7}}>{msg.hash}</span>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,
+            color:msg.confirms===0?'var(--muted)':msg.confirms<6?'var(--accent)':'var(--accent3)'}}>
+            {msg.pending?'⏳':('✓'+(msg.confirms||0))}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Bubble({msg,isOut,contact}){
+  if(msg.type==='voice') return(<VoiceBubble msg={msg} isOut={isOut} contact={contact}/>);
+  if(msg.type==='image') return(<ImageBubble msg={msg} isOut={isOut} contact={contact}/>);
+  if(msg.type==='file') return(<FileBubble msg={msg} isOut={isOut} contact={contact}/>);
+  if(msg.type==='tx') return(
+    <div style={{display:'flex',alignItems:'flex-end',gap:8,marginBottom:3,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
+      {!isOut&&<ProfilePic initials={contact?.avatar} avatarUrl={contact?.avatarUrl} color={contact?.color} bg={contact?.bg} size={26} fs={10}/>}
+      <TxCard msg={msg} isOut={isOut}/>
+    </div>
+  );
+  return(
+    <div style={{display:'flex',alignItems:'flex-end',gap:8,marginBottom:3,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
+      {!isOut&&<ProfilePic initials={contact?.avatar} avatarUrl={contact?.avatarUrl} color={contact?.color} bg={contact?.bg} size={26} fs={10}/>}
+      <div style={{maxWidth:'68%',padding:'9px 13px',borderRadius:16,fontSize:13.5,lineHeight:1.5,
+        ...(isOut?{background:'#1a2a4a',border:'1px solid rgba(99,210,255,.15)',borderBottomRightRadius:4}
+                 :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4})}}>
+        {msg.text}
+        <div style={{display:'flex',alignItems:'center',gap:6,marginTop:5,flexWrap:'wrap'}}>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)'}}>{msg.time}</span>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',opacity:.7}}>{msg.hash}</span>
+          {msg.block&&<span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',opacity:.6}}>#{(msg.block||0).toLocaleString()}</span>}
+          <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.confirms===0?'var(--muted)':msg.confirms<6?'var(--accent)':'var(--accent3)'}}>
+            {msg.pending?'⏳':('✓'+msg.confirms)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BlockStrip({blockNum}){
+  const [blocks,setBlocks]=useState(()=>
+    Array.from({length:5},(_,i)=>({num:(blockNum||BLOCK)-i,txs:Math.floor(Math.random()*200)+50}))
+  );
+  useEffect(()=>{
+    const id=setInterval(()=>setBlocks(p=>{
+      const b={num:p[0].num+1,txs:Math.floor(Math.random()*200)+50};
+      return[b,...p.slice(0,4)];
+    }),12000);
+    return()=>clearInterval(id);
+  },[]);
+  return(
+    <div style={{background:'var(--panel)',borderTop:'1px solid var(--border)',padding:'5px 18px',
+      display:'flex',alignItems:'center',gap:16,overflowX:'auto',flexShrink:0}}>
+      {blocks.map((b,i)=>(
+        <div key={b.num} style={{display:'flex',alignItems:'center',gap:5,fontFamily:'var(--mono)',fontSize:10,
+          color:'var(--muted)',whiteSpace:'nowrap',flexShrink:0,opacity:i===0?1:Math.max(0.2,0.7-i*.15)}}>
+          <span style={{color:'var(--accent)'}}>#{b.num.toLocaleString()}</span>
+          <span style={{opacity:.4}}>·</span>
+          <span>{b.txs} txs</span>
+          {i===0&&<><span style={{opacity:.4}}>·</span><span>{(Math.random()*20+5).toFixed(1)} gwei</span></>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SendModal({contact,onClose,onSend,isDemo}){
+  const [amount,setAmount]=useState('');
+  const [err,setErr]=useState(null);
+  const [sending,setSending]=useState(false);
+  const [txHash,setTxHash]=useState(null);
+
+  const go=async()=>{
+    if(!parseFloat(amount)||parseFloat(amount)<=0)return setErr('Enter a valid amount');
+    setSending(true);setErr(null);
+    try{
+      const hash=await onSend(amount);
+      if(hash){setTxHash(hash);}
+      else{onClose();}
+    }catch(e){
+      if(e.code===4001)setErr('Transaction rejected in wallet.');
+      else setErr(e.message||'Transaction failed');
+      setSending(false);
+    }
+  };
+
+  if(txHash) return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}
+      onClick={onClose}>
+      <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:16,padding:'28px',width:340,
+        display:'flex',flexDirection:'column',gap:14,alignItems:'center',textAlign:'center'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:40}}>✅</div>
+        <div style={{fontSize:17,fontWeight:600}}>Transaction Sent!</div>
+        <div style={{fontSize:13,color:'var(--text2)'}}>Sent <strong>{amount} PMT</strong> to {contact.name}</div>
+        <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',wordBreak:'break-all',
+          background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px'}}>
+          {txHash.slice(0,20)}...{txHash.slice(-10)}
+        </div>
+        <button onClick={onClose} style={{width:'100%',padding:11,background:'var(--accent)',border:'none',
+          borderRadius:9,color:'#0a0c14',fontWeight:600,fontSize:13.5,cursor:'pointer'}}>Done</button>
+      </div>
+    </div>
+  );
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}
+      onClick={onClose}>
+      <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:16,padding:'28px',width:340,
+        display:'flex',flexDirection:'column',gap:14}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:17,fontWeight:600}}>Send PMT</div>
+        <div style={{fontSize:12,color:'var(--text2)'}}>To: <span style={{color:'var(--accent)'}}>{contact.name}</span></div>
+        <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)'}}>{contact.address}</div>
+        {!isDemo&&!/^0x[0-9a-fA-F]{40}$/.test(contact.address)&&(
+          <div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',borderRadius:8,
+            padding:'8px 12px',fontSize:12,color:'var(--danger)'}}>
+            ⚠ This contact has a short/demo address. Edit the contact and enter their full wallet address (0x...40 chars) to send real PMT.
+          </div>
+        )}
+        <div style={{display:'flex',alignItems:'center',gap:10,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'0 14px'}}>
+          <input type="number" step=".001" min="0" placeholder="0.00" value={amount} onChange={e=>setAmount(e.target.value)}
+            autoFocus style={{flex:1,background:'transparent',border:'none',outline:'none',color:'var(--text)',
+              fontFamily:'var(--mono)',fontSize:22,padding:'12px 0',fontWeight:700}}/>
+          <span style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--muted)'}}>PMT</span>
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          {['0.001','0.01','0.1','0.5'].map(v=>(
+            <button key={v} onClick={()=>setAmount(v)}
+              style={{flex:1,padding:6,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,
+                color:'var(--text2)',fontFamily:'var(--mono)',fontSize:11,cursor:'pointer'}}>{v}</button>
+          ))}
+        </div>
+        {err&&<div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',borderRadius:8,
+          padding:'8px 12px',fontSize:12,color:'var(--danger)'}}>{err}</div>}
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onClose} disabled={sending} style={{flex:1,padding:10,background:'transparent',border:'1px solid var(--border)',
+            borderRadius:9,color:'var(--text2)',fontSize:13.5,cursor:'pointer'}}>Cancel</button>
+          <button onClick={go} disabled={sending||!amount} style={{flex:2,padding:10,background:'var(--accent3)',border:'none',borderRadius:9,
+            color:'#0a0c14',fontWeight:600,fontSize:13.5,cursor:sending?'default':'pointer',opacity:sending?0.7:1}}>
+            {sending?'Confirm in wallet...':`Send ${amount||'0'} PMT`}
+          </button>
+        </div>
+        <p style={{fontSize:11,color:'var(--muted)',textAlign:'center'}}>
+          {isDemo?'Demo mode  -  no real transaction':'Transaction will be sent on PMT Chain'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function NewChatModal({onClose,onAdd}){
+  const [addr,setAddr]=useState('');const[name,setName]=useState('');const[err,setErr]=useState(null);
+  const go=()=>{
+    const t=addr.trim();
+    if(!t)return setErr('Enter an address or ENS name');
+    onAdd({address:t,name:name.trim()||t});onClose();
+  };
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}
+      onClick={onClose}>
+      <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:16,padding:28,width:360,
+        display:'flex',flexDirection:'column',gap:10}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:17,fontWeight:600}}>New Chat</div>
+        <p style={{fontSize:12.5,color:'var(--text2)'}}>Start an encrypted conversation on PMT Chain</p>
+        {[['Wallet address or ENS','0x... or vitalik.eth',addr,setAddr,true],
+          ['Nickname (optional)','e.g. Alice',name,setName,false]].map(([lbl,ph,val,set,af])=>(
+          <div key={lbl}>
+            <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:4}}>{lbl}</div>
+            <input placeholder={ph} value={val} onChange={e=>{set(e.target.value);setErr(null)}}
+              autoFocus={af} onKeyDown={e=>e.key==='Enter'&&go()}
+              style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,padding:'10px 13px',
+                color:'var(--text)',fontFamily:'var(--mono)',fontSize:12.5,outline:'none',width:'100%'}}/>
+          </div>
+        ))}
+        {err&&<div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',borderRadius:8,
+          padding:'8px 12px',fontSize:12,color:'var(--danger)'}}>{err}</div>}
+        <div style={{display:'flex',gap:10,marginTop:6}}>
+          <button onClick={onClose} style={{flex:1,padding:10,background:'transparent',border:'1px solid var(--border)',
+            borderRadius:9,color:'var(--text2)',fontSize:13.5,cursor:'pointer'}}>Cancel</button>
+          <button onClick={go} style={{flex:2,padding:10,background:'var(--accent)',border:'none',borderRadius:9,
+            color:'#0a0c14',fontWeight:600,fontSize:13.5,cursor:'pointer'}}>Start Chat</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/* ── Profile Modal ── */
+function ProfileModal({profile,onClose,onSave}){
+  const [name,setName]=useState(profile.name||'');
+  const [bio,setBio]=useState(profile.bio||'');
+  const [avatar,setAvatar]=useState(profile.avatarUrl||null);
+  const [dragging,setDragging]=useState(false);
+  const fileRef=useRef(null);
+
+  const handleFile=file=>{
+    if(!file||!file.type.startsWith('image/'))return;
+    const r=new FileReader();
+    r.onload=e=>setAvatar(e.target.result);
+    r.readAsDataURL(file);
+  };
+
+  const onDrop=e=>{
+    e.preventDefault();setDragging(false);
+    handleFile(e.dataTransfer.files[0]);
+  };
+
+  const save=()=>{
+    onSave({name:name.trim()||profile.name,bio:bio.trim(),avatarUrl:avatar});
+    onClose();
+  };
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',display:'flex',alignItems:'center',
+      justifyContent:'center',zIndex:200}} onClick={onClose}>
+      <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:18,padding:32,
+        width:400,display:'flex',flexDirection:'column',gap:18}} onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{fontSize:18,fontWeight:600}}>Edit Profile</div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'var(--muted)',fontSize:20,cursor:'pointer'}}>×</button>
+        </div>
+
+        {/* Avatar upload */}
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+          <div
+            onDragOver={e=>{e.preventDefault();setDragging(true)}}
+            onDragLeave={()=>setDragging(false)}
+            onDrop={onDrop}
+            onClick={()=>fileRef.current.click()}
+            style={{width:100,height:100,borderRadius:'50%',cursor:'pointer',position:'relative',
+              border:`2px dashed ${dragging?'var(--accent)':'var(--border)'}`,
+              background:avatar?'transparent':'var(--surface)',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              overflow:'hidden',transition:'border-color .2s'}}>
+            {avatar
+              ? <img src={avatar} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="avatar"/>
+              : <div style={{textAlign:'center',color:'var(--muted)'}}>
+                  <div style={{fontSize:28}}>📷</div>
+                  <div style={{fontSize:10,marginTop:4,fontFamily:'var(--mono)'}}>UPLOAD</div>
+                </div>
+            }
+            {/* Hover overlay */}
+            <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,.45)',display:'flex',
+              alignItems:'center',justifyContent:'center',opacity:0,transition:'opacity .2s',borderRadius:'50%'}}
+              onMouseEnter={e=>e.currentTarget.style.opacity=1}
+              onMouseLeave={e=>e.currentTarget.style.opacity=0}>
+              <span style={{color:'#fff',fontSize:11,fontFamily:'var(--mono)'}}>CHANGE</span>
+            </div>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}}
+            onChange={e=>handleFile(e.target.files[0])}/>
+          <div style={{fontSize:11,color:'var(--muted)'}}>Click or drag & drop an image</div>
+          {avatar&&(
+            <button onClick={()=>setAvatar(null)}
+              style={{fontSize:11,color:'var(--danger)',background:'none',border:'none',cursor:'pointer'}}>
+              Remove photo
+            </button>
+          )}
+        </div>
+
+        {/* Name */}
+        <div>
+          <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>DISPLAY NAME</div>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name or ENS..."
+            style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,
+              padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',fontSize:13.5,outline:'none'}}/>
+        </div>
+
+        {/* Bio */}
+        <div>
+          <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>
+            BIO <span style={{color:'var(--muted)',fontWeight:400}}>({160-bio.length} left)</span>
+          </div>
+          <textarea value={bio} onChange={e=>setBio(e.target.value.slice(0,160))}
+            placeholder="Tell people about yourself..."
+            rows={3}
+            style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,
+              padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',fontSize:13.5,outline:'none',
+              resize:'none',lineHeight:1.5}}/>
+        </div>
+
+        {/* Wallet address (read-only) - profile is tied to this address */}
+        <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,padding:'10px 13px'}}>
+          <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:4}}>
+            WALLET ADDRESS (this profile belongs to this address)
+          </div>
+          <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',wordBreak:'break-all'}}>
+            {profile.address||'Not connected'}
+          </div>
+          {profile.address&&(
+            <div style={{fontSize:11,color:'var(--muted)',marginTop:6,lineHeight:1.4}}>
+              Your profile is stored locally and linked to this wallet. Different wallets have separate profiles.
+            </div>
+          )}
+        </div>
+
+        {/* Buttons */}
+        <div style={{display:'flex',gap:10,marginTop:4}}>
+          <button onClick={onClose}
+            style={{flex:1,padding:11,background:'transparent',border:'1px solid var(--border)',
+              borderRadius:9,color:'var(--text2)',fontSize:13.5,cursor:'pointer'}}>Cancel</button>
+          <button onClick={save}
+            style={{flex:2,padding:11,background:'var(--accent)',border:'none',
+              borderRadius:9,color:'#0a0c14',fontWeight:600,fontSize:13.5,cursor:'pointer'}}>Save Profile</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Profile Avatar (shows real photo or initials) ── */
+function ProfilePic({avatarUrl,initials,color,bg,size=38,fs=13,online=false}){
+  return(
+    <div style={{width:size,height:size,borderRadius:'50%',background:bg||'#1e2438',
+      display:'flex',alignItems:'center',justifyContent:'center',
+      fontWeight:600,fontSize:fs,flexShrink:0,position:'relative',overflow:'hidden'}}>
+      {avatarUrl
+        ? <img src={avatarUrl} style={{width:'100%',height:'100%',objectFit:'cover'}} alt=""/>
+        : <span style={{color:color||'var(--accent)'}}>{initials}</span>
+      }
+      {online&&<div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent3)',
+        border:'2px solid var(--panel)',position:'absolute',bottom:0,right:0}}/>}
+    </div>
+  );
+}
+
+/* ── Sidebar ── */
+function Sidebar({contacts,activeId,onSelect,onNew,onProfile,onLogout,wallet,isDemo,profile}){
+  const [q,setQ]=useState('');
+  const filtered=contacts.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.address.includes(q));
+  return(
+    <div style={{background:'var(--panel)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      {/* Brand */}
+      <div style={{padding:'16px 14px 12px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+        <div style={{cursor:'pointer'}} onClick={onProfile}>
+          {profile?.avatarUrl
+            ? <ProfilePic avatarUrl={profile.avatarUrl} initials={profile?.name?profile.name.slice(0,2).toUpperCase():'ME'}
+                color='var(--accent)' bg='#0a1f2a' size={34} fs={11}/>
+            : <img src={window.PMT_LOGO} style={{width:34,height:34,borderRadius:'50%',objectFit:'cover',flexShrink:0}} alt="PMT"/>
+          }
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:15,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+            {profile?.name||wallet?.username||(wallet?.address?'Unnamed Wallet':'PMT-Chat')}
+          </div>
+          <div style={{fontFamily:'var(--mono)',fontSize:9,letterSpacing:'1px',marginTop:1,
+            color:isDemo?'var(--muted)':'var(--accent)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+            {wallet?.address
+              ?wallet.address.slice(0,8)+'...'+wallet.address.slice(-6)
+              :isDemo?'demo mode':'not connected'}
+          </div>
+        </div>
+      </div>
+      {/* Wallet */}
+      <div style={{margin:'10px',padding:'10px 12px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,flexShrink:0}}>
+        <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1.5px',marginBottom:3}}>YOUR WALLET</div>
+        <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)'}}>{wallet?wallet.address.slice(0,6)+'...'+wallet.address.slice(-4):isDemo?'Demo Wallet':'Not connected'}</div>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginTop:5}}>
+          <span style={{fontSize:12,color:'var(--accent3)',fontWeight:500}}>◈ {wallet?wallet.balance:isDemo?'2.847':'0.000'} PMT</span>
+          <span style={{fontFamily:'var(--mono)',fontSize:9,background:'rgba(167,139,250,.15)',border:'1px solid rgba(167,139,250,.3)',
+            borderRadius:4,padding:'2px 6px',color:'var(--accent2)'}}>{wallet?wallet.network:isDemo?'demo':' - '}</span>
+        </div>
+      </div>
+      {/* Search */}
+      <div style={{margin:'4px 10px 0',display:'flex',alignItems:'center',gap:6,background:'var(--surface)',
+        border:'1px solid var(--border)',borderRadius:8,padding:'0 10px',flexShrink:0}}>
+        <span style={{fontSize:14,color:'var(--muted)'}}>⌕</span>
+        <input placeholder="Search contacts..." value={q} onChange={e=>setQ(e.target.value)}
+          style={{flex:1,background:'transparent',border:'none',outline:'none',color:'var(--text)',fontSize:12.5,padding:'8px 0'}}/>
+      </div>
+      {/* Label */}
+      <div style={{padding:'10px 14px 3px',fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1.5px',flexShrink:0}}>
+        CONTACTS ({contacts.length})
+      </div>
+      {/* List */}
+      <div style={{flex:1,overflowY:'auto'}}>
+        {filtered.map(c=>(
+          <div key={c.id} onClick={()=>onSelect(c)}
+            style={{display:'flex',alignItems:'center',gap:10,padding:'9px 14px',cursor:'pointer',
+              borderLeft:`2px solid ${activeId===c.id?'var(--accent)':'transparent'}`,
+              background:activeId===c.id?'var(--surface)':'transparent',transition:'background .12s'}}>
+            <ProfilePic initials={c.avatar} avatarUrl={c.avatarUrl} color={c.color} bg={c.bg} online={c.online}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
+              <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:2}}>{c.preview||shortAddr(c.address)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Footer */}
+      <div style={{padding:'10px',borderTop:'1px solid var(--border)',display:'flex',gap:6,flexShrink:0}}>
+        {[['+','New Chat',onNew],['↑','Send PMT',null],['👤','Profile',onProfile]].map(([icon,title,fn])=>(
+          <button key={icon} onClick={fn} title={title}
+            style={{flex:1,padding:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,
+              color:'var(--muted)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            {icon}
+          </button>
+        ))}
+        <button onClick={onLogout} title="Log Out"
+          style={{padding:8,background:'var(--surface)',border:'1px solid rgba(248,113,113,.3)',borderRadius:8,
+            color:'var(--danger)',fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+            fontFamily:'var(--mono)',letterSpacing:.5,gap:4,paddingLeft:10,paddingRight:10}}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgba(248,113,113,.1)';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='var(--surface)';}}>
+          &#x2715;
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Chat Panel ── */
+
+/* ── Attach Menu ── */
+function AttachMenu({onImage,onFile,onClose}){
+  return(
+    <div style={{position:'absolute',bottom:70,left:18,
+      background:'var(--panel)',border:'1px solid var(--border)',
+      borderRadius:12,padding:8,display:'flex',flexDirection:'column',gap:4,
+      zIndex:50,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:180,
+      animation:'fadeIn .15s ease'}}>
+      <div style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)',
+        letterSpacing:'1px',padding:'4px 8px 6px'}}>ATTACH</div>
+      {[
+        ['🖼', 'Image / Photo', 'image/*', onImage],
+        ['📄', 'Document', '.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip,.rar', onFile],
+        ['🎬', 'Video', 'video/*', onFile],
+        ['🎵', 'Audio File', 'audio/*', onFile],
+      ].map(([icon,label,accept,handler])=>(
+        <button key={label} onClick={()=>{handler(accept);onClose();}}
+          style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',
+            background:'transparent',border:'none',borderRadius:8,
+            color:'var(--text)',fontSize:13,cursor:'pointer',textAlign:'left',
+            transition:'background .12s'}}
+          onMouseEnter={e=>e.currentTarget.style.background='var(--surface)'}
+          onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          <span style={{fontSize:18,width:24,textAlign:'center'}}>{icon}</span>
+          <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChatPanel({contact,messages,onSend,onSendETH,isDemo}){
+  const [text,setText]=useState('');
+  const [showSend,setShowSend]=useState(false);
+  const [showAttach,setShowAttach]=useState(false);
+  const [recording,setRecording]=useState(false);
+  const fileInputRef=useRef(null);
+  const fileAcceptRef=useRef('*');
+  const [recordSeconds,setRecordSeconds]=useState(0);
+  const [recorderError,setRecorderError]=useState(null);
+  const bottomRef=useRef(null);
+  const inputRef=useRef(null);
+  const mediaRecRef=useRef(null);
+  const chunksRef=useRef([]);
+  const timerRef=useRef(null);
+  const waveformRef=useRef([]);
+
+  useEffect(()=>bottomRef.current?.scrollIntoView({behavior:'smooth'}),[messages]);
+  useEffect(()=>{setText('');inputRef.current?.focus();setShowAttach(false);},[contact?.id]);
+  useEffect(()=>{
+    if(!showAttach)return;
+    const close=e=>{
+      if(!e.target.closest('[data-attach]'))setShowAttach(false);
+    };
+    setTimeout(()=>document.addEventListener('click',close),0);
+    return()=>document.removeEventListener('click',close);
+  },[showAttach]);
+
+  const send=()=>{const t=text.trim();if(!t)return;onSend(t);setText('');};
+
+  const formatSize=bytes=>{
+    if(bytes<1024)return bytes+'B';
+    if(bytes<1024*1024)return (bytes/1024).toFixed(1)+'KB';
+    return (bytes/(1024*1024)).toFixed(1)+'MB';
+  };
+
+  const openFilePicker=(accept)=>{
+    fileAcceptRef.current=accept;
+    fileInputRef.current.accept=accept;
+    fileInputRef.current.click();
+  };
+
+  const handleFileChosen=e=>{
+    const file=e.target.files[0];
+    if(!file)return;
+    const url=URL.createObjectURL(file);
+    const isImage=file.type.startsWith('image/');
+    onSend({
+      type:isImage?'image':'file',
+      fileUrl:url,
+      fileName:file.name,
+      fileSize:formatSize(file.size),
+      mimeType:file.type,
+    });
+    e.target.value='';
+  };
+  const key=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}};
+
+  const startRecording=async()=>{
+    setRecorderError(null);
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const mr=new MediaRecorder(stream);
+      chunksRef.current=[];
+      waveformRef.current=[];
+      // Analyse audio for waveform
+      const ctx=new (window.AudioContext||window.webkitAudioContext)();
+      const src=ctx.createMediaStreamSource(stream);
+      const analyser=ctx.createAnalyser();
+      analyser.fftSize=64;
+      src.connect(analyser);
+      const dataArr=new Uint8Array(analyser.frequencyBinCount);
+      const captureWave=()=>{
+        analyser.getByteFrequencyData(dataArr);
+        const avg=dataArr.reduce((a,b)=>a+b,0)/dataArr.length/255;
+        waveformRef.current.push(avg);
+      };
+      mr.ondataavailable=e=>chunksRef.current.push(e.data);
+      mr.onstop=()=>{
+        stream.getTracks().forEach(t=>t.stop());
+        ctx.close();
+        const blob=new Blob(chunksRef.current,{type:'audio/webm'});
+        const url=URL.createObjectURL(blob);
+        const dur=recordSeconds;
+        // Generate 30 waveform bars from captured data
+        const raw=waveformRef.current;
+        const bars=Array.from({length:30},(_,i)=>{
+          const idx=Math.floor(i/30*raw.length);
+          return Math.max(0.05, raw[idx]||0.1);
+        });
+        onSend({type:'voice',audioUrl:url,duration:dur,waveform:bars});
+        setRecordSeconds(0);
+      };
+      mr.start(100);
+      mediaRecRef.current=mr;
+      setRecording(true);
+      let s=0;
+      timerRef.current=setInterval(()=>{
+        s++;
+        setRecordSeconds(s);
+        captureWave();
+        if(s>=120){stopRecording();}  // 2 min max
+      },1000);
+    }catch(e){
+      setRecorderError(e.name==='NotAllowedError'?'Microphone access denied':'Could not access microphone');
+    }
+  };
+
+  const stopRecording=()=>{
+    clearInterval(timerRef.current);
+    if(mediaRecRef.current&&mediaRecRef.current.state!=='inactive'){
+      mediaRecRef.current.stop();
+    }
+    setRecording(false);
+  };
+
+  const cancelRecording=()=>{
+    clearInterval(timerRef.current);
+    if(mediaRecRef.current&&mediaRecRef.current.state!=='inactive'){
+      mediaRecRef.current.stream?.getTracks().forEach(t=>t.stop());
+      mediaRecRef.current.ondataavailable=null;
+      mediaRecRef.current.onstop=null;
+      mediaRecRef.current.stop();
+    }
+    setRecording(false);
+    setRecordSeconds(0);
+  };
+  return(
+    <div style={{display:'flex',flexDirection:'column',background:'var(--bg)',height:'100%',overflow:'hidden'}}>
+      {/* Header */}
+      <div style={{padding:'12px 18px',borderBottom:'1px solid var(--border)',background:'var(--panel)',
+        display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+        <ProfilePic initials={contact.avatar} avatarUrl={contact.avatarUrl} color={contact.color} bg={contact.bg} online={contact.online}/>
+        <div style={{flex:1}}>
+          <div style={{fontSize:14,fontWeight:600}}>{contact.name}</div>
+          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',opacity:.8,
+            whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{contact.address}</div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',
+          background:'rgba(99,210,255,.07)',border:'1px solid rgba(99,210,255,.18)',
+          borderRadius:20,fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',flexShrink:0}}>
+          <div style={{width:6,height:6,borderRadius:'50%',background:'var(--accent3)',animation:'pulse 2s infinite'}}/>
+          PMT Chain
+        </div>
+        <button onClick={()=>setShowSend(true)}
+          style={{padding:'5px 10px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,
+            color:'var(--text2)',fontSize:12,cursor:'pointer',flexShrink:0}}>↑ PMT</button>
+      </div>
+      {/* Messages */}
+      <div style={{flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:2}}>
+        <div style={{textAlign:'center',fontFamily:'var(--mono)',fontSize:10,color:'var(--accent2)',margin:'6px 0',opacity:.7}}>
+          🔗 E2E encryption handshake verified · block #{(BLOCK-50).toLocaleString()}
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:10,margin:'14px 0 8px',
+          fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',letterSpacing:'1px'}}>
+          <div style={{flex:1,height:1,background:'var(--border)'}}/>TODAY
+          <div style={{flex:1,height:1,background:'var(--border)'}}/>
+        </div>
+        {messages.map(m=>(
+          <Bubble key={m.id} msg={m} isOut={m.out} contact={contact}/>
+        ))}
+        <div ref={bottomRef}/>
+      </div>
+      <BlockStrip blockNum={BLOCK}/>
+      {/* Input */}
+      <div style={{padding:'12px 18px',borderTop:'1px solid var(--border)',background:'var(--panel)',
+        display:'flex',flexDirection:'column',gap:6,flexShrink:0}}>
+        {recorderError&&(
+          <div style={{fontSize:11,color:'var(--danger)',fontFamily:'var(--mono)',textAlign:'center'}}>{recorderError}</div>
+        )}
+        {recording?(
+          /* Recording UI */
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <button onClick={cancelRecording}
+              style={{width:38,height:38,background:'var(--surface)',border:'1px solid var(--border)',
+                borderRadius:9,color:'var(--danger)',fontSize:16,display:'flex',alignItems:'center',
+                justifyContent:'center',flexShrink:0,cursor:'pointer'}}>✕</button>
+            <div style={{flex:1,background:'var(--surface)',border:'1px solid rgba(248,113,113,.4)',
+              borderRadius:12,display:'flex',alignItems:'center',padding:'0 14px',gap:10,height:42}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:'var(--danger)',
+                animation:'pulse 1s infinite',flexShrink:0}}/>
+              <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--danger)'}}>
+                {String(Math.floor(recordSeconds/60)).padStart(2,'0')}:{String(recordSeconds%60).padStart(2,'0')}
+              </span>
+              <span style={{fontSize:11,color:'var(--muted)',flex:1}}>Recording... tap stop to send</span>
+            </div>
+            <button onClick={stopRecording}
+              style={{width:40,height:40,background:'var(--danger)',border:'none',
+                borderRadius:10,color:'#fff',fontSize:16,display:'flex',alignItems:'center',
+                justifyContent:'center',flexShrink:0,cursor:'pointer'}}>■</button>
+          </div>
+        ):(
+          /* Normal input UI */
+          <div style={{display:'flex',alignItems:'flex-end',gap:8}}>
+            <input ref={fileInputRef} type="file" style={{display:'none'}} onChange={handleFileChosen}/>
+            <div style={{position:'relative'}}>
+              <button onClick={()=>setShowAttach(v=>!v)}
+                style={{width:38,height:38,background:showAttach?'var(--surface2)':'var(--surface)',
+                  border:`1px solid ${showAttach?'var(--accent)':'var(--border)'}`,
+                  borderRadius:9,color:showAttach?'var(--accent)':'var(--muted)',fontSize:16,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  flexShrink:0,cursor:'pointer',transition:'all .15s'}}>📎</button>
+              {showAttach&&<AttachMenu
+                onImage={accept=>openFilePicker(accept)}
+                onFile={accept=>openFilePicker(accept)}
+                onClose={()=>setShowAttach(false)}/>}
+            </div>
+            <div style={{flex:1,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,
+              display:'flex',alignItems:'flex-end',padding:'0 12px'}}>
+              <textarea ref={inputRef} rows={1} value={text} onChange={e=>setText(e.target.value)} onKeyDown={key}
+                placeholder={`Message ${contact.name} (encrypted on-chain)...`}
+                style={{flex:1,background:'transparent',border:'none',outline:'none',color:'var(--text)',
+                  fontFamily:'var(--sans)',fontSize:13.5,padding:'10px 0',resize:'none',lineHeight:1.5,maxHeight:120}}/>
+              <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',opacity:.6,paddingBottom:11}}>🔒 E2E</span>
+            </div>
+            {text.trim()?(
+              <button onClick={send}
+                style={{width:40,height:40,background:'var(--accent)',border:'none',
+                  borderRadius:10,color:'#0a0c14',fontSize:16,display:'flex',alignItems:'center',
+                  justifyContent:'center',flexShrink:0,cursor:'pointer',transition:'all .15s'}}>➤</button>
+            ):(
+              <button onClick={startRecording}
+                style={{width:40,height:40,background:'var(--surface)',border:'1px solid var(--border)',
+                  borderRadius:10,color:'var(--accent2)',fontSize:18,display:'flex',alignItems:'center',
+                  justifyContent:'center',flexShrink:0,cursor:'pointer',transition:'all .15s'}}
+                title="Hold to record voice message">🎙</button>
+            )}
+          </div>
+        )}
+      </div>
+      {showSend&&<SendModal contact={contact} onClose={()=>setShowSend(false)} onSend={amt=>onSendETH(contact,amt)} isDemo={isDemo}/>}
+    </div>
+  );
+}
+
+/* ── Create Wallet Flow ── */
+function CreateWalletFlow({onWallet,onBack}){
+  const [step,setStep]=useState('generate'); // generate | backup | verify | password
+  const [wallet,setWallet]=useState(null);
+  const [revealed,setRevealed]=useState(false);
+  const [verifyWords,setVerifyWords]=useState({});
+  const [checkIdxs,setCheckIdxs]=useState([]);
+  const [username,setUsername]=useState('');
+  const [password,setPassword]=useState('');
+  const [confirmPwd,setConfirmPwd]=useState('');
+  const [pwdErr,setPwdErr]=useState(null);
+  const [copied,setCopied]=useState(false);
+
+  useEffect(()=>{
+    // Generate wallet using PMTCrypto
+    window.PMTCrypto.createWallet().then(w=>{
+      setWallet({
+        address:w.address,
+        privateKey:w.privateKey,
+        mnemonic:w.mnemonic,
+        words:w.words,
+      });
+    });
+    // Pick 3 random word indices to verify
+    const idxs=[];
+    while(idxs.length<3){
+      const n=Math.floor(Math.random()*12);
+      if(!idxs.includes(n))idxs.push(n);
+    }
+    setCheckIdxs(idxs.sort((a,b)=>a-b));
+  },[]);
+
+  const copyPhrase=()=>{
+    if(!wallet)return;
+    navigator.clipboard.writeText(wallet.mnemonic).then(()=>{
+      setCopied(true);setTimeout(()=>setCopied(false),2000);
+    });
+  };
+
+  const verifyOk=wallet&&checkIdxs.every(i=>
+    (verifyWords[i]||'').trim().toLowerCase()===wallet.words[i].toLowerCase()
+  );
+
+  const [finishing,setFinishing]=useState(false);
+  const finish=async()=>{
+    if(!username.trim())return setPwdErr('Please choose a username');
+    if(username.trim().length<3)return setPwdErr('Username must be at least 3 characters');
+    if(password.length<8)return setPwdErr('Password must be at least 8 characters');
+    if(password!==confirmPwd)return setPwdErr('Passwords do not match');
+    setPwdErr(null);
+    setFinishing(true);
+    try{
+      const walletData={address:wallet.address,privateKey:wallet.privateKey,mnemonic:wallet.mnemonic};
+      // Encrypt wallet with password
+      const encrypted=await window.PMTAuth.encryptWallet(walletData,password);
+      // Hash password for login verification
+      const {hash,salt}=await window.PMTAuth.hashPassword(password);
+      const account={
+        username:username.trim(),
+        address:wallet.address,
+        passwordHash:hash,
+        passwordSalt:salt,
+        encryptedWallet:encrypted,
+        createdAt:Date.now(),
+      };
+      // Store by username (lowercase) for login lookup
+      const key='pmt_account_'+username.trim().toLowerCase();
+      localStorage.setItem(key,JSON.stringify(account));
+      // Also store current session (unencrypted for active session only)
+      localStorage.setItem('pmt_session',JSON.stringify({username:username.trim(),address:wallet.address}));
+      onWallet({address:wallet.address,balance:'0.0000',network:'PMT Chain',chainId:'0x46c52',isCreated:true,username:username.trim()});
+    }catch(e){
+      setPwdErr('Failed to secure wallet: '+e.message);
+      setFinishing(false);
+    }
+  };
+
+  if(!wallet)return(
+    <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{color:'var(--muted)',fontFamily:'var(--mono)',fontSize:12}}>Generating wallet...</div>
+    </div>
+  );
+
+  const steps=[{k:'generate',label:'Generate'},{k:'backup',label:'Backup'},{k:'verify',label:'Verify'},{k:'secure',label:'Secure'}];
+  const stepIdx={generate:0,backup:1,verify:2,password:3}[step];
+
+  return(
+    <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',
+      background:'var(--bg)',padding:20,overflowY:'auto'}}>
+      <div style={{width:'100%',maxWidth:480,background:'var(--panel)',border:'1px solid var(--border)',
+        borderRadius:16,padding:'28px 28px 24px',display:'flex',flexDirection:'column',gap:20,
+        animation:'slideUp .3s ease'}}>
+
+        {/* Progress bar */}
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+            {steps.map((s,i)=>(
+              <div key={s.k} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,flex:1}}>
+                <div style={{width:28,height:28,borderRadius:'50%',
+                  background:i<=stepIdx?'var(--accent)':'var(--surface)',
+                  border:`1px solid ${i<=stepIdx?'var(--accent)':'var(--border)'}`,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:11,fontWeight:600,color:i<=stepIdx?'#0a0c14':'var(--muted)',
+                  transition:'all .3s'}}>{i<stepIdx?'v':i+1}</div>
+                <div style={{fontSize:9,color:i<=stepIdx?'var(--accent)':'var(--muted)',
+                  fontFamily:'var(--mono)',letterSpacing:'.5px'}}>{s.label.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{height:2,background:'var(--surface)',borderRadius:2}}>
+            <div style={{height:'100%',borderRadius:2,background:'var(--accent)',
+              width:`${(stepIdx/3)*100}%`,transition:'width .4s ease'}}/>
+          </div>
+        </div>
+
+        {/* Step: Generate */}
+        {step==='generate'&&(
+          <>
+            <div>
+              <div style={{fontSize:17,fontWeight:600,marginBottom:6}}>Your new wallet</div>
+              <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>
+                A unique 12-word seed phrase has been generated. This phrase is the only key to your wallet  -  store it safely offline.
+              </div>
+            </div>
+            <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:16}}>
+              <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--muted)',marginBottom:10,letterSpacing:'1px'}}>WALLET ADDRESS</div>
+              <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',wordBreak:'break-all'}}>{wallet.address}</div>
+            </div>
+            <div style={{background:'rgba(248,113,113,.07)',border:'1px solid rgba(248,113,113,.2)',
+              borderRadius:10,padding:'12px 14px',fontSize:12.5,color:'var(--danger)',lineHeight:1.6}}>
+              ! Never share your seed phrase with anyone. PMT-Chat staff will never ask for it.
+            </div>
+            <button onClick={()=>setStep('backup')}
+              style={{padding:'13px',background:'var(--accent)',border:'none',borderRadius:10,
+                color:'#0a0c14',fontWeight:600,fontSize:14,cursor:'pointer'}}>
+              Continue  -  Back Up My Phrase
+            </button>
+            <button onClick={onBack}
+              style={{padding:'10px',background:'transparent',border:'1px solid var(--border)',borderRadius:10,
+                color:'var(--muted)',fontSize:13,cursor:'pointer'}}>Back</button>
+          </>
+        )}
+
+        {/* Step: Backup seed phrase */}
+        {step==='backup'&&(
+          <>
+            <div>
+              <div style={{fontSize:17,fontWeight:600,marginBottom:6}}>Save your seed phrase</div>
+              <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>
+                Write these 12 words on paper in order. Keep it somewhere safe  -  you'll need it to recover your wallet.
+              </div>
+            </div>
+            {/* Seed phrase grid */}
+            <div style={{position:'relative',borderRadius:12,overflow:'hidden'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,
+                filter:revealed?'none':'blur(10px)',userSelect:revealed?'text':'none',
+                transition:'filter .3s'}}>
+                {wallet.words.map((w,i)=>(
+                  <div key={i} style={{background:'var(--surface)',border:'1px solid var(--border)',
+                    borderRadius:8,padding:'8px 10px',display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',minWidth:16}}>{i+1}</span>
+                    <span style={{fontFamily:'var(--mono)',fontSize:12,fontWeight:600,color:'var(--text)'}}>{w}</span>
+                  </div>
+                ))}
+              </div>
+              {!revealed&&(
+                <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+                  alignItems:'center',justifyContent:'center',gap:10,
+                  background:'rgba(10,12,20,.6)',backdropFilter:'blur(2px)',cursor:'pointer'}}
+                  onClick={()=>setRevealed(true)}>
+                  <div style={{fontSize:28}}>*</div>
+                  <div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>Tap to reveal seed phrase</div>
+                  <div style={{fontSize:11,color:'var(--muted)'}}>Make sure no one is watching</div>
+                </div>
+              )}
+            </div>
+            {revealed&&(
+              <button onClick={copyPhrase}
+                style={{padding:'10px',background:'var(--surface)',border:'1px solid var(--border)',
+                  borderRadius:9,color:copied?'var(--accent3)':'var(--text2)',fontSize:13,cursor:'pointer',
+                  display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+                {copied?'Copied!':'Copy to clipboard'}
+              </button>
+            )}
+            <button onClick={()=>setStep('verify')} disabled={!revealed}
+              style={{padding:'13px',background:revealed?'var(--accent)':'var(--surface)',
+                border:revealed?'none':'1px solid var(--border)',borderRadius:10,
+                color:revealed?'#0a0c14':'var(--muted)',fontWeight:600,fontSize:14,
+                cursor:revealed?'pointer':'default'}}>
+              I have saved my seed phrase
+            </button>
+          </>
+        )}
+
+        {/* Step: Verify */}
+        {step==='verify'&&(
+          <>
+            <div>
+              <div style={{fontSize:17,fontWeight:600,marginBottom:6}}>Verify your backup</div>
+              <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>
+                Enter the missing words from your seed phrase to confirm you've backed it up correctly.
+              </div>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {checkIdxs.map(i=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:12,
+                  background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 14px'}}>
+                  <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--muted)',
+                    minWidth:24,textAlign:'right'}}>#{i+1}</div>
+                  <input
+                    placeholder={`Word ${i+1}`}
+                    value={verifyWords[i]||''}
+                    onChange={e=>setVerifyWords(v=>({...v,[i]:e.target.value}))}
+                    style={{flex:1,background:'transparent',border:'none',outline:'none',
+                      fontFamily:'var(--mono)',fontSize:13,color:'var(--text)'}}
+                  />
+                  <div style={{fontSize:14}}>
+                    {verifyWords[i]
+                      ? verifyWords[i].trim().toLowerCase()===wallet.words[i].toLowerCase()
+                        ? 'OK' : 'X'
+                      : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={()=>setStep('password')} disabled={!verifyOk}
+              style={{padding:'13px',background:verifyOk?'var(--accent)':'var(--surface)',
+                border:verifyOk?'none':'1px solid var(--border)',borderRadius:10,
+                color:verifyOk?'#0a0c14':'var(--muted)',fontWeight:600,fontSize:14,
+                cursor:verifyOk?'pointer':'default'}}>
+              {verifyOk?'Verification passed':'Enter the correct words to continue'}
+            </button>
+          </>
+        )}
+
+        {/* Step: Set username + password */}
+        {step==='password'&&(
+          <>
+            <div>
+              <div style={{fontSize:17,fontWeight:600,marginBottom:6}}>Create your account</div>
+              <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>
+                Choose a username and password. Next time you open PMT-Chat, just log in — no need to import your wallet again.
+              </div>
+            </div>
+            <div>
+              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>USERNAME</div>
+              <input placeholder="Choose a username" value={username}
+                onChange={e=>{setUsername(e.target.value);setPwdErr(null);}}
+                style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
+                  borderRadius:9,padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',
+                  fontSize:14,outline:'none'}}/>
+            </div>
+            {[['Password','password',password,setPassword],['Confirm Password','confirmPwd',confirmPwd,setConfirmPwd]].map(([label,name,val,set])=>(
+              <div key={name}>
+                <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>
+                  {label.toUpperCase()}
+                </div>
+                <input type="password" placeholder="********" value={val}
+                  onChange={e=>{set(e.target.value);setPwdErr(null);}}
+                  style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
+                    borderRadius:9,padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',
+                    fontSize:14,outline:'none'}}/>
+              </div>
+            ))}
+            {/* Password strength */}
+            {password.length>0&&(
+              <div>
+                <div style={{display:'flex',gap:3,marginBottom:4}}>
+                  {[0,1,2,3].map(i=>{
+                    const strength=password.length>=8?(password.length>=12?4:3):(password.length>=6?2:1);
+                    const colors=['var(--danger)','var(--danger)','#f59e0b','var(--accent3)','var(--accent3)'];
+                    return <div key={i} style={{flex:1,height:3,borderRadius:2,
+                      background:i<strength?colors[strength]:'var(--surface)'}}/>;
+                  })}
+                </div>
+                <div style={{fontSize:11,color:'var(--muted)'}}>
+                  {password.length>=12?'Strong':password.length>=8?'Good':'Too short (min 8 chars)'}
+                </div>
+              </div>
+            )}
+            {pwdErr&&(
+              <div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',
+                borderRadius:8,padding:'8px 12px',fontSize:12,color:'var(--danger)'}}>{pwdErr}</div>
+            )}
+            <button onClick={finish} disabled={!password||!confirmPwd||!username.trim()||finishing}
+              style={{padding:'13px',background:'var(--accent)',border:'none',borderRadius:10,
+                color:'#0a0c14',fontWeight:600,fontSize:14,cursor:finishing?'default':'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+              {finishing
+                ?<><span style={{width:14,height:14,border:'2px solid rgba(0,0,0,.3)',borderTopColor:'#0a0c14',
+                    borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>Securing wallet...</>
+                :'Create Wallet'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Import Wallet Flow ── */
+function ImportWalletFlow({onWallet,onBack}){
+  const [step,setStep]=useState('choose'); // choose | enter | account
+  const [mode,setMode]=useState('seed');
+  const [input,setInput]=useState('');
+  const [username,setUsername]=useState('');
+  const [password,setPassword]=useState('');
+  const [confirmPwd,setConfirmPwd]=useState('');
+  const [err,setErr]=useState(null);
+  const [pwdErr,setPwdErr]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [finishing,setFinishing]=useState(false);
+  const [importedWallet,setImportedWallet]=useState(null);
+
+  // Step 1: validate the seed/key and advance to account creation
+  const verifyImport=async()=>{
+    setErr(null);setLoading(true);
+    try{
+      const C=window.PMTCrypto;
+      let w;
+      if(mode==='seed'){
+        const phrase=input.trim().toLowerCase();
+        const words=phrase.split(/\s+/);
+        if(words.length!==12&&words.length!==24)throw new Error('Seed phrase must be 12 or 24 words');
+        w=C.importFromMnemonic(phrase);
+      }else{
+        w=C.importFromPrivateKey(input.trim());
+      }
+      setImportedWallet(w);
+      setStep('account');
+    }catch(e){
+      setErr(e.message||'Import failed');
+    }finally{setLoading(false);}
+  };
+
+  // Step 2: create account with username+password
+  const finish=async()=>{
+    if(!username.trim())return setPwdErr('Please choose a username');
+    if(username.trim().length<3)return setPwdErr('Username must be at least 3 characters');
+    if(password.length<8)return setPwdErr('Password must be at least 8 characters');
+    if(password!==confirmPwd)return setPwdErr('Passwords do not match');
+    setPwdErr(null);setFinishing(true);
+    try{
+      const walletData={
+        address:importedWallet.address,
+        privateKey:importedWallet.privateKey,
+        mnemonic:importedWallet.mnemonic||null,
+      };
+      const encrypted=await window.PMTAuth.encryptWallet(walletData,password);
+      const {hash,salt}=await window.PMTAuth.hashPassword(password);
+      const account={
+        username:username.trim(),
+        address:importedWallet.address,
+        passwordHash:hash,
+        passwordSalt:salt,
+        encryptedWallet:encrypted,
+        createdAt:Date.now(),
+      };
+      const key='pmt_account_'+username.trim().toLowerCase();
+      localStorage.setItem(key,JSON.stringify(account));
+      localStorage.setItem('pmt_session',JSON.stringify({username:username.trim(),address:importedWallet.address}));
+      onWallet({address:importedWallet.address,balance:'0.0000',network:'PMT Chain',
+        chainId:'0x46c52',username:username.trim()});
+    }catch(e){
+      setPwdErr('Failed to secure wallet: '+e.message);
+      setFinishing(false);
+    }
+  };
+
+  return(
+    <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',
+      background:'var(--bg)',padding:20,overflowY:'auto'}}>
+      <div style={{width:'100%',maxWidth:460,background:'var(--panel)',border:'1px solid var(--border)',
+        borderRadius:16,padding:'28px',display:'flex',flexDirection:'column',gap:18}}>
+
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <button onClick={step==='account'?()=>setStep('enter'):onBack}
+            style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,
+              width:32,height:32,color:'var(--muted)',cursor:'pointer',fontSize:13,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>Back</button>
+          <div>
+            <div style={{fontSize:17,fontWeight:600}}>
+              {step==='account'?'Create your account':'Import Existing Wallet'}
+            </div>
+            <div style={{fontSize:11,color:'var(--muted)',marginTop:2,fontFamily:'var(--mono)'}}>
+              {step==='choose'?'STEP 1 OF 2 - IMPORT':step==='enter'?'STEP 1 OF 2 - ENTER KEYS':'STEP 2 OF 2 - SECURE'}
+            </div>
+          </div>
+        </div>
+
+        {/* Progress */}
+        <div style={{display:'flex',gap:6}}>
+          {['Import','Secure'].map((label,i)=>{
+            const active=(i===0&&(step==='choose'||step==='enter'))||(i===1&&step==='account');
+            const done=(i===0&&step==='account');
+            return(
+              <div key={label} style={{flex:1,height:3,borderRadius:2,
+                background:done?'var(--accent3)':active?'var(--accent)':'var(--surface)',
+                transition:'background .3s'}}/>
+            );
+          })}
+        </div>
+
+        {/* Step: Choose method */}
+        {step==='choose'&&(
+          <>
+            <p style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>
+              Import your wallet using a seed phrase or private key, then set a username and password for quick login.
+            </p>
+            {[
+              ['Seed Phrase (12 or 24 words)','Most common recovery method','seed'],
+              ['Private Key','Import with a single private key','key'],
+            ].map(([title,sub,m])=>(
+              <button key={m} onClick={()=>{setMode(m);setStep('enter');}}
+                style={{display:'flex',alignItems:'center',gap:14,padding:'14px 16px',
+                  background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,
+                  cursor:'pointer',textAlign:'left'}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
+                onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+                <div style={{width:40,height:40,borderRadius:10,background:'rgba(99,210,255,.1)',
+                  border:'1px solid rgba(99,210,255,.2)',display:'flex',alignItems:'center',
+                  justifyContent:'center',fontSize:18,flexShrink:0}}>
+                  {m==='seed'?'S':'K'}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13.5,fontWeight:500,color:'var(--text)'}}>{title}</div>
+                  <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>{sub}</div>
+                </div>
+                <span style={{color:'var(--muted)',fontSize:16}}>›</span>
+              </button>
+            ))}
+          </>
+        )}
+
+        {/* Step: Enter seed/key */}
+        {step==='enter'&&(
+          <>
+            <button onClick={()=>setStep('choose')}
+              style={{background:'none',border:'none',color:'var(--muted)',fontSize:12,
+                cursor:'pointer',textAlign:'left',fontFamily:'var(--mono)',padding:0}}>
+              Back to options
+            </button>
+            <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>
+              {mode==='seed'
+                ?'Enter your 12 or 24 word seed phrase, separated by spaces.'
+                :'Enter your private key (starts with 0x, 66 characters).'}
+            </div>
+            <textarea rows={mode==='seed'?4:2}
+              placeholder={mode==='seed'?'word1 word2 word3 ... word12':'0x...'}
+              value={input} onChange={e=>{setInput(e.target.value);setErr(null);}}
+              style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
+                borderRadius:10,padding:'12px 14px',color:'var(--text)',
+                fontFamily:'var(--mono)',fontSize:12.5,outline:'none',resize:'none',lineHeight:1.7}}/>
+            {err&&(
+              <div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',
+                borderRadius:8,padding:'8px 12px',fontSize:12,color:'var(--danger)'}}>{err}</div>
+            )}
+            <div style={{background:'rgba(248,113,113,.07)',border:'1px solid rgba(248,113,113,.2)',
+              borderRadius:9,padding:'10px 14px',fontSize:12,color:'var(--danger)',lineHeight:1.5}}>
+              Never enter your seed phrase on a site you do not trust.
+            </div>
+            <button onClick={verifyImport} disabled={!input.trim()||loading}
+              style={{padding:'13px',background:'var(--accent)',border:'none',borderRadius:10,
+                color:'#0a0c14',fontWeight:600,fontSize:14,cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+                opacity:!input.trim()||loading?0.7:1}}>
+              {loading
+                ?<><span style={{width:14,height:14,border:'2px solid rgba(0,0,0,.3)',borderTopColor:'#0a0c14',
+                    borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>Verifying...</>
+                :'Continue'}
+            </button>
+          </>
+        )}
+
+        {/* Step: Create account */}
+        {step==='account'&&(
+          <>
+            <div style={{background:'rgba(52,211,153,.08)',border:'1px solid rgba(52,211,153,.2)',
+              borderRadius:10,padding:'10px 14px',fontSize:12,color:'var(--accent3)',lineHeight:1.5}}>
+              Wallet imported successfully! Now create a username and password so you can log in quickly next time.
+            </div>
+            <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,padding:'10px 13px'}}>
+              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:3}}>WALLET ADDRESS</div>
+              <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',wordBreak:'break-all'}}>{importedWallet?.address}</div>
+            </div>
+            <div>
+              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>USERNAME</div>
+              <input placeholder="Choose a username" value={username}
+                onChange={e=>{setUsername(e.target.value);setPwdErr(null);}}
+                style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
+                  borderRadius:9,padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',fontSize:14,outline:'none'}}/>
+            </div>
+            {[['Password','password',password,setPassword],['Confirm Password','confirmPwd',confirmPwd,setConfirmPwd]].map(([label,name,val,set])=>(
+              <div key={name}>
+                <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>{label.toUpperCase()}</div>
+                <input type="password" placeholder="password" value={val}
+                  onChange={e=>{set(e.target.value);setPwdErr(null);}}
+                  style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
+                    borderRadius:9,padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',fontSize:14,outline:'none'}}/>
+              </div>
+            ))}
+            {password.length>0&&(
+              <div>
+                <div style={{display:'flex',gap:3,marginBottom:4}}>
+                  {[0,1,2,3].map(i=>{
+                    const s=password.length>=12?4:password.length>=8?3:password.length>=6?2:1;
+                    const colors=['var(--danger)','var(--danger)','#f59e0b','var(--accent3)','var(--accent3)'];
+                    return <div key={i} style={{flex:1,height:3,borderRadius:2,background:i<s?colors[s]:'var(--surface)'}}/>;
+                  })}
+                </div>
+                <div style={{fontSize:11,color:'var(--muted)'}}>
+                  {password.length>=12?'Strong':password.length>=8?'Good':'Too short (min 8 chars)'}
+                </div>
+              </div>
+            )}
+            {pwdErr&&(
+              <div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',
+                borderRadius:8,padding:'8px 12px',fontSize:12,color:'var(--danger)'}}>{pwdErr}</div>
+            )}
+            <button onClick={finish} disabled={!username.trim()||!password||!confirmPwd||finishing}
+              style={{padding:'13px',background:'var(--accent)',border:'none',borderRadius:10,
+                color:'#0a0c14',fontWeight:600,fontSize:14,cursor:finishing?'default':'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+                opacity:!username.trim()||!password||!confirmPwd||finishing?0.7:1}}>
+              {finishing
+                ?<><span style={{width:14,height:14,border:'2px solid rgba(0,0,0,.3)',borderTopColor:'#0a0c14',
+                    borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>Securing wallet...</>
+                :'Import & Create Account'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+/* -- Login Screen -- */
+function LoginScreen({onLogin,onBack}){
+  const [username,setUsername]=useState('');
+  const [password,setPassword]=useState('');
+  const [err,setErr]=useState(null);
+  const [loading,setLoading]=useState(false);
+
+  // Check if there are saved accounts
+  const savedAccounts=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('pmt_account_')){
+      try{const a=JSON.parse(localStorage.getItem(k));if(a.username)savedAccounts.push(a);}catch{}
+    }
+  }
+
+  const login=async()=>{
+    if(!username.trim())return setErr('Enter your username');
+    if(!password)return setErr('Enter your password');
+    setLoading(true);setErr(null);
+    try{
+      const key='pmt_account_'+username.trim().toLowerCase();
+      const stored=localStorage.getItem(key);
+      if(!stored)return setErr('Account not found. Check your username or create a new wallet.');
+      const account=JSON.parse(stored);
+      const ok=await window.PMTAuth.verifyPassword(password,account.passwordHash,account.passwordSalt);
+      if(!ok)return setErr('Incorrect password. Please try again.');
+      // Decrypt wallet
+      const walletData=await window.PMTAuth.decryptWallet(account.encryptedWallet,password);
+      localStorage.setItem('pmt_session',JSON.stringify({username:account.username,address:account.address}));
+      onLogin({address:walletData.address,privateKey:walletData.privateKey,
+        balance:'0.0000',network:'PMT Chain',username:account.username});
+    }catch(e){
+      if(e.message?.includes('decrypt')||e.name==='OperationError')
+        setErr('Incorrect password.');
+      else setErr('Login failed: '+e.message);
+    }finally{setLoading(false);}
+  };
+
+  return(
+    <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',
+      background:'var(--bg)',padding:20}}>
+      <div style={{width:'100%',maxWidth:400,background:'var(--panel)',border:'1px solid var(--border)',
+        borderRadius:16,padding:'28px 28px 24px',display:'flex',flexDirection:'column',gap:18}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <button onClick={onBack}
+            style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,
+              width:32,height:32,color:'var(--muted)',cursor:'pointer',fontSize:14,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>Back</button>
+          <div style={{fontSize:18,fontWeight:600}}>Welcome back</div>
+        </div>
+
+        <button onClick={onBack}
+          style={{padding:'11px',background:'#faff63',border:'none',borderRadius:9,
+            color:'#000000',fontWeight:600,fontSize:13.5,cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M16 12h2a2 2 0 0 1 0 4h-2v-4z"/><path d="M2 10h20"/></svg>
+          Connect Wallet Instead
+        </button>
+
+        {savedAccounts.length>0&&(
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px'}}>YOUR ACCOUNTS</div>
+            {savedAccounts.map(a=>(
+              <button key={a.username} onClick={()=>setUsername(a.username)}
+                style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',
+                  background:username.toLowerCase()===a.username.toLowerCase()?'var(--surface2)':'var(--surface)',
+                  border:'1px solid '+(username.toLowerCase()===a.username.toLowerCase()?'var(--accent)':'var(--border)'),
+                  borderRadius:9,cursor:'pointer',textAlign:'left'}}>
+                <div style={{width:32,height:32,borderRadius:'50%',background:'var(--accent)',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  color:'#0a0c14',fontWeight:700,fontSize:12,flexShrink:0}}>
+                  {a.username.slice(0,2).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>{a.username}</div>
+                  <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)'}}>
+                    {a.address.slice(0,8)}...{a.address.slice(-6)}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div>
+          <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>USERNAME</div>
+          <input placeholder="Your username" value={username}
+            onChange={e=>{setUsername(e.target.value);setErr(null);}}
+            onKeyDown={e=>e.key==='Enter'&&login()}
+            style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:9,padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',fontSize:14,outline:'none'}}/>
+        </div>
+        <div>
+          <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>PASSWORD</div>
+          <input type="password" placeholder="password" value={password}
+            onChange={e=>{setPassword(e.target.value);setErr(null);}}
+            onKeyDown={e=>e.key==='Enter'&&login()}
+            style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:9,padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',fontSize:14,outline:'none'}}/>
+        </div>
+        {err&&(
+          <div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',
+            borderRadius:8,padding:'8px 12px',fontSize:12,color:'var(--danger)'}}>{err}</div>
+        )}
+        <button onClick={login} disabled={loading||!username||!password}
+          style={{padding:'13px',background:'var(--accent)',border:'none',borderRadius:10,
+            color:'#0a0c14',fontWeight:600,fontSize:14,cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+            opacity:loading||!username||!password?0.7:1}}>
+          {loading
+            ?<><span style={{width:14,height:14,border:'2px solid rgba(0,0,0,.3)',borderTopColor:'#0a0c14',
+                borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>Unlocking...</>
+            :'Log In'}
+        </button>
+        <div style={{textAlign:'center',fontSize:11,color:'var(--muted)',lineHeight:1.6}}>
+          Forgot your password? Import your wallet using your seed phrase.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Landing ── */
+function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet,onLogin}){
+  const [connecting,setConnecting]=useState(false);
+  const [err,setErr]=useState(null);
+  const [hasProvider,setHasProvider]=useState(!!window.ethereum);
+
+  useEffect(()=>{
+    if(window.ethereum){setHasProvider(true);return;}
+    const onInit=()=>setHasProvider(true);
+    window.addEventListener('ethereum#initialized',onInit,{once:true});
+    const check=setInterval(()=>{if(window.ethereum){setHasProvider(true);clearInterval(check);}},200);
+    const timeout=setTimeout(()=>clearInterval(check),3000);
+    return()=>{window.removeEventListener('ethereum#initialized',onInit);clearInterval(check);clearTimeout(timeout);};
+  },[]);
+
+  const getProvider=()=>{
+    // EIP-6963: use announced providers (most reliable, bypasses TronLink hijack)
+    if(window.__eip6963Providers?.length){
+      const mm=window.__eip6963Providers.find(p=>p.info?.name?.toLowerCase().includes('metamask'));
+      if(mm)return mm.provider;
+      return window.__eip6963Providers[0].provider;
+    }
+    // Fallback: providers array (MetaMask + TronLink coexistence)
+    if(window.ethereum?.providers?.length){
+      const mm=window.ethereum.providers.find(p=>p.isMetaMask&&!p.isTronLink);
+      if(mm)return mm;
+      const other=window.ethereum.providers.find(p=>!p.isTronLink);
+      if(other)return other;
+    }
+    // Single provider - skip TronLink
+    if(window.ethereum&&!window.ethereum.isTronLink)return window.ethereum;
+    return null;
+  };
+
+  const connectMM=async()=>{
+    setErr(null);
+    const provider=getProvider();
+    if(!provider){
+      if(window.ethereum?.isTronLink&&!window.ethereum?.providers?.find(p=>!p.isTronLink)){
+        setErr('TronLink is blocking MetaMask. Please disable TronLink in chrome://extensions, then refresh.');
+      } else {
+        setErr('No Ethereum wallet detected. Please install MetaMask from metamask.io, then refresh.');
+      }
+      setHasProvider(false);
+      return;
+    }
+
+    setConnecting(true);
+    try{
+      // Check if already authorized first (no popup), then request if needed
+      let accounts=[];
+      try{ accounts=await provider.request({method:'eth_accounts'}); }catch{}
+      if(!accounts||!accounts.length){
+        accounts=await provider.request({method:'eth_requestAccounts'});
+      }
+
+      if(!accounts||accounts.length===0)throw new Error('No accounts returned');
+      const chainId=await provider.request({method:'eth_chainId'});
+      const balHex=await provider.request({method:'eth_getBalance',params:[accounts[0],'latest']}).catch(()=>'0x0');
+      const balEth=(parseInt(balHex,16)/1e18).toFixed(4);
+      const netNames={'0x1':'Ethereum','0x5':'Goerli','0xaa36a7':'Sepolia','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0x46c52':'PMT Chain'};
+      const netName=netNames[chainId]||('Chain '+parseInt(chainId,16));
+      onMetaMask({address:accounts[0],balance:balEth,network:netName,chainId});
+    }catch(e){
+      const code=e.code;
+      if(code===4001){
+        setErr('Connection rejected. Please approve the connection in MetaMask.');
+      } else if(code===-32002){
+        setErr('MetaMask has a pending request. Click the MetaMask icon in your toolbar to approve it.');
+      } else if(code===-32603||e.message==='Unexpected error'){
+        // Internal error - usually means MetaMask needs to be reopened
+        setErr('MetaMask encountered an error. Please open MetaMask, check for any pending requests, then try again.');
+      } else {
+        setErr('Connection failed: '+(e.message||String(e)));
+      }
+    }finally{setConnecting(false);}
+  };
+
+
+
+  // Listen for MetaMask account changes
+  useEffect(()=>{
+    if(!window.ethereum)return;
+    const onAccounts=accs=>{
+      if(accs&&accs.length>0){connectMM();}
+    };
+    window.ethereum.on('accountsChanged',onAccounts);
+    return()=>window.ethereum.removeListener('accountsChanged',onAccounts);
+  },[]);
+
+  return(
+    <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',padding:20,overflowY:'auto'}}>
+      <div style={{width:'100%',maxWidth:420,background:'var(--panel)',border:'1px solid var(--border)',
+        borderRadius:16,padding:'28px 24px',display:'flex',flexDirection:'column',gap:16,overflowY:'auto',maxHeight:'95vh'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <img src={window.PMT_LOGO} style={{width:52,height:52,borderRadius:14,objectFit:'cover',flexShrink:0}} alt="PMT"/>
+          <div>
+            <div style={{fontSize:22,fontWeight:600}}>PMT-Chat</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',letterSpacing:'1.5px',marginTop:2}}>DECENTRALIZED MESSENGER</div>
+          </div>
+        </div>
+        <p style={{fontSize:13.5,color:'var(--text2)',lineHeight:1.6}}>
+          End-to-end encrypted messages stored on the blockchain. No servers. No surveillance. Own your conversations.
+        </p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          {[['+','E2E Encrypted','AES-256 + wallet keys'],['#','On-Chain','PMT Chain'],
+            ['*','Self-Custody','Wallet = identity'],['+','Send PMT','Crypto in-chat']].map(([i,t,s])=>(
+            <div key={t} style={{display:'flex',alignItems:'flex-start',gap:8,padding:'10px 12px',
+              background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10}}>
+              <span style={{fontSize:16,flexShrink:0}}>{i}</span>
+              <div>
+                <div style={{fontSize:12,fontWeight:500}}>{t}</div>
+                <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>{s}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {err&&(
+          <div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',
+            borderRadius:10,padding:'10px 14px',fontSize:12.5,color:'var(--danger)',lineHeight:1.5}}>
+            ! {err}
+            {!hasProvider&&(
+              <div style={{marginTop:8}}>
+                <a href="https://metamask.io/download/" target="_blank" rel="noreferrer"
+                  style={{color:'var(--accent)',fontWeight:500}}>Download MetaMask </a>
+              </div>
+            )}
+          </div>
+        )}
+
+
+        <button onClick={connectMM} disabled={connecting}
+          style={{padding:'13px 20px',
+            background:connecting?'rgba(246,133,27,0.5)':'#faff63',
+            border:'none',borderRadius:10,
+            color:'#000000',fontWeight:600,fontSize:14,cursor:connecting?'default':'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',gap:10,transition:'all .2s'}}>
+          {connecting
+            ? <><span style={{width:14,height:14,border:'2px solid rgba(255,255,255,.4)',
+                borderTopColor:'#fff',borderRadius:'50%',display:'inline-block',
+                animation:'spin .7s linear infinite'}}/>Approve in MetaMask...</>
+            : <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M16 12h2a2 2 0 0 1 0 4h-2v-4z"/><path d="M2 10h20"/></svg>Connect Wallet</>}
+        </button>
+
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{flex:1,height:'1px',background:'var(--border)'}}/>
+          <span style={{fontSize:11,color:'var(--muted)'}}>self-custody</span>
+          <div style={{flex:1,height:'1px',background:'var(--border)'}}/>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <button onClick={onCreateWallet}
+            style={{padding:'12px 10px',background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:10,color:'var(--text)',fontSize:13,cursor:'pointer',
+              display:'flex',flexDirection:'column',alignItems:'center',gap:6,
+              transition:'border-color .15s'}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
+            onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+            <span style={{fontSize:22,color:"var(--accent)"}}>+</span>
+            <span style={{fontWeight:500}}>Create Wallet</span>
+            <span style={{fontSize:10,color:'var(--muted)'}}>New self-custody wallet</span>
+          </button>
+          <button onClick={onImportWallet}
+            style={{padding:'12px 10px',background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:10,color:'var(--text)',fontSize:13,cursor:'pointer',
+              display:'flex',flexDirection:'column',alignItems:'center',gap:6,
+              transition:'border-color .15s'}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent2)'}
+            onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+            <span style={{fontSize:22}}>v</span>
+            <span style={{fontWeight:500}}>Import Wallet</span>
+            <span style={{fontSize:10,color:'var(--muted)'}}>Seed phrase or key</span>
+          </button>
+        </div>
+
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{flex:1,height:'1px',background:'var(--border)'}}/>
+          <span style={{fontSize:11,color:'var(--muted)'}}>or</span>
+          <div style={{flex:1,height:'1px',background:'var(--border)'}}/>
+        </div>
+
+        <button onClick={onLogin}
+          style={{padding:'11px 20px',background:'var(--surface2)',border:'1px solid var(--accent)',borderRadius:10,
+            color:'var(--accent)',fontSize:13.5,fontWeight:500,cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          Log In with Username
+        </button>
+        <button onClick={onDemo}
+          style={{padding:'11px 20px',background:'transparent',border:'1px solid var(--border)',borderRadius:10,
+            color:'var(--text2)',fontSize:13.5,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          Try Demo Mode (no wallet required)
+        </button>
+        <p style={{fontSize:11,color:'var(--muted)',textAlign:'center',lineHeight:1.5}}>
+          Built on PMT Chain | React 18
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Empty State ── */
+function Empty({onNew}){
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+      gap:14,padding:40,background:'var(--bg)'}}>
+      <img src={window.PMT_LOGO} style={{width:72,height:72,borderRadius:'50%',objectFit:'cover'}} alt="PMT"/>
+      <div style={{fontSize:20,fontWeight:600}}>Select a conversation</div>
+      <div style={{fontSize:13.5,color:'var(--text2)'}}>All messages are end-to-end encrypted on PMT Chain</div>
+      <button onClick={onNew}
+        style={{marginTop:8,padding:'11px 28px',background:'var(--accent)',border:'none',borderRadius:10,
+          color:'#0a0c14',fontWeight:600,fontSize:14,cursor:'pointer'}}>
+        + New Chat
+      </button>
+    </div>
+  );
+}
+
+/* ── App ── */
+function App(){
+  const [screen,setScreen]=useState('landing');
+  const [wallet,setWallet]=useState(null);
+  const [isDemo,setIsDemo]=useState(false);
+  const [contacts,setContacts]=useState(CONTACTS.map(c=>({...c,preview:INIT_MSGS[c.address]?.slice(-1)[0]?.text||'...'})));
+  const [msgs,setMsgs]=useState(INIT_MSGS);
+  const [active,setActive]=useState(null);
+  const [showNew,setShowNew]=useState(false);
+  const [showProfile,setShowProfile]=useState(false);
+  const [profile,setProfile]=useState({name:'',bio:'',avatarUrl:null,address:null});
+
+  // Profile key is per-wallet-address
+  const profileKey=wallet?.address
+    ?'pmt_profile_'+wallet.address.toLowerCase()
+    :'pmt_profile_demo';
+
+  // Load profile whenever wallet changes
+  useEffect(()=>{
+    if(!wallet?.address&&!isDemo)return;
+    try{
+      const key=wallet?.address
+        ?'pmt_profile_'+wallet.address.toLowerCase()
+        :'pmt_profile_demo';
+      const saved=localStorage.getItem(key);
+      if(saved){
+        setProfile(JSON.parse(saved));
+      } else {
+        // New wallet — start fresh profile
+        setProfile({name:'',bio:'',avatarUrl:null,address:wallet?.address||null});
+      }
+    }catch{}
+  },[wallet?.address, isDemo]);
+
+  // Always keep address in sync
+  useEffect(()=>{
+    if(wallet?.address)setProfile(p=>({...p,address:wallet.address}));
+  },[wallet?.address]);
+
+  const handleLogout=useCallback(()=>{
+    // Clear active session but keep account data
+    try{
+      localStorage.removeItem('pmt_session');
+      // Also remove old-style wallet so MetaMask can reconnect cleanly
+      localStorage.removeItem('pmt_wallet');
+    }catch{}
+    setWallet(null);
+    setIsDemo(false);
+    setActive(null);
+    setProfile({name:'',bio:'',avatarUrl:null,address:null});
+    setScreen('landing');
+  },[]);
+
+  const saveProfile=useCallback((updates)=>{
+    setProfile(p=>{
+      const next={...p,...updates,address:wallet?.address||p.address};
+      try{
+        const key=wallet?.address
+          ?'pmt_profile_'+wallet.address.toLowerCase()
+          :'pmt_profile_demo';
+        localStorage.setItem(key,JSON.stringify(next));
+      }catch{}
+      return next;
+    });
+  },[wallet?.address]);
+
+  // Check if any PMT accounts exist in localStorage
+  const hasSavedAccounts=(()=>{
+    try{for(let i=0;i<localStorage.length;i++){if((localStorage.key(i)||'').startsWith('pmt_account_'))return true;}return false;}
+    catch{return false;}
+  })();
+
+  // Auto-load saved session on start
+  useEffect(()=>{
+    try{
+      // Only auto-login if there's an active session token
+      const session=localStorage.getItem('pmt_session');
+      if(session){
+        const s=JSON.parse(session);
+        if(s.address&&s.username){
+          // Has active session — go to login screen to verify password
+          setScreen('login');
+          return;
+        }
+      }
+      // Check old-style unencrypted wallet (backwards compat, no accounts system)
+      const saved=localStorage.getItem('pmt_wallet');
+      if(saved){
+        const w=JSON.parse(saved);
+        // Only auto-login old wallet if NO pmt_account_ keys exist
+        let hasNewAccounts=false;
+        for(let i=0;i<localStorage.length;i++){
+          if((localStorage.key(i)||'').startsWith('pmt_account_')){hasNewAccounts=true;break;}
+        }
+        if(!hasNewAccounts&&w.address){
+          setWallet({address:w.address,balance:'0.0000',network:'PMT Chain'});
+          setIsDemo(false);
+          setScreen('app');
+        }
+      }
+    }catch{}
+  },[]);
+
+  const handleMetaMask=useCallback(({address,balance,network,username,privateKey,chainId})=>{
+    setWallet({address,balance,network,username,privateKey,chainId});
+    setIsDemo(false);
+    setScreen('app');
+    if(window.ethereum){
+      window.ethereum.on('accountsChanged',async accs=>{
+        if(!accs||accs.length===0){setWallet(null);setScreen('landing');}
+        else{
+          const balHex=await window.ethereum.request({method:'eth_getBalance',params:[accs[0],'latest']}).catch(()=>'0x0');
+          setWallet(w=>({...w,address:accs[0],balance:(parseInt(balHex,16)/1e18).toFixed(4)}));
+        }
+      });
+    }
+  },[]);
+
+  const selectContact=c=>{setActive(c);if(!msgs[c.address])setMsgs(p=>({...p,[c.address]:[]}))}
+
+  const sendMsg=useCallback(input=>{
+    if(!active)return;
+    BLOCK++;
+    const isVoice=typeof input==='object'&&input.type==='voice';
+    const msg=(isVoice||isImage||isFile)
+      ?{id:'u'+Date.now(),out:true,...input,
+        time:now(),block:BLOCK,confirms:0,hash:rndHash(),pending:true}
+      :{id:'u'+Date.now(),out:true,text:input,time:now(),block:BLOCK,confirms:0,hash:rndHash(),pending:true};
+    setMsgs(p=>({...p,[active.address]:[...(p[active.address]||[]),msg]}));
+    const isImage=typeof input==='object'&&input.type==='image';
+    const isFile=typeof input==='object'&&input.type==='file';
+    const preview=isVoice?'🎙 Voice message':isImage?'🖼 Image':isFile?('📄 '+input.fileName):input;
+    setContacts(p=>p.map(c=>c.id===active.id?{...c,preview}:c));
+    // Simulate confirms
+    let c=0;
+    const iv=setInterval(()=>{
+      c++;
+      setMsgs(p=>({...p,[active.address]:(p[active.address]||[]).map(m=>
+        m.id===msg.id?{...m,confirms:c,pending:c===0}:m
+      )}));
+      if(c>=12)clearInterval(iv);
+    },600);
+    // Simulate reply after 2s (for some contacts)
+    if([1,3].includes(active.id)){
+      const replies=['Interesting! Tell me more.','Got it, checking now...','🔗 Transaction confirmed ✓','Agreed. Let\'s ship it.','What block did that confirm in?'];
+      setTimeout(()=>{
+        BLOCK++;
+        const reply={id:'r'+Date.now(),out:false,text:replies[Math.floor(Math.random()*replies.length)],
+          time:now(),block:BLOCK,confirms:0,hash:rndHash()};
+        setMsgs(p=>({...p,[active.address]:[...(p[active.address]||[]),reply]}));
+        setContacts(p=>p.map(c=>c.id===active.id?{...c,preview:reply.text}:c));
+        let rc=0;const riv=setInterval(()=>{
+          rc++;setMsgs(p=>({...p,[active.address]:(p[active.address]||[]).map(m=>
+            m.id===reply.id?{...m,confirms:rc}:m)}));
+          if(rc>=8)clearInterval(riv);
+        },700);
+      },1800+Math.random()*1500);
+    }
+  },[active]);
+
+  const sendETH=useCallback(async(contact,amount)=>{
+    BLOCK++;
+    const txId='tx'+Date.now();
+    const tx={id:txId,type:'tx',out:true,amount,coin:'PMT',time:now(),block:BLOCK,confirms:0,hash:rndHash(),pending:true};
+    setMsgs(p=>({...p,[contact.address]:[...(p[contact.address]||[]),tx]}));
+    setContacts(p=>p.map(c=>c.id===contact.id?{...c,preview:`◈ Sent ${amount} PMT`}:c));
+
+    if(!isDemo&&wallet&&window.ethereum){
+      // Real transaction via MetaMask
+      try{
+        const toAddr=contact.address;
+        // Validate it's a full 42-char Ethereum address
+        if(!/^0x[0-9a-fA-F]{40}$/.test(toAddr)){
+          setMsgs(p=>({...p,[contact.address]:(p[contact.address]||[]).filter(m=>m.id!==txId)}));
+          throw new Error('This contact has no valid wallet address. Please add their full 0x address first.');
+        }
+        // Convert amount to hex wei (1 PMT = 1e18 wei assuming 18 decimals)
+        const weiHex='0x'+BigInt(Math.floor(parseFloat(amount)*1e18)).toString(16);
+        const txHash=await window.ethereum.request({
+          method:'eth_sendTransaction',
+          params:[{from:wallet.address,to:toAddr,value:weiHex}]
+        });
+        // Update with real tx hash
+        setMsgs(p=>({...p,[contact.address]:(p[contact.address]||[]).map(m=>
+          m.id===txId?{...m,hash:txHash,pending:false,confirms:1}:m
+        )}));
+        return txHash;
+      }catch(e){
+        // Remove pending tx on error
+        setMsgs(p=>({...p,[contact.address]:(p[contact.address]||[]).filter(m=>m.id!==txId)}));
+        throw e;
+      }
+    } else {
+      // Demo mode  -  simulate confirmation
+      setTimeout(()=>setMsgs(p=>({...p,[contact.address]:(p[contact.address]||[]).map(m=>
+        m.id===txId?{...m,confirms:3,pending:false}:m)})),2000);
+      return null;
+    }
+  },[isDemo,wallet]);
+
+  const addContact=({address,name})=>{
+    const colors=['#a78bfa','#f59e0b','#34d399','#63d2ff','#f43f5e','#06b6d4'];
+    const bgs=['#1e1b30','#2a1f0a','#0a2a1f','#0a1f2a','#2a0a14','#0a2028'];
+    const i=contacts.length%colors.length;
+    const c={id:Date.now(),address,name,avatar:name.slice(0,2).toUpperCase(),color:colors[i],bg:bgs[i],online:false,preview:'New contact'};
+    setContacts(p=>[c,...p]);
+    setActive(c);setMsgs(p=>({...p,[address]:[]}));
+    setShowNew(false);
+  };
+
+  if(screen==='create') return <CreateWalletFlow onWallet={handleMetaMask} onBack={()=>setScreen('landing')}/>;
+  if(screen==='import') return <ImportWalletFlow onWallet={handleMetaMask} onBack={()=>setScreen('landing')}/>;
+  if(screen==='login') return <LoginScreen onLogin={handleMetaMask} onBack={()=>setScreen('landing')}/>;
+  if(screen==='landing') return <Landing
+    onDemo={()=>{setIsDemo(true);setScreen('app');}}
+    onMetaMask={handleMetaMask}
+    onCreateWallet={()=>setScreen('create')}
+    onImportWallet={()=>setScreen('import')}
+    onLogin={()=>setScreen('login')}
+  />;
+
+  return(
+    <div style={{display:'grid',gridTemplateColumns:'260px 1fr',height:'100vh',overflow:'hidden'}}>
+      <Sidebar contacts={contacts} activeId={active?.id} onSelect={selectContact} onNew={()=>setShowNew(true)} onProfile={()=>setShowProfile(true)} onLogout={handleLogout} wallet={wallet} isDemo={isDemo} profile={profile}/>
+      {active
+        ? <ChatPanel contact={active} messages={msgs[active.address]||[]} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo}/>
+        : <Empty onNew={()=>setShowNew(true)}/>}
+      {showNew&&<NewChatModal onClose={()=>setShowNew(false)} onAdd={addContact}/>}
+      {showProfile&&<ProfileModal profile={{...profile,address:wallet?.address}} onClose={()=>setShowProfile(false)} onSave={saveProfile}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
