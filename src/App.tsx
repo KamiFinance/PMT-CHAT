@@ -92,7 +92,11 @@ export default function App() {
       if (sess) {
         const { username, address } = JSON.parse(sess);
         if (address && username) {
-          // Check if wallet was verified within the last 24 hours
+          // Internal wallets (created/imported in-app) have a privateKey stored in session.
+          // They don't need external wallet verification — ownership is proven by having the key.
+          const { privateKey } = JSON.parse(sess);
+          if (privateKey) return 'chat';
+          // External wallets (MetaMask login with username) require 24h verify token
           const verifyTs = localStorage.getItem(`pmt_verify_${address.toLowerCase()}`);
           const isValid  = verifyTs && (Date.now() - parseInt(verifyTs)) < 86400000; // 24h
           return isValid ? 'chat' : 'verify';

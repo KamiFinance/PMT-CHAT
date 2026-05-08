@@ -75,10 +75,11 @@ export default function LoginScreen({onLogin,onBack}){
         if(!ok)return setErr('Incorrect password. Please try again.');
         const walletData=await PMTAuth.decryptWallet(account.encryptedWallet,password);
         localStorage.setItem('pmt_session',JSON.stringify({username:account.username,address:account.address}));
-        // Password verified — now require wallet ownership confirmation
-        setPendingLogin({address:walletData.address,privateKey:walletData.privateKey,
-          balance:'0.0000',network:'PMChain',username:account.username,sessionPassword:password});
-        setVerifyStep(true);
+        // Internal wallet (created/imported in-app): has privateKey, skip external verify
+        const loginData={address:walletData.address,privateKey:walletData.privateKey,
+          balance:'0.0000',network:'PMChain',username:account.username,sessionPassword:password};
+        if(walletData.privateKey){onLogin(loginData);}
+        else{setPendingLogin(loginData);setVerifyStep(true);}
       } else {
         // Cloud restore: account not on this device — try IPFS backup
         setErr('Checking cloud backup…');
@@ -97,13 +98,15 @@ export default function LoginScreen({onLogin,onBack}){
         localStorage.setItem('pmt_account_'+username.trim().toLowerCase(), JSON.stringify(acctData));
         localStorage.setItem('pmt_account_'+w.address.toLowerCase(), JSON.stringify(acctData));
         localStorage.setItem('pmt_session', JSON.stringify({username: username.trim().toLowerCase(), address: w.address}));
-        setPendingLogin({ address: w.address, privateKey: w.privateKey ?? '', balance:'0.0000',
+        const restoreData={ address: w.address, privateKey: w.privateKey ?? '', balance:'0.0000',
           network:'PMChain', username: username.trim().toLowerCase(),
           sessionPassword: password,
           restoredContacts: contacts ?? [],
           restoredMessages: messages ?? {},
-          restoredProfile: profile ?? {} });
-        setVerifyStep(true);
+          restoredProfile: profile ?? {} };
+        // Internal wallet: has privateKey — no need for external wallet verify
+        if(w.privateKey){onLogin(restoreData);}
+        else{setPendingLogin(restoreData);setVerifyStep(true);}
       }
     }catch(e){
       if(e.message==='WRONG_PASSWORD'||e.message?.includes('decrypt')||e.name==='OperationError')
