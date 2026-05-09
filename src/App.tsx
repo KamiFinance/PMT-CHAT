@@ -542,7 +542,12 @@ export default function App() {
           // Internal wallet (created/imported) — sign & send directly, no MetaMask needed
           const provider = new ethers.JsonRpcProvider('https://node1-ipm.dweb3.wtf');
           const signer = new ethers.Wallet(walletRef.current.privateKey, provider);
-          const tx = await signer.sendTransaction({ to: addr, value: BigInt(Math.floor(parseFloat(amount) * 1e18)) });
+          // Use explicit gasLimit to skip estimateGas — PMTchain RPC doesn't support it
+          const tx = await signer.sendTransaction({
+            to: addr,
+            value: BigInt(Math.floor(parseFloat(amount) * 1e18)),
+            gasLimit: 21000,
+          });
           txHash = tx.hash;
         } else {
           // External wallet (MetaMask) — use EIP-6963 provider directly
