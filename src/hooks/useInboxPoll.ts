@@ -225,10 +225,11 @@ export function useInboxPoll({
             if (grp) pushNotif(grp, previewText(inboxMsg));
             return updated;
           });
-          setMsgs(prev => ({
-            ...prev,
-            [normalizeAddress(groupAddr)]: [...(prev[normalizeAddress(groupAddr)] ?? []), newMsg],
-          }));
+          setMsgs(prev => {
+            const key = normalizeAddress(groupAddr);
+            if ((prev[key] ?? []).some(m => m.id === newMsg.id)) return prev;
+            return { ...prev, [key]: [...(prev[key] ?? []), newMsg] };
+          });
           return;
         }
 
@@ -275,8 +276,10 @@ export function useInboxPoll({
           // Group message: route to group conversation
           if (inboxMsg.groupId) {
             const groupAddr = normalizeAddress(`group_${inboxMsg.groupId}`);
+            if ((prev[groupAddr] ?? []).some(m => m.id === newMsg.id)) return prev;
             return { ...prev, [groupAddr]: [...(prev[groupAddr] ?? []), newMsg] };
           }
+          if ((prev[senderAddr] ?? []).some(m => m.id === newMsg.id)) return prev;
           return { ...prev, [senderAddr]: [...(prev[senderAddr] ?? []), newMsg] };
         });
       });

@@ -138,6 +138,7 @@ export default function App() {
   const activeRef = useRef<Contact | null>(null);
   const walletRef = useRef<Wallet | null>(null);
   const contactsRef = useRef<Contact[]>([]);
+  const prevAccountKeyRef = useRef<string | null>(null);
   // Session password — kept in memory only, never persisted, used for auto cloud backup
   const sessionPasswordRef = useRef<string | null>(null);
   const profileRef = useRef<Profile>({ name: '', bio: '', avatarUrl: null, address: null });
@@ -292,6 +293,12 @@ export default function App() {
 
   useEffect(() => {
     if (!accountKey) return;
+    // Skip save when accountKey just changed — load effect runs first and we'd wipe localStorage
+    // before the loaded messages are applied. prevAccountKeyRef tracks when the switch happened.
+    if (accountKey !== prevAccountKeyRef.current) {
+      prevAccountKeyRef.current = accountKey;
+      return;
+    }
     storage.setMsgs(accountKey, msgs);
   }, [msgs, accountKey]);
 
