@@ -137,6 +137,7 @@ export default function App() {
   const [active, setActive] = useState<Contact | null>(null);
   const activeRef = useRef<Contact | null>(null);
   const walletRef = useRef<Wallet | null>(null);
+  const contactsRef = useRef<Contact[]>([]);
   // Session password — kept in memory only, never persisted, used for auto cloud backup
   const sessionPasswordRef = useRef<string | null>(null);
   const profileRef = useRef<Profile>({ name: '', bio: '', avatarUrl: null, address: null });
@@ -172,6 +173,8 @@ export default function App() {
     walletRef.current = wallet;
     profileRef.current = profile;
   }, [wallet, profile]);
+
+  useEffect(() => { contactsRef.current = contacts; }, [contacts]);
 
   // Handle invite link join on page load (?join=linkId)
   React.useEffect(() => {
@@ -425,12 +428,30 @@ export default function App() {
               inbox.push(rxnMsg);
               localStorage.setItem(STORAGE_KEYS.inbox(addr), JSON.stringify(inbox));
             } catch {}
-            // Cross-device delivery via relay API
-            fetch(`/api/inbox?address=${addr}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(rxnMsg),
-            }).catch(() => {});
+            // Cross-device delivery — for groups relay to each member, for DMs relay to contact
+            const contact = contactsRef.current?.find((c: any) => normalizeAddress(c.address) === addr);
+            if (contact?.isGroup) {
+              // Group reaction: fetch live member list and relay to each
+              const groupId = contact.groupId || contact.id;
+              fetch(`/api/groups?id=${groupId}`)
+                .then(r => r.json())
+                .then(grpData => {
+                  const members: string[] = (grpData.members ?? contact.members ?? []).map((m2: any) => normalizeAddress(typeof m2 === 'string' ? m2 : ''));
+                  members.forEach(memberAddr => {
+                    if (!memberAddr || memberAddr === myAddr) return;
+                    fetch(`/api/inbox?address=${memberAddr}`, {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(rxnMsg),
+                    }).catch(() => {});
+                  });
+                }).catch(() => {});
+            } else {
+              fetch(`/api/inbox?address=${addr}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rxnMsg),
+              }).catch(() => {});
+            }
           }
           return { ...m, reactions };
         }),
