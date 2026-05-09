@@ -172,6 +172,28 @@ export default function App() {
     profileRef.current = profile;
   }, [wallet, profile]);
 
+  // Fetch balance directly from PMTchain RPC — works for all wallet types
+  useEffect(() => {
+    if (!wallet?.address || isDemo || wallet.address === 'demo') return;
+    const fetchBal = async () => {
+      try {
+        const res = await fetch('https://node1-ipm.dweb3.wtf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_getBalance', params: [wallet.address, 'latest'], id: 1 }),
+        });
+        const { result } = await res.json();
+        if (result) {
+          const bal = (parseInt(result, 16) / 1e18).toFixed(4);
+          setWallet(prev => prev ? { ...prev, balance: bal } : prev);
+        }
+      } catch { /* silent */ }
+    };
+    fetchBal();
+    const timer = setInterval(fetchBal, 30000); // refresh every 30s
+    return () => clearInterval(timer);
+  }, [wallet?.address, isDemo]);
+
   useEffect(() => {
     document.body.classList.toggle('light-mode', !darkMode);
     storage.setTheme(darkMode ? 'dark' : 'light');
