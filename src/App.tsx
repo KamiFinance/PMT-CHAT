@@ -133,7 +133,18 @@ export default function App() {
   const [backupPromptErr, setBackupPromptErr] = useState('');
   const [backupPromptSaving, setBackupPromptSaving] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [msgs, setMsgs] = useState<MsgsMap>({});
+  const [msgs, setMsgs] = useState<MsgsMap>(() => {
+    // Load messages synchronously from localStorage on mount (same pattern as wallet init)
+    // This avoids timing issues with useEffect-based loading where effects may run in unexpected order
+    try {
+      const sess = localStorage.getItem('pmt_session');
+      if (!sess) return {};
+      const { address } = JSON.parse(sess);
+      if (!address) return {};
+      const key = address.toLowerCase();
+      return storage.getMsgs(key) ?? {};
+    } catch { return {}; }
+  });
   const [active, setActive] = useState<Contact | null>(null);
   const activeRef = useRef<Contact | null>(null);
   const walletRef = useRef<Wallet | null>(null);
@@ -281,6 +292,8 @@ export default function App() {
       setContacts([AI_AGENT_CONTACT]);
     }
     const savedMsgs = storage.getMsgs(accountKey);
+    // Note: on first mount, msgs are already loaded via useState initializer.
+    // This effect handles account switches (logout/login with different account).
     if (Object.keys(savedMsgs).length > 0) {
       const normalized: MsgsMap = {};
       Object.entries(savedMsgs).forEach(([addr, list]) => {
