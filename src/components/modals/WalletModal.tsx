@@ -42,9 +42,19 @@ export default function WalletModal({wallet,isDemo,onClose}){
       }
     }catch{}
 
-    // PMT balance
-    list.unshift({symbol:'PMT',name:'PMTchain',
-      balance:isDemo?'2.847':'0.000',icon:'◈',color:'#faff63'});
+    // PMT balance — fetch directly from PMTchain RPC
+    try {
+      const pmtRes = await fetch('https://node1-ipm.dweb3.wtf', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({jsonrpc:'2.0', id:1, method:'eth_getBalance', params:[address,'latest']}),
+      });
+      const pmtData = await pmtRes.json();
+      const pmtBal = pmtData.result ? (parseInt(pmtData.result, 16) / 1e18).toFixed(4) : '0.0000';
+      list.unshift({symbol:'PMT', name:'PMTchain', balance:pmtBal, icon:'◈', color:'#faff63'});
+    } catch {
+      list.unshift({symbol:'PMT', name:'PMTchain', balance:wallet?.balance||'0.0000', icon:'◈', color:'#faff63'});
+    }
 
     try{
       // ERC-20 tokens via Moralis public API (no key needed for basic)
