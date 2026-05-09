@@ -540,10 +540,17 @@ export default function App() {
         let txHash: string;
         // Verify private key actually derives to the current wallet address (guards against stale sessionStorage)
         const pk = walletRef.current.privateKey;
+        const myAddr = walletRef.current.address?.toLowerCase() ?? '';
         const pkValid = pk && (() => {
-          try { return new ethers.Wallet(pk).address.toLowerCase() === walletRef.current.address?.toLowerCase(); }
+          try { return new ethers.Wallet(pk).address.toLowerCase() === myAddr; }
           catch { return false; }
         })();
+        if (pk && !pkValid) {
+          // Stale key — clear it so next login saves the correct one
+          sessionStorage.removeItem('pmt_pk_' + myAddr);
+          walletRef.current = { ...walletRef.current, privateKey: '' };
+          throw new Error('Session expired. Please log out and log back in to send PMT.');
+        }
         if (pkValid) {
           // Internal wallet (created/imported) — sign & send directly, no MetaMask needed
           const provider = new ethers.JsonRpcProvider('https://node1-ipm.dweb3.wtf');
