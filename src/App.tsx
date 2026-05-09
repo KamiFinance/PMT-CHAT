@@ -172,6 +172,44 @@ export default function App() {
     profileRef.current = profile;
   }, [wallet, profile]);
 
+  // Handle invite link join on page load (?join=linkId)
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const joinId = params.get('join');
+    if (!joinId || !wallet?.address) return;
+    // Remove param from URL without reload
+    window.history.replaceState({}, '', window.location.pathname);
+    fetch(`/api/groups?link=${encodeURIComponent(joinId)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) { alert('Invite link error: ' + data.error); return; }
+        if (window.confirm(`Join group "${data.group.name}"?
+${data.group.bio || ''}
+Members: ${data.group.memberCount}`)) {
+          fetch('/api/groups?action=join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ linkId: joinId, address: wallet.address }),
+          }).then(r => r.json()).then(d => {
+            if (d.ok) {
+              const g = d.group;
+              const contact = {
+                id: g.id, address: 'group_' + g.id, name: g.name, bio: g.bio,
+                avatarUrl: g.avatarUrl, avatar: g.name.slice(0, 2).toUpperCase(),
+                color: '#a78bfa', bg: '#1e1b30', online: false, isGroup: true,
+                members: g.members, groupId: g.id, createdBy: g.createdBy,
+                preview: d.alreadyMember ? 'Already a member' : 'Joined group', unread: 0,
+              };
+              if (!d.alreadyMember) setContacts(p => { if (p.find(x => x.id === g.id)) return p; return [contact, ...p]; });
+              selectContact(contact);
+            } else { alert('Could not join: ' + d.error); }
+          });
+        }
+      })
+      .catch(() => alert('Could not fetch invite link info.'));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet?.address]);
+
   // Fetch balance directly from PMTchain RPC — works for all wallet types
   useEffect(() => {
     if (!wallet?.address || isDemo || wallet.address === 'demo') return;
@@ -906,7 +944,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} darkMode={darkMode} onToggleTheme={toggleTheme} />}
       {showWallet && <WalletModal wallet={wallet} isDemo={isDemo} onClose={() => setShowWallet(false)} />}
       {showNew && <NewChatModal onClose={() => setShowNew(false)} onAdd={(c) => { setContacts(p => p.find(x => normalizeAddress(x.address) === normalizeAddress(c.address)) ? p : [...p, c]); selectContact(c); setShowNew(false); }} />}
-      {showGroup && <GroupChatModal contacts={contacts.filter(c => !c.isAI && !c.isGroup)} onClose={() => setShowGroup(false)} onCreate={(g) => { setContacts(p => [g, ...p]); selectContact(g); setShowGroup(false); }} />}
+      {showGroup && <GroupChatModal contacts={contacts.filter(c => !c.isAI && !c.isGroup)} myAddress={wallet?.address ?? ''} onClose={() => setShowGroup(false)} onCreate={(g) => { setContacts(p => [g, ...p]); selectContact(g); }} />}
       {editContact && <EditContactModal contact={editContact} onClose={() => setEditContact(null)} onSave={(u) => { setContacts(p => p.map(c => c.id === editContact.id ? { ...c, ...u } : c)); if (active?.id === editContact.id) setActiveAndRef({ ...active, ...u }); setEditContact(null); }} onDelete={() => { setContacts(p => p.filter(c => c.id !== editContact.id)); if (active?.id === editContact.id) setActiveAndRef(null); setEditContact(null); }} />}
       {showSearch && <SearchOverlay contacts={contacts} msgs={msgs} onClose={() => setShowSearch(false)} onNavigate={(cId) => { const c = contacts.find(x => x.id === cId); if (c) { selectContact(c); setShowSearch(false); }}} />}
       <NotificationToast notifs={notifs} onDismiss={(id) => setNotifs(p => p.filter(n => n.id !== id))} onSelect={(n) => { selectContact(n.contact); setNotifs(p => p.filter(x => x.id !== n.id)); }} />
