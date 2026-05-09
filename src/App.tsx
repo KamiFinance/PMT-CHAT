@@ -560,11 +560,18 @@ export default function App() {
           const accountRaw = localStorage.getItem(`pmt_account_${username.toLowerCase()}`);
           if (!accountRaw) throw new Error('Wallet not found on this device.');
           const account = JSON.parse(accountRaw);
-          const walletData = await (await import('./lib/auth')).PMTAuth.decryptWallet(account.encryptedWallet, walletPassword) as any;
-          if (!pkMatches(walletData.privateKey)) throw new Error('Incorrect password.');
+          let walletData: any;
+          try {
+            walletData = await (await import('./lib/auth')).PMTAuth.decryptWallet(account.encryptedWallet, walletPassword);
+          } catch {
+            throw new Error('Incorrect password. Please try again.');
+          }
+          if (!walletData?.privateKey) throw new Error('Incorrect password. Please try again.');
           usePk = walletData.privateKey;
-          sessionStorage.setItem('pmt_pk_' + myAddr, usePk);
-          walletRef.current = { ...walletRef.current, privateKey: usePk };
+          // Use the address derived from the decrypted key (may differ from session if account was re-imported)
+          const derivedAddr = new ethers.Wallet(usePk).address.toLowerCase();
+          sessionStorage.setItem('pmt_pk_' + derivedAddr, usePk);
+          walletRef.current = { ...walletRef.current, privateKey: usePk, address: walletData.address || derivedAddr };
         }
         if (usePk) {
           // Internal wallet — sign & send directly, no MetaMask needed
