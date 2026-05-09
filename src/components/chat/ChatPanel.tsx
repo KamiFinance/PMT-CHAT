@@ -76,7 +76,7 @@ function EmojiPicker({onSelect,onClose}:{onSelect:(e:string)=>void,onClose:()=>v
   );
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,wallet}){
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
@@ -484,7 +484,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
 
       {showSend&&<SendModal contact={contact} onClose={()=>setShowSend(false)}
         onSend={(amt,pwd)=>onSendETH(contact,amt,pwd)} isDemo={isDemo}
-        needsPassword={!!wallet?.username&&!wallet?.privateKey&&!!localStorage.getItem('pmt_account_'+(wallet?.username||'').toLowerCase())}/>}
+        needsPassword={!!needsPasswordToSend}/>}
     </>
   );
 }
