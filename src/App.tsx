@@ -607,11 +607,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       } catch {}
     }
 
-    // Group message relay — send to each member's inbox
+    // Group message relay — fetch fresh member list from server then send to each member
     if (activeRef.current.isGroup && !isDemo && walletRef.current?.address) {
       const w = walletRef.current;
       const grp = activeRef.current;
-      const members: string[] = (grp.members ?? []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : m.address ?? ''));
+      const groupId = grp.groupId || grp.id;
       const msgContent = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : input as string;
       const inboxMsg = {
         id: msg.id, type: msg.type, text: msgContent,
@@ -620,21 +620,41 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         from: w.address, fromName: profileRef.current?.name || w.username || w.address.slice(0, 8),
         fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : profileRef.current?._thumbUrl ?? null; })(),
         fromBio: profileRef.current?.bio ?? '',
-        // Group routing fields
-        groupId: grp.groupId || grp.id,
+        groupId,
         groupName: grp.name,
         groupAvatarUrl: grp.avatarUrl ?? null,
         time: now(), block, hash: msg.hash, confirms: 0, ts: Date.now(),
       };
-      // Relay to each member (except self)
-      members.forEach(memberAddr => {
-        if (memberAddr === normalizeAddress(w.address)) return; // skip self
-        fetch(`/api/inbox?address=${memberAddr}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(inboxMsg),
-        }).catch(() => {});
-      });
+      try {
+        // Always fetch latest member list from server (local list may be stale)
+        const grpRes = await fetch(`/api/groups?id=${groupId}`);
+        const grpData = await grpRes.json();
+        const members: string[] = (grpData.members ?? grp.members ?? []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
+        // Update local contact's member list
+        if (grpData.members) {
+          setContacts(p => p.map(c => c.groupId === groupId ? { ...c, members: grpData.members } : c));
+        }
+        // Relay to each member except self
+        members.forEach(memberAddr => {
+          if (!memberAddr || memberAddr === normalizeAddress(w.address)) return;
+          fetch(`/api/inbox?address=${memberAddr}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(inboxMsg),
+          }).catch(() => {});
+        });
+      } catch {
+        // Fallback to local member list
+        const members: string[] = (grp.members ?? []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
+        members.forEach(memberAddr => {
+          if (!memberAddr || memberAddr === normalizeAddress(w.address)) return;
+          fetch(`/api/inbox?address=${memberAddr}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(inboxMsg),
+          }).catch(() => {});
+        });
+      }
     }
   }, [isDemo, handleMediaUploaded]);
 
