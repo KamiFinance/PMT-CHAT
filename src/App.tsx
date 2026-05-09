@@ -177,6 +177,26 @@ export default function App() {
 
   useEffect(() => { contactsRef.current = contacts; }, [contacts]);
 
+  // Deduplicate msgs state once on mount — cleans up any dupes already in memory
+  // (can happen if local + API relay both delivered same message before dedup fix)
+  useEffect(() => {
+    setMsgs(prev => {
+      let changed = false;
+      const clean: MsgsMap = {};
+      Object.entries(prev).forEach(([addr, list]) => {
+        const seen = new Set<string>();
+        const deduped = (list ?? []).filter((m: any) => {
+          if (seen.has(m.id)) { changed = true; return false; }
+          seen.add(m.id);
+          return true;
+        });
+        clean[addr] = deduped;
+      });
+      return changed ? clean : prev;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount
+
   // Handle invite link join on page load (?join=linkId)
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -308,7 +328,18 @@ export default function App() {
       return; // skip save during any accountKey transition (load effect fires next)
     }
     if (!accountKey) return;
-    storage.setMsgs(accountKey, msgs);
+    // Deduplicate by msgId before saving — guards against any duplication
+    // that crept into React state (from concurrent processLocalInbox + processApiInbox)
+    const clean: MsgsMap = {};
+    Object.entries(msgs).forEach(([addr, list]) => {
+      const seen = new Set<string>();
+      clean[addr] = (list ?? []).filter((m: any) => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
+    });
+    storage.setMsgs(accountKey, clean);
   }, [msgs, accountKey]);
 
   // Auto cloud backup — saves encrypted backup to IPFS whenever contacts or messages change.
