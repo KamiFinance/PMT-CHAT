@@ -207,6 +207,13 @@ export default function App() {
 
   useEffect(() => { contactsRef.current = contacts; }, [contacts]);
 
+  // Clean up stale pmt_pk_ entries in sessionStorage that don't belong to current wallet
+  React.useEffect(() => {
+    const myAddr = wallet?.address?.toLowerCase();
+    if (!myAddr) return;
+    Object.keys(sessionStorage).filter(k => k.startsWith('pmt_pk_') && k !== `pmt_pk_${myAddr}`).forEach(k => sessionStorage.removeItem(k));
+  }, [wallet?.address]);
+
   // Deduplicate msgs state once on mount — cleans up any dupes already in memory
   // (can happen if local + API relay both delivered same message before dedup fix)
   useEffect(() => {
@@ -573,11 +580,14 @@ export default function App() {
             throw new Error('Incorrect password. Please try again.');
           }
           if (!walletData?.privateKey) throw new Error('Incorrect password. Please try again.');
+          // Validate the decrypted key is for the current wallet address
+          const derivedAddr = new ethers.Wallet(walletData.privateKey).address.toLowerCase();
+          if (derivedAddr !== myAddr) {
+            throw new Error(`This password unlocks wallet ${derivedAddr.slice(0,8)}... but you are logged in as ${myAddr.slice(0,8)}.... Please re-import the correct wallet.`);
+          }
           usePk = walletData.privateKey;
-          // Use the address derived from the decrypted key (may differ from session if account was re-imported)
-          const derivedAddr = new ethers.Wallet(usePk).address.toLowerCase();
-          sessionStorage.setItem('pmt_pk_' + derivedAddr, usePk);
-          walletRef.current = { ...walletRef.current, privateKey: usePk, address: walletData.address || derivedAddr };
+          sessionStorage.setItem('pmt_pk_' + myAddr, usePk);
+          walletRef.current = { ...walletRef.current, privateKey: usePk };
         }
         if (usePk) {
           // Internal wallet — sign & send directly, no MetaMask needed
