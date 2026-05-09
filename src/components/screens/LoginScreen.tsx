@@ -78,7 +78,12 @@ export default function LoginScreen({onLogin,onBack}){
         // Internal wallet (created/imported in-app): has privateKey, skip external verify
         const loginData={address:walletData.address,privateKey:walletData.privateKey,
           balance:'0.0000',network:'PMTchain',username:account.username,sessionPassword:password};
-        if(walletData.privateKey){onLogin(loginData);}
+        if(walletData.privateKey){
+          // Persist privateKey in sessionStorage so it survives page refresh
+          // sessionStorage is cleared when the tab is closed — safer than localStorage
+          sessionStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey);
+          onLogin(loginData);
+        }
         else{setPendingLogin(loginData);setVerifyStep(true);}
       } else {
         // Cloud restore: account not on this device — try IPFS backup
@@ -105,7 +110,10 @@ export default function LoginScreen({onLogin,onBack}){
           restoredMessages: messages ?? {},
           restoredProfile: profile ?? {} };
         // Internal wallet: has privateKey — no need for external wallet verify
-        if(w.privateKey){onLogin(restoreData);}
+        if(w.privateKey){
+          sessionStorage.setItem('pmt_pk_'+w.address.toLowerCase(), w.privateKey);
+          onLogin(restoreData);
+        }
         else{setPendingLogin(restoreData);setVerifyStep(true);}
       }
     }catch(e){

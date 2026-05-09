@@ -65,7 +65,8 @@ export default function ImportWalletFlow({onWallet,onBack}){
       const key='pmt_account_'+username.trim().toLowerCase();
       localStorage.setItem(key,JSON.stringify(account));
       localStorage.setItem('pmt_session',JSON.stringify({username:username.trim(),address:importedWallet.address}));
-      onWallet({address:importedWallet.address,balance:'0.0000',network:'PMTchain',
+      sessionStorage.setItem('pmt_pk_'+importedWallet.address.toLowerCase(), importedWallet.privateKey);
+      onWallet({address:importedWallet.address,privateKey:importedWallet.privateKey,balance:'0.0000',network:'PMTchain',
         chainId:'0x46df2',username:username.trim()});
     }catch(e){
       setPwdErr('Failed to secure wallet: '+e.message);
