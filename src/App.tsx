@@ -265,7 +265,15 @@ export default function App() {
       const normalized: MsgsMap = {};
       Object.entries(savedMsgs).forEach(([addr, list]) => {
         const key = addr.toLowerCase();
-        normalized[key] = [...(normalized[key] ?? []), ...(list ?? []).map(m => {
+        // Deduplicate by msgId — prevents showing same message twice
+        // (can happen if local + API relay both delivered before dedup fix was deployed)
+        const seen = new Set<string>();
+        const deduped = (list ?? []).filter((m: any) => {
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
+          return true;
+        });
+        normalized[key] = [...(normalized[key] ?? []), ...deduped.map(m => {
           if ((m.type === 'image' || m.type === 'file') && !m.fileUrl) {
             if (m.ipfsCid) m.fileUrl = getIpfsUrl(m.ipfsCid);
             else if (m.b64Data) m.fileUrl = m.b64Data;
@@ -292,13 +300,14 @@ export default function App() {
   }, [contacts, accountKey]);
 
   useEffect(() => {
-    if (!accountKey) return;
-    // Skip save when accountKey just changed — load effect runs first and we'd wipe localStorage
-    // before the loaded messages are applied. prevAccountKeyRef tracks when the switch happened.
+    // Always update prevAccountKeyRef on ANY accountKey change (including null on logout)
+    // If we check !accountKey first, prevAccountKeyRef stays stale and re-login with same
+    // address skips the transition guard and saves empty msgs to localStorage.
     if (accountKey !== prevAccountKeyRef.current) {
       prevAccountKeyRef.current = accountKey;
-      return;
+      return; // skip save during any accountKey transition (load effect fires next)
     }
+    if (!accountKey) return;
     storage.setMsgs(accountKey, msgs);
   }, [msgs, accountKey]);
 
