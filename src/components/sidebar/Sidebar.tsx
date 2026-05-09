@@ -38,8 +38,8 @@ function SwitchNetworkButton() {
       const mm = providers.find((p: any) => p.info?.rdns === 'io.metamask');
       const eth = mm?.provider || (window as any).ethereum;
       if (!eth) { setSwitching(false); setOpen(true); return; }
-      const PMT = { chainId:'0x46df2', chainName:'PMChain',
-        nativeCurrency:{name:'PM',symbol:'PM',decimals:18},
+      const PMT = { chainId:'0x46df2', chainName:'PMTchain',
+        nativeCurrency:{name:'PM',symbol:'PMT',decimals:18},
         rpcUrls:['https://node1-ipm.dweb3.wtf'],
         blockExplorerUrls:['https://explorer.publicmasterpiece.com'] };
       eth.request({method:'eth_requestAccounts'})
@@ -49,8 +49,8 @@ function SwitchNetworkButton() {
     }, 400);
   };
 
-  const PMT_CHAIN = { chainId: '0x46df2', chainName: 'PMChain',
-    nativeCurrency: { name: 'PM', symbol: 'PM', decimals: 18 },
+  const PMT_CHAIN = { chainId: '0x46df2', chainName: 'PMTchain',
+    nativeCurrency: { name: 'PM', symbol: 'PMT', decimals: 18 },
     rpcUrls: ['https://node1-ipm.dweb3.wtf'],
     blockExplorerUrls: ['https://explorer.publicmasterpiece.com'] };
 
@@ -78,7 +78,7 @@ function SwitchNetworkButton() {
 
   const onPMT = currentChain === '0x46df2';
   const details = [
-    {label:'Network Name', value:'PMChain'},
+    {label:'Network Name', value:'PMTchain'},
     {label:'RPC URL', value:'https://node1-ipm.dweb3.wtf'},
     {label:'Chain ID', value:'290290'},
     {label:'Currency Symbol', value:'PM'},
@@ -95,13 +95,13 @@ function SwitchNetworkButton() {
           display:'flex',alignItems:'center',justifyContent:'center',gap:7,
           transition:'all .15s',opacity:switching?0.7:1}}>
         {switching && <span style={{width:10,height:10,border:'2px solid rgba(255,255,255,.2)',borderTopColor:'var(--accent2)',borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>}
-        {onPMT ? '✓ On PMChain' : switching ? '⏳ Check MetaMask...' : '⛓ Switch to PMChain'}
+        {onPMT ? '✓ On PMTchain' : switching ? '⏳ Check MetaMask...' : '⛓ Switch to PMTchain'}
       </button>
       {!onPMT && (
         <button onClick={()=>setOpen((v: boolean)=>!v)}
           style={{width:'100%',marginTop:4,padding:'6px',background:'transparent',
             border:'none',color:'var(--muted)',fontSize:11,cursor:'pointer',textAlign:'center'}}>
-          {open ? 'Hide manual setup' : '+ Add PMChain manually'}
+          {open ? 'Hide manual setup' : '+ Add PMTchain manually'}
         </button>
       )}
       {open && !onPMT && (

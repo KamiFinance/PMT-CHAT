@@ -11,7 +11,7 @@ export default function WalletModal({wallet,isDemo,onClose}){
   const addr=wallet?.address||'';
 
   const DEMO_TOKENS=[
-    {symbol:'PM',name:'PMChain',balance:'2.847',value:'$0.284',icon:'◈',color:'#faff63',change:'+5.2%',pos:true},
+    {symbol:'PMT',name:'PMTchain',balance:'2.847',value:'$0.284',icon:'◈',color:'#faff63',change:'+5.2%',pos:true},
     {symbol:'ETH',name:'Ethereum',balance:'0.142',value:'$512.40',icon:'Ξ',color:'#a78bfa',change:'+2.1%',pos:true},
     {symbol:'USDC',name:'USD Coin',balance:'245.00',value:'$245.00',icon:'$',color:'#34d399',change:'0.0%',pos:true},
     {symbol:'USDT',name:'Tether',balance:'100.00',value:'$100.00',icon:'₮',color:'#26a17b',change:'-0.1%',pos:false},
@@ -43,7 +43,7 @@ export default function WalletModal({wallet,isDemo,onClose}){
     }catch{}
 
     // PMT balance
-    list.unshift({symbol:'PM',name:'PMChain',
+    list.unshift({symbol:'PMT',name:'PMTchain',
       balance:isDemo?'2.847':'0.000',icon:'◈',color:'#faff63'});
 
     try{

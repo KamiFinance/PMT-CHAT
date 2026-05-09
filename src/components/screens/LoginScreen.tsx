@@ -77,7 +77,7 @@ export default function LoginScreen({onLogin,onBack}){
         localStorage.setItem('pmt_session',JSON.stringify({username:account.username,address:account.address}));
         // Internal wallet (created/imported in-app): has privateKey, skip external verify
         const loginData={address:walletData.address,privateKey:walletData.privateKey,
-          balance:'0.0000',network:'PMChain',username:account.username,sessionPassword:password};
+          balance:'0.0000',network:'PMTchain',username:account.username,sessionPassword:password};
         if(walletData.privateKey){onLogin(loginData);}
         else{setPendingLogin(loginData);setVerifyStep(true);}
       } else {
@@ -99,7 +99,7 @@ export default function LoginScreen({onLogin,onBack}){
         localStorage.setItem('pmt_account_'+w.address.toLowerCase(), JSON.stringify(acctData));
         localStorage.setItem('pmt_session', JSON.stringify({username: username.trim().toLowerCase(), address: w.address}));
         const restoreData={ address: w.address, privateKey: w.privateKey ?? '', balance:'0.0000',
-          network:'PMChain', username: username.trim().toLowerCase(),
+          network:'PMTchain', username: username.trim().toLowerCase(),
           sessionPassword: password,
           restoredContacts: contacts ?? [],
           restoredMessages: messages ?? {},

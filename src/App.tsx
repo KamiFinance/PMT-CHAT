@@ -118,9 +118,9 @@ export default function App() {
           const saved = localStorage.getItem(`pmt_account_${address.toLowerCase()}`);
           if (saved) {
             const acc = JSON.parse(saved);
-            return { address, balance: '0.000', network: 'PMChain', username: acc.username || username };
+            return { address, balance: '0.000', network: 'PMTchain', username: acc.username || username };
           }
-          return { address, balance: '0.000', network: 'PMChain', username };
+          return { address, balance: '0.000', network: 'PMTchain', username };
         }
       }
     } catch { /* ignore */ }
@@ -454,7 +454,7 @@ You can answer ANY question: crypto, blockchain, coding, math, science, history,
 - Gas fees: extremely low (fractions of PMT)
 
 **PMT Token (Publicmasterpiece Token)**
-- The native currency of PMChain
+- The native currency of PMTchain
 - Used to pay gas fees for all on-chain transactions
 - Sent peer-to-peer directly inside PMT-Chat conversations
 - Every message sent on PMT-Chat is recorded on-chain as a transaction
@@ -462,7 +462,7 @@ You can answer ANY question: crypto, blockchain, coding, math, science, history,
 - Wallet addresses are standard Ethereum-format (0x...)
 
 **PMT-Chat features:**
-- End-to-end encrypted messages stored on PMChain
+- End-to-end encrypted messages stored on PMTchain
 - Send PMT tokens directly in chat (↑PMT button)
 - Username/password accounts with cloud backup (encrypted, zero-knowledge)
 - Cross-device sync via relay
@@ -472,14 +472,14 @@ You can answer ANY question: crypto, blockchain, coding, math, science, history,
 - WalletConnect + MetaMask support
 - AI assistant (you!) powered by Claude
 
-**How to add PMChain to MetaMask:**
-- Network name: PMChain
+**How to add PMTchain to MetaMask:**
+- Network name: PMTchain
 - RPC URL: https://node1-ipm.dweb3.wtf
 - Chain ID: 290290
 - Currency symbol: PMT
 - Block explorer: https://explorer.publicmasterpiece.com
 
-Answer questions about PMT, PMChain, the app, or anything else the user asks.`, messages: [...history, { role: 'user', content: userMsg }] }),
+Answer questions about PMT, PMTchain, the app, or anything else the user asks.`, messages: [...history, { role: 'user', content: userMsg }] }),
         })
         .then(r => r.json())
         .then(data => {
@@ -592,7 +592,7 @@ Answer questions about PMT, PMChain, the app, or anything else the user asks.`, 
           const chainId = await (window.ethereum as any).request({method:'eth_chainId'});
           const balHex = await (window.ethereum as any).request({method:'eth_getBalance',params:[accounts[0],'latest']}).catch(()=>'0x0');
           const balEth = (parseInt(balHex,16)/1e18).toFixed(4);
-          const netNames: Record<string,string> = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMChain'};
+          const netNames: Record<string,string> = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
           setWallet(prev => prev ? {...prev, connectedAddress: accounts[0], connectedNetwork: netNames[chainId]||('Chain '+parseInt(chainId,16)), connectedBalance: balEth} : prev);
           setWcErr(null);
           setWcConnecting(false);
@@ -735,7 +735,7 @@ Answer questions about PMT, PMChain, the app, or anything else the user asks.`, 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
-  const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMChain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); }, []);
+  const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMTchain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); }, []);
   const handleLogout = useCallback(() => { storage.clearSession(); setWallet(null); walletRef.current = null; setIsDemo(false); setContacts([]); setMsgs({}); setActiveAndRef(null); setScreen('landing'); }, [setActiveAndRef]);
 
   if (screen === 'landing') return <Landing onDemo={handleDemo} onCreateWallet={() => setScreen('create')} onImportWallet={() => setScreen('import')} onLogin={() => setScreen('login')} onMetaMask={(w: Wallet) => {

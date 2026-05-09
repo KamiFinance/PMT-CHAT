@@ -363,7 +363,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
               <div style={{fontSize:14,fontWeight:600}}>{contact.name}</div>
               <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',opacity:.8,
                 whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                {contact.isGroup?`${contact.members?.length||0} members · PMChain`:contact.address}
+                {contact.isGroup?`${contact.members?.length||0} members · PMTchain`:contact.address}
               </div>
             </div>
             <div className="chain-badge" style={{display:'flex',alignItems:'center',gap:5,
@@ -371,7 +371,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
               border:'1px solid rgba(99,210,255,.18)',borderRadius:20,
               fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',flexShrink:0}}>
               <div style={{width:6,height:6,borderRadius:'50%',background:'var(--accent3)',animation:'pulse 2s infinite'}}/>
-              PMChain
+              PMTchain
             </div>
             {!contact.isGroup&&(
               <button className="qr-btn" onClick={()=>setShowSend(true)}

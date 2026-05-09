@@ -99,7 +99,7 @@ export default function CreateWalletFlow({onWallet,onBack}){
       localStorage.setItem('pmt_session',JSON.stringify({username:username.trim(),address:wallet.address}));
       // Small delay to show "saved" status before navigating
       await new Promise(r=>setTimeout(r, cloudStatus==='saved'?800:0));
-      onWallet({address:wallet.address,privateKey:wallet.privateKey,balance:'0.0000',network:'PMChain',chainId:'0x46df2',isCreated:true,username:username.trim(),sessionPassword:password});
+      onWallet({address:wallet.address,privateKey:wallet.privateKey,balance:'0.0000',network:'PMTchain',chainId:'0x46df2',isCreated:true,username:username.trim(),sessionPassword:password});
     }catch(e){
       setPwdErr('Failed to secure wallet: '+e.message);
       setFinishing(false);

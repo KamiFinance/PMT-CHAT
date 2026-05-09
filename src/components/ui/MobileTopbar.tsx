@@ -25,7 +25,7 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
           <div style={{minWidth:0}}>
             <div style={{fontSize:14,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{contact.name}</div>
             <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',opacity:.8}}>
-              {contact.isGroup?`${contact.members?.length||0} members`:contact.online?'● online':'PMChain'}
+              {contact.isGroup?`${contact.members?.length||0} members`:contact.online?'● online':'PMTchain'}
             </div>
           </div>
         </div>
