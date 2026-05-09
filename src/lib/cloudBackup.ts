@@ -47,7 +47,7 @@ export interface BackupData {
   profile: object;
 }
 
-// Compress a base64 image to a small backup-safe thumbnail (64x64, JPEG ~3KB)
+// Compress a base64 image to a backup-safe thumbnail (256x256, JPEG ~15KB)
 export async function compressAvatarForBackup(dataUrl: string): Promise<string | null> {
   if (!dataUrl) return null;
   if (!dataUrl.startsWith('data:')) return dataUrl; // already a URL
@@ -55,7 +55,7 @@ export async function compressAvatarForBackup(dataUrl: string): Promise<string |
     try {
       const img = new Image();
       img.onload = () => {
-        const SIZE = 64;
+        const SIZE = 256;
         const canvas = document.createElement('canvas');
         canvas.width = SIZE; canvas.height = SIZE;
         const ctx = canvas.getContext('2d');
@@ -64,7 +64,7 @@ export async function compressAvatarForBackup(dataUrl: string): Promise<string |
         const sx = (img.width - s) / 2;
         const sy = (img.height - s) / 2;
         ctx.drawImage(img, sx, sy, s, s, 0, 0, SIZE, SIZE);
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
       };
       img.onerror = () => resolve(null);
       img.src = dataUrl;
