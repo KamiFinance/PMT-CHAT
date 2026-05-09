@@ -538,10 +538,16 @@ export default function App() {
           throw new Error('Invalid address. Please edit the contact and add their full 0x wallet address.');
         const weiHex = '0x' + BigInt(Math.floor(parseFloat(amount) * 1e18)).toString(16);
         let txHash: string;
-        if (walletRef.current.privateKey) {
+        // Verify private key actually derives to the current wallet address (guards against stale sessionStorage)
+        const pk = walletRef.current.privateKey;
+        const pkValid = pk && (() => {
+          try { return new ethers.Wallet(pk).address.toLowerCase() === walletRef.current.address?.toLowerCase(); }
+          catch { return false; }
+        })();
+        if (pkValid) {
           // Internal wallet (created/imported) — sign & send directly, no MetaMask needed
           const provider = new ethers.JsonRpcProvider('https://node1-ipm.dweb3.wtf');
-          const signer = new ethers.Wallet(walletRef.current.privateKey, provider);
+          const signer = new ethers.Wallet(pk, provider);
           // Use explicit gasLimit to skip estimateGas — PMTchain RPC doesn't support it
           const tx = await signer.sendTransaction({
             to: addr,

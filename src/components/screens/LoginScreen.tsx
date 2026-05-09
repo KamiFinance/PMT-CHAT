@@ -79,8 +79,8 @@ export default function LoginScreen({onLogin,onBack}){
         const loginData={address:walletData.address,privateKey:walletData.privateKey,
           balance:'0.0000',network:'PMTchain',username:account.username,sessionPassword:password};
         if(walletData.privateKey){
-          // Persist privateKey in sessionStorage so it survives page refresh
-          // sessionStorage is cleared when the tab is closed — safer than localStorage
+          // Clear any stale pmt_pk_ entries before saving the new one
+          Object.keys(sessionStorage).filter(k => k.startsWith('pmt_pk_')).forEach(k => sessionStorage.removeItem(k));
           sessionStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey);
           onLogin(loginData);
         }
