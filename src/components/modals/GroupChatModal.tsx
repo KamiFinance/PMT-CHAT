@@ -36,6 +36,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress 
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [newMaxMembers, setNewMaxMembers] = useState(0);
   const [newExpiry, setNewExpiry] = useState(0);
+  const [newMinPMT, setNewMinPMT] = useState(0);
   const [creatingLink, setCreatingLink] = useState(false);
   const [copied, setCopied] = useState('');
 
@@ -122,7 +123,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress 
       const r = await fetch('/api/groups?action=createLink', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupId: group.id, maxMembers: Number(newMaxMembers), expiresIn: Number(newExpiry), createdBy: myAddress }),
+        body: JSON.stringify({ groupId: group.id, maxMembers: Number(newMaxMembers), expiresIn: Number(newExpiry), minPMT: Number(newMinPMT), createdBy: myAddress }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error);
@@ -254,6 +255,23 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress 
                     </select>
                   </div>
                 </div>
+                <div style={{ marginBottom: 10 }}>
+                  <div style={label}>MIN PMT TO JOIN (0 = no requirement)</div>
+                  <input type="number" min="0" step="any" value={newMinPMT} onChange={e => setNewMinPMT(e.target.value)}
+                    placeholder="e.g. 5 (user must hold 5 PMT)" style={{ ...inp, padding: '8px 12px' }} />
+                  <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>Users with less than this amount of PMT cannot join</div>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <div style={label}>MIN PMT TO JOIN (0 = no requirement)</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="number" min="0" step="0.01" value={newMinPMT} onChange={e => setNewMinPMT(e.target.value)}
+                      style={{ ...inp, padding: '8px 12px', flex: 1 }} placeholder="0" />
+                    <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--mono)', flexShrink: 0 }}>PMT</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>
+                    {Number(newMinPMT) > 0 ? `Users must hold ≥ ${newMinPMT} PMT to join` : 'Anyone can join regardless of PMT balance'}
+                  </div>
+                </div>
                 <button onClick={createLink} disabled={creatingLink}
                   style={{ width: '100%', padding: '9px', background: 'var(--accent)', border: 'none', borderRadius: 9, color: '#0a0c14', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: creatingLink ? 0.7 : 1 }}>
                   {creatingLink ? 'Creating...' : '+ Generate Invite Link'}
@@ -288,6 +306,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress 
                         <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--muted)' }}>
                           <span>👥 {l.usedBy?.length || 0}{l.maxMembers > 0 ? `/${l.maxMembers}` : ''} joined</span>
                           <span>⏱ {formatExpiry(l.expiresAt)}</span>
+                          {l.minPMT > 0 && <span>◈ Min {l.minPMT} PMT</span>}
                           {expired && <span style={{ color: 'var(--danger)' }}>Expired</span>}
                         </div>
                       </div>

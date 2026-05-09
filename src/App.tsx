@@ -183,9 +183,8 @@ export default function App() {
       .then(r => r.json())
       .then(data => {
         if (data.error) { alert('Invite link error: ' + data.error); return; }
-        if (window.confirm(`Join group "${data.group.name}"?
-${data.group.bio || ''}
-Members: ${data.group.memberCount}`)) {
+        const pmtLine = data.minPMT > 0 ? `\n◈ Requires ${data.minPMT} PMT to join` : '';
+        if (window.confirm(`Join group "${data.group.name}"?\n${data.group.bio || ''}\nMembers: ${data.group.memberCount}${pmtLine}`)) {
           fetch('/api/groups?action=join', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

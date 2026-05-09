@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     const grpData = await redis('GET', `pmt:group:${inv.groupId}`);
     if (!grpData) return res.status(404).json({ error: 'Group no longer exists' });
     const grp = JSON.parse(grpData);
-    return res.json({ ...inv, group: { name: grp.name, bio: grp.bio, avatarUrl: grp.avatarUrl, memberCount: (grp.members||[]).length } });
+    return res.json({ ...inv, group: { name: grp.name, bio: grp.bio, avatarUrl: grp.avatarUrl, memberCount: (grp.members||[]).length, minPMT: inv.minPMT||0 } });
   }
 
   if (req.method === 'POST') {
@@ -62,14 +62,14 @@ export default async function handler(req, res) {
 
     // Create invite link
     if (action === 'createLink') {
-      const { groupId, maxMembers, expiresIn, createdBy } = body; // expiresIn in hours (0 = never)
+      const { groupId, maxMembers, expiresIn, minPMT, createdBy } = body; // expiresIn in hours (0 = never)
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
       const grp = JSON.parse(data);
       if (grp.createdBy !== createdBy) return res.status(403).json({ error: 'Only group creator can create invite links' });
       const linkId = Math.random().toString(36).slice(2,10) + Math.random().toString(36).slice(2,6);
       const expiresAt = expiresIn > 0 ? Date.now() + expiresIn * 3600000 : 0;
-      const inv = { linkId, groupId, maxMembers: maxMembers||0, expiresAt, usedBy: [], createdAt: Date.now(), createdBy };
+      const inv = { linkId, groupId, maxMembers: maxMembers||0, minPMT: Number(minPMT)||0, expiresAt, usedBy: [], createdAt: Date.now(), createdBy };
       await redis('SET', `pmt:invite:${linkId}`, JSON.stringify(inv));
       // Add to group's link list
       grp.inviteLinks = [...(grp.inviteLinks||[]), linkId];
@@ -102,6 +102,23 @@ export default async function handler(req, res) {
       const grp = JSON.parse(grpData);
       if (grp.members.includes(address)) return res.json({ ok: true, group: grp, alreadyMember: true });
       if (inv.maxMembers > 0 && grp.members.length >= inv.maxMembers) return res.status(403).json({ error: `This group is full (max ${inv.maxMembers} members)` });
+      // Check PMT balance requirement
+      if (inv.minPMT > 0) {
+        try {
+          const balRes = await fetch('https://node1-ipm.dweb3.wtf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_getBalance', params: [address, 'latest'], id: 1 }),
+          });
+          const balData = await balRes.json();
+          const balPMT = balData.result ? parseInt(balData.result, 16) / 1e18 : 0;
+          if (balPMT < inv.minPMT) {
+            return res.status(403).json({ error: `You need at least ${inv.minPMT} PMT to join this group. Your balance: ${balPMT.toFixed(4)} PMT` });
+          }
+        } catch {
+          return res.status(500).json({ error: 'Could not verify PMT balance. Please try again.' });
+        }
+      }
       grp.members.push(address);
       inv.usedBy.push(address);
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
