@@ -524,7 +524,7 @@ export default function App() {
   }, [isDemo]);
 
   // ── Send ETH/PMT ─────────────────────────────────────────────────────────────
-  const sendETH = useCallback(async (contact: Contact, amount: string): Promise<string | null> => {
+  const sendETH = useCallback(async (contact: Contact, amount: string, walletPassword?: string): Promise<string | null> => {
     const block = nextBlock();
     const txId = uid();
     const tx: Message = { id: txId, type: 'tx', out: true, amount, text: '', time: now(), block, confirms: 0, hash: rndHash(), pending: true };
@@ -538,29 +538,28 @@ export default function App() {
           throw new Error('Invalid address. Please edit the contact and add their full 0x wallet address.');
         const weiHex = '0x' + BigInt(Math.floor(parseFloat(amount) * 1e18)).toString(16);
         let txHash: string;
-        // Verify private key actually derives to the current wallet address (guards against stale sessionStorage)
-        const pk = walletRef.current.privateKey;
         const myAddr = walletRef.current.address?.toLowerCase() ?? '';
-        const pkValid = pk && (() => {
-          try { return new ethers.Wallet(pk).address.toLowerCase() === myAddr; }
-          catch { return false; }
-        })();
-        if (pk && !pkValid) {
-          // Stale key — clear it so next login saves the correct one
-          sessionStorage.removeItem('pmt_pk_' + myAddr);
-          walletRef.current = { ...walletRef.current, privateKey: '' };
-          throw new Error('Session expired. Please log out and log back in to send PMT.');
+        const pkMatches = (k: string) => { try { return !!k && new ethers.Wallet(k).address.toLowerCase() === myAddr; } catch { return false; } };
+        // Get private key — validate it matches the current wallet address
+        let usePk = walletRef.current.privateKey || '';
+        if (usePk && !pkMatches(usePk)) { sessionStorage.removeItem('pmt_pk_' + myAddr); usePk = ''; }
+        // If no valid pk but user supplied their wallet password, decrypt it now
+        if (!usePk && walletPassword) {
+          const username = walletRef.current?.username ?? '';
+          const accountRaw = localStorage.getItem(`pmt_account_${username.toLowerCase()}`);
+          if (!accountRaw) throw new Error('Wallet not found on this device.');
+          const account = JSON.parse(accountRaw);
+          const walletData = await (await import('./lib/auth')).PMTAuth.decryptWallet(account.encryptedWallet, walletPassword) as any;
+          if (!pkMatches(walletData.privateKey)) throw new Error('Incorrect password.');
+          usePk = walletData.privateKey;
+          sessionStorage.setItem('pmt_pk_' + myAddr, usePk);
+          walletRef.current = { ...walletRef.current, privateKey: usePk };
         }
-        if (pkValid) {
-          // Internal wallet (created/imported) — sign & send directly, no MetaMask needed
+        if (usePk) {
+          // Internal wallet — sign & send directly, no MetaMask needed
           const provider = new ethers.JsonRpcProvider('https://node1-ipm.dweb3.wtf');
-          const signer = new ethers.Wallet(pk, provider);
-          // Use explicit gasLimit to skip estimateGas — PMTchain RPC doesn't support it
-          const tx = await signer.sendTransaction({
-            to: addr,
-            value: BigInt(Math.floor(parseFloat(amount) * 1e18)),
-            gasLimit: 21000,
-          });
+          const signer = new ethers.Wallet(usePk, provider);
+          const tx = await signer.sendTransaction({ to: addr, value: BigInt(Math.floor(parseFloat(amount) * 1e18)), gasLimit: 21000 });
           txHash = tx.hash;
         } else {
           // External wallet (MetaMask) — use EIP-6963 provider directly
@@ -1060,7 +1059,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         <div className={`sidebar-overlay${mobileSidebarOpen ? ' visible' : ''}`} onClick={() => setMobileSidebarOpen(false)} />
         <Sidebar contacts={contacts} activeId={active?.id ?? null} wallet={wallet} isDemo={isDemo} profile={profile} mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} onSelect={selectContact} onNew={() => setShowNew(true)} onNewGroup={() => setShowGroup(true)} onProfile={() => { setShowProfile(true); setMobileSidebarOpen(false); }} onSettings={() => { setShowSettings(true); setMobileSidebarOpen(false); }} onWallet={() => setShowWallet(true)} onLogout={handleLogout} onEditContact={setEditContact} onSearch={() => setShowSearch(true)} />
         <main className="chat-panel">
-          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
+          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} wallet={wallet} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
         </main>
       </div>
       {showProfile && <ProfileModal profile={{ ...profile, address: wallet?.address ?? null }} onClose={() => setShowProfile(false)} onSave={saveProfile} />}

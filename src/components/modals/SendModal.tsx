@@ -1,8 +1,9 @@
 // @ts-nocheck
 import React, { useState } from 'react';
 
-export default function SendModal({contact, onClose, onSend, isDemo}) {
+export default function SendModal({contact, onClose, onSend, isDemo, needsPassword}) {
   const [amount, setAmount] = useState('');
+  const [password, setPassword] = useState('');
   const [sending, setSending] = useState(false);
   const [txHash, setTxHash] = useState(null);
   const [err, setErr] = useState(null);
@@ -11,9 +12,10 @@ export default function SendModal({contact, onClose, onSend, isDemo}) {
 
   const go = async () => {
     if (!parseFloat(amount) || parseFloat(amount) <= 0) return setErr('Enter a valid amount');
+    if (needsPassword && !password) return setErr('Enter your wallet password to confirm');
     setSending(true); setErr(null);
     try {
-      const hash = await onSend(amount);
+      const hash = await onSend(amount, needsPassword ? password : undefined);
       if (hash) { setTxHash(hash); }
       else { onClose(); }
     } catch(e) {
@@ -23,7 +25,6 @@ export default function SendModal({contact, onClose, onSend, isDemo}) {
     }
   };
 
-  // Success screen
   if (txHash) return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',display:'flex',alignItems:'center',
       justifyContent:'center',zIndex:200}} onClick={onClose}>
@@ -88,6 +89,20 @@ export default function SendModal({contact, onClose, onSend, isDemo}) {
           ))}
         </div>
 
+        {/* Password field for internal wallets without pk in memory */}
+        {needsPassword && (
+          <div>
+            <div style={{fontSize:11,color:'var(--muted)',marginBottom:6}}>
+              🔑 Enter your wallet password to confirm:
+            </div>
+            <input type="password" placeholder="Wallet password"
+              value={password} onChange={e=>{setPassword(e.target.value);setErr(null);}}
+              style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
+                borderRadius:9,padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',
+                fontSize:13,outline:'none',boxSizing:'border-box'}}/>
+          </div>
+        )}
+
         {err && (
           <div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',
             borderRadius:8,padding:'8px 12px',fontSize:12,color:'var(--danger)'}}>{err}</div>
@@ -100,7 +115,7 @@ export default function SendModal({contact, onClose, onSend, isDemo}) {
           <button onClick={go} disabled={sending||!amount}
             style={{flex:2,padding:10,background:'var(--accent3)',border:'none',borderRadius:9,
               color:'#0a0c14',fontWeight:600,fontSize:13.5,cursor:sending?'default':'pointer',opacity:sending?0.7:1}}>
-            {sending ? '🦊 Check MetaMask popup...' : `Send ${amount||'0'} PMT`}
+            {sending ? '⏳ Sending...' : `Send ${amount||'0'} PMT`}
           </button>
         </div>
 
