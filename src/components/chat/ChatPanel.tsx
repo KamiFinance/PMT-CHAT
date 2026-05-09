@@ -76,7 +76,7 @@ function EmojiPicker({onSelect,onClose}:{onSelect:(e:string)=>void,onClose:()=>v
   );
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact}){
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
@@ -353,11 +353,21 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           style={{position:'absolute',top:0,left:0,right:0,zIndex:10,
             borderBottom:'1px solid var(--border)',background:'var(--panel)'}}>
           <div style={{padding:'12px 18px',display:'flex',alignItems:'center',gap:10}}>
-            <span onClick={onViewContact?(()=>onViewContact(contact)):undefined}
-              style={{cursor:onViewContact?'pointer':'default',flexShrink:0,pointerEvents:'auto'}}>
+            <span onClick={()=>{
+                if(contact.isGroup && onManageGroup && contact.createdBy?.toLowerCase()===myAddress?.toLowerCase()){
+                  onManageGroup(contact);
+                } else if(onViewContact && !contact.isGroup){
+                  onViewContact(contact);
+                }
+              }}
+              style={{cursor:(contact.isGroup&&contact.createdBy?.toLowerCase()===myAddress?.toLowerCase())||(!contact.isGroup&&onViewContact)?'pointer':'default',flexShrink:0,pointerEvents:'auto'}}
+              title={contact.isGroup&&contact.createdBy?.toLowerCase()===myAddress?.toLowerCase()?'Manage group & invite links':undefined}>
               <ProfilePic initials={contact.isGroup?'#':contact.avatar} avatarUrl={contact.avatarUrl}
                 color={contact.isGroup?'var(--accent2)':contact.color}
                 bg={contact.isGroup?'#1e1b30':contact.bg} online={contact.online}/>
+              {contact.isGroup&&contact.createdBy?.toLowerCase()===myAddress?.toLowerCase()&&(
+                <div style={{position:'absolute',bottom:-2,right:-2,background:'var(--accent)',borderRadius:'50%',width:16,height:16,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'#0a0c14',fontWeight:700,border:'2px solid var(--panel)'}}>⚙</div>
+              )}
             </span>
             <div style={{flex:1}}>
               <div style={{fontSize:14,fontWeight:600}}>{contact.name}</div>

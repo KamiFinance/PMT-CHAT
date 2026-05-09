@@ -22,14 +22,18 @@ function formatExpiry(expiresAt) {
   return `Expires in ${h}h ${m}m`;
 }
 
-export default function GroupChatModal({ contacts, onClose, onCreate, myAddress }) {
-  const [tab, setTab] = useState('info'); // info | links
-  const [name, setName] = useState('');
-  const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState(null);
+export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup }) {
+  // If existingGroup passed, start in manage mode (links tab)
+  const [tab, setTab] = useState(existingGroup ? 'links' : 'info');
+  const [name, setName] = useState(existingGroup?.name || '');
+  const [bio, setBio] = useState(existingGroup?.bio || '');
+  const [avatarUrl, setAvatarUrl] = useState(existingGroup?.avatarUrl || null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
-  const [group, setGroup] = useState(null); // created group from server
+  const [group, setGroup] = useState(existingGroup ? {
+    id: existingGroup.groupId || existingGroup.id?.replace('g',''),
+    ...existingGroup
+  } : null); // created group from server
 
   // Invite links state
   const [links, setLinks] = useState([]);
@@ -41,6 +45,14 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress 
   const [copied, setCopied] = useState('');
 
   const fileRef = useRef(null);
+
+  // Auto-load links when managing existing group
+  React.useEffect(() => {
+    if (existingGroup) {
+      const gid = existingGroup.groupId || existingGroup.id;
+      loadLinks(gid);
+    }
+  }, []);
 
   // Handle avatar selection
   const handleAvatar = (file) => {
