@@ -562,11 +562,18 @@ export default function App() {
           throw new Error('Invalid address. Please edit the contact and add their full 0x wallet address.');
         const weiHex = '0x' + BigInt(Math.floor(parseFloat(amount) * 1e18)).toString(16);
         let txHash: string;
-        const myAddr = walletRef.current.address?.toLowerCase() ?? '';
+        // Read address from session (authoritative) not walletRef which may be stale/corrupted
+        const sessAddr = (() => { try { return JSON.parse(localStorage.getItem('pmt_session')||'{}').address?.toLowerCase()||''; } catch { return ''; } })();
+        const myAddr = sessAddr || walletRef.current.address?.toLowerCase() || '';
         const pkMatches = (k: string) => { try { return !!k && new ethers.Wallet(k).address.toLowerCase() === myAddr; } catch { return false; } };
         // Get private key — validate it matches the current wallet address
         let usePk = walletRef.current.privateKey || '';
-        if (usePk && !pkMatches(usePk)) { sessionStorage.removeItem('pmt_pk_' + myAddr); usePk = ''; }
+        if (usePk && !pkMatches(usePk)) {
+          sessionStorage.removeItem('pmt_pk_' + myAddr);
+          // Reset walletRef to clean state (may have been corrupted by a previous bad decrypt)
+          walletRef.current = { ...walletRef.current, privateKey: '', address: myAddr };
+          usePk = '';
+        }
         // If no valid pk but user supplied their wallet password, decrypt it now
         if (!usePk && walletPassword) {
           const username = walletRef.current?.username ?? '';
