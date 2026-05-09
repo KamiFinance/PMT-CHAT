@@ -545,12 +545,41 @@ export default function App() {
           const tx = await signer.sendTransaction({ to: addr, value: BigInt(Math.floor(parseFloat(amount) * 1e18)) });
           txHash = tx.hash;
         } else {
-          // External wallet (MetaMask) — use injected provider
-          const eth = (window as any).ethereum;
+          // External wallet (MetaMask) — use EIP-6963 provider directly
+          // This bypasses window.ethereum which may be hijacked by other extensions
+          const eth = await new Promise<any>((resolve) => {
+            const found: any[] = [];
+            const h = (e: any) => found.push(e.detail);
+            window.addEventListener('eip6963:announceProvider', h);
+            window.dispatchEvent(new Event('eip6963:requestProvider'));
+            setTimeout(() => {
+              window.removeEventListener('eip6963:announceProvider', h);
+              const mm = found.find((p: any) => p.info?.rdns === 'io.metamask');
+              resolve(mm?.provider ?? (window as any).ethereum ?? null);
+            }, 400);
+          });
           if (!eth) throw new Error('No wallet found. Please install MetaMask.');
+          // Switch to PMTchain if needed
+          const currentChain = await eth.request({ method: 'eth_chainId' });
+          if (currentChain !== '0x46df2') {
+            try {
+              await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x46df2' }] });
+            } catch (sw: any) {
+              if (sw.code === 4902 || sw.code === -32603) {
+                await eth.request({ method: 'wallet_addEthereumChain', params: [{
+                  chainId: '0x46df2', chainName: 'PMTchain',
+                  nativeCurrency: { name: 'PMT', symbol: 'PMT', decimals: 18 },
+                  rpcUrls: ['https://node1-ipm.dweb3.wtf'],
+                  blockExplorerUrls: ['https://explorer.publicmasterpiece.com'],
+                }]});
+              } else if (sw.code !== 4001) throw sw;
+            }
+          }
+          const accounts = await eth.request({ method: 'eth_accounts' });
+          const fromAddr = accounts?.[0] ?? walletRef.current.address;
           txHash = await eth.request({
             method: 'eth_sendTransaction',
-            params: [{ from: walletRef.current.address, to: addr, value: weiHex }],
+            params: [{ from: fromAddr, to: addr, value: weiHex }],
           }) as string;
         }
         setMsgs(p => ({ ...p, [addr]: (p[addr] ?? []).map(m => m.id === txId ? { ...m, hash: txHash, pending: false, confirms: 1 } : m) }));
