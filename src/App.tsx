@@ -155,12 +155,18 @@ export default function App() {
   const needsPasswordToSend = React.useMemo(() => {
     const w = wallet;
     if (!w?.username || isDemo) return false;
-    const hasAccount = !!localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`);
-    if (!hasAccount) return false;
+    const accountRaw = localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`);
+    if (!accountRaw) return false;
+    // Only use internal wallet path if account address matches current wallet address
+    // (they can be out of sync after wallet imports or account restores)
+    try {
+      const account = JSON.parse(accountRaw);
+      if (account.address?.toLowerCase() !== w.address?.toLowerCase()) return false;
+    } catch { return false; }
     const pk = w.privateKey || '';
-    if (!pk) return true; // no pk at all
+    if (!pk) return true; // no pk — need password
     try { return new ethers.Wallet(pk).address.toLowerCase() !== w.address?.toLowerCase(); }
-    catch { return true; } // invalid pk
+    catch { return true; } // invalid pk — need password
   }, [wallet, isDemo]);
   const prevAccountKeyRef = useRef<string | null>(null);
   // Session password — kept in memory only, never persisted, used for auto cloud backup
