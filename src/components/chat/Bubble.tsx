@@ -123,14 +123,16 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery}
       {reactionEntries.map(([emoji,v])=>{
         const count=getRxnCount(v);
         const mine=iMine(v);
+        const reactors=typeof v==='object'&&v!==null
+          ?Object.entries(v).filter(([,n])=>Number(n)>0).map(([addr]:any)=>addr===myAddress?'You':addr.slice(0,6)+'...'+addr.slice(-4)).join(', '):'';
         return(
           <button key={emoji}
-            onClick={()=>mine&&onReact&&onReact(msg.id,emoji)}
-            title={mine?'Click to remove your reaction':''}
+            onClick={()=>onReact&&onReact(msg.id,emoji)}
+            title={mine?`Remove your reaction${reactors?'\nReacted: '+reactors:''}`:reactors?'Reacted: '+reactors:undefined}
             style={{background:mine?'rgba(250,255,99,.12)':'var(--surface)',
               border:`1px solid ${mine?'rgba(250,255,99,.4)':'var(--border)'}`,
               borderRadius:12,padding:'1px 6px',fontSize:12,
-              cursor:mine?'pointer':'default',
+              cursor:'pointer',
               display:'flex',alignItems:'center',gap:3,
               animation:'popIn .2s ease',
               opacity:mine?1:0.85}}>

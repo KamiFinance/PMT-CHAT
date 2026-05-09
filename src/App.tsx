@@ -429,10 +429,12 @@ export default function App() {
               localStorage.setItem(STORAGE_KEYS.inbox(addr), JSON.stringify(inbox));
             } catch {}
             // Cross-device delivery — for groups relay to each member, for DMs relay to contact
+            // Check if this is a group conversation (addr starts with 'group_' or contact.isGroup)
             const contact = contactsRef.current?.find((c: any) => normalizeAddress(c.address) === addr);
-            if (contact?.isGroup) {
+            if (contact?.isGroup || addr.startsWith('group_')) {
               // Group reaction: fetch live member list and relay to each
-              const groupId = contact.groupId || contact.id;
+              // Extract groupId: strip 'group_' prefix if present
+              const groupId = contact?.groupId || contact?.id || addr.replace(/^group_/, '');
               fetch(`/api/groups?id=${groupId}`)
                 .then(r => r.json())
                 .then(grpData => {
