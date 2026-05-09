@@ -107,6 +107,8 @@ export interface Contact {
   isAI?: boolean;
   isGroup?: boolean;
   members?: string[];
+  groupId?: string;
+  createdBy?: string;
   preview?: string;
   unread?: number;
   avatarUrl?: string | null;

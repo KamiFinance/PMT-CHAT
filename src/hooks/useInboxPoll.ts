@@ -10,6 +10,10 @@ interface InboxMsgWithProfile extends InboxMessage {
   fromAvatarUrl?: string | null;
   fromBio?: string;
   msgHash?: string; // reaction fallback: block hash (consistent across devices)
+  // Group message fields
+  groupId?: string;
+  groupName?: string;
+  groupAvatarUrl?: string | null;
 }
 
 interface UseInboxPollParams {
@@ -198,6 +202,36 @@ export function useInboxPoll({
 
         const newMsg: Message = { ...base, ...extra };
 
+        // ── Group message routing ──────────────────────────────────────────
+        if (inboxMsg.groupId) {
+          const groupAddr = `group_${inboxMsg.groupId}`;
+          setContacts(prev => {
+            const exists = prev.find(c => c.groupId === inboxMsg.groupId || normalizeAddress(c.address) === normalizeAddress(groupAddr));
+            let updated = prev;
+            if (!exists) {
+              // Auto-add group contact if not known yet
+              const gName = inboxMsg.groupName ?? 'Group';
+              updated = [{ id: inboxMsg.groupId, address: groupAddr, name: gName,
+                avatar: gName.slice(0,2).toUpperCase(), avatarUrl: inboxMsg.groupAvatarUrl ?? null,
+                color: '#a78bfa', bg: '#1e1b30', online: false, isGroup: true,
+                groupId: inboxMsg.groupId, members: [senderAddr],
+                preview: previewText(inboxMsg), unread: 1,
+              } as any, ...prev];
+            } else {
+              updated = prev.map(c => (c.groupId === inboxMsg.groupId || normalizeAddress(c.address) === normalizeAddress(groupAddr))
+                ? { ...c, preview: previewText(inboxMsg), unread: (c.unread ?? 0) + 1 } : c);
+            }
+            const grp = updated.find(c => c.groupId === inboxMsg.groupId);
+            if (grp) pushNotif(grp, previewText(inboxMsg));
+            return updated;
+          });
+          setMsgs(prev => ({
+            ...prev,
+            [normalizeAddress(groupAddr)]: [...(prev[normalizeAddress(groupAddr)] ?? []), newMsg],
+          }));
+          return;
+        }
+
         // Auto-add sender as contact
         setContacts(prev => {
           const exists = prev.find(c => normalizeAddress(c.address) === senderAddr);
@@ -237,10 +271,14 @@ export function useInboxPoll({
           return updated;
         });
 
-        setMsgs(prev => ({
-          ...prev,
-          [senderAddr]: [...(prev[senderAddr] ?? []), newMsg],
-        }));
+        setMsgs(prev => {
+          // Group message: route to group conversation
+          if (inboxMsg.groupId) {
+            const groupAddr = normalizeAddress(`group_${inboxMsg.groupId}`);
+            return { ...prev, [groupAddr]: [...(prev[groupAddr] ?? []), newMsg] };
+          }
+          return { ...prev, [senderAddr]: [...(prev[senderAddr] ?? []), newMsg] };
+        });
       });
     } catch { /* ignore poll errors */ }
   }, [wallet?.address, setMsgs, setContacts, pushNotif]);

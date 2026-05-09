@@ -606,6 +606,36 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         setMsgs(p => ({ ...p, [toAddr]: (p[toAddr] ?? []).map(m => m.id === msg.id ? { ...m, hash: shortHash(txHash), chain, onChain: true } : m) }));
       } catch {}
     }
+
+    // Group message relay — send to each member's inbox
+    if (activeRef.current.isGroup && !isDemo && walletRef.current?.address) {
+      const w = walletRef.current;
+      const grp = activeRef.current;
+      const members: string[] = (grp.members ?? []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : m.address ?? ''));
+      const msgContent = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : input as string;
+      const inboxMsg = {
+        id: msg.id, type: msg.type, text: msgContent,
+        ...((isImage || isFile) && { ipfsCid: (input as Message).ipfsCid ?? null, b64Data: (input as Message).b64Data ?? null, mediaMsgId: (input as Message).mediaMsgId, imgMsgId: (input as Message).imgMsgId, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }),
+        ...(isVoice && (() => { const vi = input as Message; const audioB64 = (!vi.ipfsCid && vi.audioMsgId) ? (() => { try { return storage.getAudio(vi.audioMsgId!); } catch { return null; } })() : null; return { duration: vi.duration, waveform: vi.waveform, audioMsgId: vi.audioMsgId, ipfsCid: vi.ipfsCid, ipfsUrl: vi.ipfsUrl, ...(audioB64 ? { audioB64 } : {}) }; })()),
+        from: w.address, fromName: profileRef.current?.name || w.username || w.address.slice(0, 8),
+        fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : profileRef.current?._thumbUrl ?? null; })(),
+        fromBio: profileRef.current?.bio ?? '',
+        // Group routing fields
+        groupId: grp.groupId || grp.id,
+        groupName: grp.name,
+        groupAvatarUrl: grp.avatarUrl ?? null,
+        time: now(), block, hash: msg.hash, confirms: 0, ts: Date.now(),
+      };
+      // Relay to each member (except self)
+      members.forEach(memberAddr => {
+        if (memberAddr === normalizeAddress(w.address)) return; // skip self
+        fetch(`/api/inbox?address=${memberAddr}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(inboxMsg),
+        }).catch(() => {});
+      });
+    }
   }, [isDemo, handleMediaUploaded]);
 
   const selectContact = useCallback((c: Contact) => {
