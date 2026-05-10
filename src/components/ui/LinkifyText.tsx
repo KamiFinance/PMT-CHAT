@@ -1,10 +1,32 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
 import InAppBrowser from './InAppBrowser';
+import Twemoji from './Twemoji';
 
 function normalizeUrl(raw) {
   if (/^https?:\/\//i.test(raw)) return raw;
   return 'https://' + raw;
+}
+
+// Match emoji characters (covers most common emoji ranges)
+const EMOJI_RE = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F/gu;
+
+// Render a text string with emojis replaced by Apple emoji images
+function renderTextWithEmoji(text: string, baseKey: string) {
+  if (!text) return null;
+  const result: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  const re = new RegExp(EMOJI_RE.source, 'gu');
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) result.push(<span key={`t${baseKey}${last}`}>{text.slice(last, m.index)}</span>);
+    result.push(<Twemoji key={`e${baseKey}${m.index}`} emoji={m[0]} size={18} style={{margin:'0 0.5px',verticalAlign:'-3px'}}/>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) result.push(<span key={`t${baseKey}${last}`}>{text.slice(last)}</span>);
+  return result.length === 1 && typeof result[0] === 'object' && (result[0] as any).type === 'span'
+    ? text // only plain text — return as-is for highlight() to process
+    : result;
 }
 
 const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"')\]]+|(?<![/@\w])([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.(?:com|org|net|io|app|co|ai|dev|xyz|info|me|gg|tv|us|uk|de|fr|nl|es|ca|au|club|online|store|shop|tech|site|web|link)(?:\/[^\s<>"')\]]*)?)/g;
@@ -158,13 +180,22 @@ export default function LinkifyText({ text, query, onJoinGroup }) {
       <span>
         {parts.map((part, i) => {
           if (part.type === 'text') {
-            if (!part.value.includes('[PMT]')) return <span key={i}>{highlight(part.value)}</span>;
-            // Split on [PMT] and render each segment with logo images
-            return <span key={i}>{part.value.split('[PMT]').reduce((acc: React.ReactNode[], seg, si) => {
-              if (si > 0) acc.push(<img key={`pmt${i}-${si}`} src="/pmt-logo.png" style={{width:18,height:18,borderRadius:'50%',objectFit:'cover',verticalAlign:'middle',margin:'0 1px',display:'inline'}}/>);
-              if (seg) acc.push(<span key={`s${i}-${si}`}>{highlight(seg)}</span>);
-              return acc;
-            }, [])}</span>;
+            // Split out [PMT] logo tokens first
+            const segments = part.value.split('[PMT]');
+            const nodes: React.ReactNode[] = [];
+            segments.forEach((seg, si) => {
+              if (si > 0) nodes.push(<img key={`pmt${i}-${si}`} src="/pmt-logo.png" style={{width:18,height:18,borderRadius:'50%',objectFit:'cover',verticalAlign:'middle',margin:'0 1px',display:'inline'}}/>);
+              if (seg) {
+                // Render each text segment with Apple emoji images
+                const withEmoji = renderTextWithEmoji(seg, `${i}-${si}`);
+                if (Array.isArray(withEmoji)) {
+                  nodes.push(...withEmoji);
+                } else {
+                  nodes.push(<span key={`s${i}-${si}`}>{highlight(seg)}</span>);
+                }
+              }
+            });
+            return <span key={i}>{nodes}</span>;
           }
           const full = normalizeUrl(part.value);
           const joinMatch = JOIN_RE.exec(full);
