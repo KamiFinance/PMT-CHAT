@@ -659,9 +659,22 @@ export default function App() {
           }
           const accounts = await eth.request({ method: 'eth_accounts' });
           const fromAddr = accounts?.[0] ?? walletRef.current.address;
+          // Fetch nonce directly from PMTchain RPC to avoid MetaMask nonce tracking mismatch
+          let nonceHex: string | undefined;
+          try {
+            const nonceRes = await fetch('https://node1-ipm.dweb3.wtf', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_getTransactionCount', params: [fromAddr, 'latest'], id: 1 }),
+            });
+            const nonceData = await nonceRes.json();
+            if (nonceData.result) nonceHex = nonceData.result;
+          } catch { /* use MetaMask nonce if fetch fails */ }
+          const txParams: any = { from: fromAddr, to: addr, value: weiHex };
+          if (nonceHex) txParams.nonce = nonceHex;
           txHash = await eth.request({
             method: 'eth_sendTransaction',
-            params: [{ from: fromAddr, to: addr, value: weiHex }],
+            params: [txParams],
           }) as string;
         }
         setMsgs(p => ({ ...p, [addr]: (p[addr] ?? []).map(m => m.id === txId ? { ...m, hash: txHash, pending: false, confirms: 1 } : m) }));
