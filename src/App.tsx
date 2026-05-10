@@ -366,60 +366,58 @@ export default function App() {
     storage.setMsgs(accountKey, clean);
   }, [msgs, accountKey]);
 
-  // Auto cloud backup — saves encrypted backup to IPFS whenever contacts or messages change.
-  // Debounced 8s to avoid hammering on rapid message receipt.
-  // Password is held in sessionPasswordRef (memory only, never persisted).
+  // ── Shared backup helper — called by both auto-backup and login-backup effects ──
+  const runBackup = useCallback(async (password: string) => {
+    const username = walletRef.current?.username;
+    const addr = walletRef.current?.address;
+    if (!username || !addr || isDemo) return;
+    // Snapshot current state via refs to avoid stale closure issues
+    const currentMsgs = msgsRef.current ?? {};
+    const currentContacts = contactsRef.current ?? [];
+    const cleanMsgs: Record<string, object[]> = {};
+    Object.entries(currentMsgs).forEach(([a, arr]) => {
+      // Keep last 200 messages per contact (was 50 — increased for better coverage)
+      cleanMsgs[a] = (arr as any[]).slice(a === AI_AGENT_ADDRESS.toLowerCase() ? -100 : -200).map((m: any) => {
+        const { b64Data, audioUrl, fileUrl, imgData, fileData,
+                uploading, _toAddr, waveform, audioB64, ...keep } = m;
+        return keep;
+      });
+    });
+    const enrichedCtx = await Promise.all(currentContacts.map(async (ct: any) => {
+      try {
+        if (ct.avatarUrl?.startsWith('data:')) {
+          const { compressAvatarForBackup } = await import('./lib/cloudBackup');
+          const thumb = await compressAvatarForBackup(ct.avatarUrl);
+          const p = JSON.parse(localStorage.getItem(`pmt_profile_${ct.address?.toLowerCase()}`) ?? 'null');
+          return { ...ct, avatarUrl: thumb, bio: ct.bio || p?.bio || '' };
+        }
+        const p = JSON.parse(localStorage.getItem(`pmt_profile_${ct.address?.toLowerCase()}`) ?? 'null');
+        if (!p) return ct;
+        const av = ct.avatarUrl || p.avatarUrl || null;
+        return { ...ct, avatarUrl: (av?.startsWith?.('http') ? av : null), bio: ct.bio || p.bio || '' };
+      } catch { return ct; }
+    }));
+    const { compressAvatarForBackup } = await import('./lib/cloudBackup');
+    const av = profileRef.current?.avatarUrl;
+    const compressedAv = av ? await compressAvatarForBackup(av).catch(() => null) : null;
+    await saveCloudBackup(username, password, {
+      wallet: { address: addr, privateKey: walletRef.current?.privateKey ?? '', username },
+      contacts: enrichedCtx,
+      messages: cleanMsgs,
+      profile: profileRef.current ? { ...profileRef.current, avatarUrl: compressedAv } : {},
+    });
+  }, [isDemo]);
+
+  // Auto cloud backup — debounced 5s after any message/contact change.
   useEffect(() => {
     if (!wallet?.address || isDemo) return;
-    if (!sessionPasswordRef.current) return; // no password in memory (MetaMask user)
-    const username = wallet.username;
-    if (!username) return; // MetaMask wallet — no backup needed
-    const timer = setTimeout(async () => {
-      try {
-        const password = sessionPasswordRef.current;
-        if (!password) return;
-        // Strip binary blobs from messages before backup (keep metadata + IPFS CIDs)
-        const cleanMsgs: Record<string, object[]> = {};
-        Object.entries(msgs).forEach(([addr, arr]) => {
-          cleanMsgs[addr] = (arr as any[]).slice(addr === AI_AGENT_ADDRESS.toLowerCase() ? -100 : -50).map(m => {
-            const { b64Data, audioUrl, fileUrl, imgData, fileData,
-                    uploading, _toAddr, waveform, audioB64, ...keep } = m;
-            return keep;
-          });
-        });
-        // Enrich contacts with pmt_profile_{addr} data so avatar/bio survive backup/restore
-        const enrichedCtx = await Promise.all(contacts.map(async (ct: any) => {
-          try {
-            // Compress any base64 avatar (group or contact) to thumbnail for backup
-            if (ct.avatarUrl?.startsWith('data:')) {
-              const { compressAvatarForBackup } = await import('./lib/cloudBackup');
-              const thumb = await compressAvatarForBackup(ct.avatarUrl);
-              const p = JSON.parse(localStorage.getItem(`pmt_profile_${ct.address?.toLowerCase()}`) ?? 'null');
-              const bio = p ? (ct.bio || p.bio || '') : ct.bio;
-              return { ...ct, avatarUrl: thumb, bio };
-            }
-            const p = JSON.parse(localStorage.getItem(`pmt_profile_${ct.address?.toLowerCase()}`) ?? 'null');
-            if (!p) return ct;
-            const av = ct.avatarUrl || p.avatarUrl || null;
-            return { ...ct, avatarUrl: (av?.startsWith?.('http') ? av : null), bio: ct.bio || p.bio || '' };
-          } catch { return ct; }
-        }));
-        await saveCloudBackup(username, password, {
-          wallet: { address: wallet.address, privateKey: wallet.privateKey ?? '', username },
-          contacts: enrichedCtx,
-          messages: cleanMsgs,
-          profile: profileRef.current ? await (async () => {
-            const av = profileRef.current!.avatarUrl;
-            // Compress base64 avatar to 64x64 thumbnail (~3KB) for backup
-            const { compressAvatarForBackup } = await import('./lib/cloudBackup');
-            const compressed = av ? await compressAvatarForBackup(av) : null;
-            return { ...profileRef.current, avatarUrl: compressed };
-          })() : {},
-        });
-      } catch { /* offline or Pinata unavailable — silent */ }
-    }, 8000);
+    const password = sessionPasswordRef.current;
+    if (!password) return; // no password in memory — skip
+    const timer = setTimeout(() => {
+      runBackup(password).catch(() => { /* offline — silent */ });
+    }, 5000);
     return () => clearTimeout(timer);
-  }, [contacts, msgs, wallet?.address, wallet?.username, isDemo]);
+  }, [contacts, msgs, wallet?.address, wallet?.username, isDemo, runBackup]);
 
   const pushNotif = useCallback((contact: Contact, text: string) => {
     const id = uid();
@@ -1048,54 +1046,13 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
 
-  // Trigger an immediate backup 3s after login (so contacts/msgs are loaded into state first)
-  // This ensures the backup fires even if the user doesn't change any data
+  // Trigger a backup 3s after login so the initial state is saved immediately
   useEffect(() => {
     if (!wallet?.address || isDemo || !sessionPasswordRef.current) return;
-    const username = wallet.username;
-    if (!username) return;
-    const timer = setTimeout(async () => {
-      try {
-        const password = sessionPasswordRef.current;
-        if (!password) return;
-        const cleanMsgs: Record<string, object[]> = {};
-        Object.entries(msgs).forEach(([addr, arr]) => {
-          cleanMsgs[addr] = (arr as any[]).slice(addr === AI_AGENT_ADDRESS.toLowerCase() ? -100 : -50).map(m => {
-            const { b64Data, audioUrl, fileUrl, imgData, fileData,
-                    uploading, _toAddr, waveform, audioB64, ...keep } = m;
-            return keep;
-          });
-        });
-        // Enrich contacts with pmt_profile_{addr} data so avatar/bio survive backup/restore
-        const enrichedCtx = await Promise.all(contacts.map(async (ct: any) => {
-          try {
-            // Compress any base64 avatar (group or contact) to thumbnail for backup
-            if (ct.avatarUrl?.startsWith('data:')) {
-              const { compressAvatarForBackup } = await import('./lib/cloudBackup');
-              const thumb = await compressAvatarForBackup(ct.avatarUrl);
-              const p = JSON.parse(localStorage.getItem(`pmt_profile_${ct.address?.toLowerCase()}`) ?? 'null');
-              const bio = p ? (ct.bio || p.bio || '') : ct.bio;
-              return { ...ct, avatarUrl: thumb, bio };
-            }
-            const p = JSON.parse(localStorage.getItem(`pmt_profile_${ct.address?.toLowerCase()}`) ?? 'null');
-            if (!p) return ct;
-            const av = ct.avatarUrl || p.avatarUrl || null;
-            return { ...ct, avatarUrl: (av?.startsWith?.('http') ? av : null), bio: ct.bio || p.bio || '' };
-          } catch { return ct; }
-        }));
-        await saveCloudBackup(username, password, {
-          wallet: { address: wallet.address, privateKey: wallet.privateKey ?? '', username },
-          contacts: enrichedCtx,
-          messages: cleanMsgs,
-          profile: profileRef.current ? await (async () => {
-            const av = profileRef.current!.avatarUrl;
-            // Compress base64 avatar to 64x64 thumbnail (~3KB) for backup
-            const { compressAvatarForBackup } = await import('./lib/cloudBackup');
-            const compressed = av ? await compressAvatarForBackup(av) : null;
-            return { ...profileRef.current, avatarUrl: compressed };
-          })() : {},
-        });
-      } catch { /* silent */ }
+    if (!wallet.username) return;
+    const password = sessionPasswordRef.current;
+    const timer = setTimeout(() => {
+      runBackup(password).catch(() => { /* silent */ });
     }, 3000);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
