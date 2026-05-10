@@ -19,36 +19,16 @@ interface BroadcastParams {
   msgHash: string;
   msgType: string;
   blockNum: number;
-  useMetaMask: boolean;
-  metaMaskProvider: unknown;
+  // useMetaMask and metaMaskProvider kept for API compat but always ignored —
+  // we never ask the wallet to sign individual messages (would popup on every send)
+  useMetaMask?: boolean;
+  metaMaskProvider?: unknown;
 }
 
 // ── Broadcast message via PMT chain (localStorage ledger) ─────────────────
 export async function broadcastMessage(params: BroadcastParams): Promise<{ txHash: string; chain: string }> {
-  const { from, to, msgHash, msgType, blockNum, useMetaMask, metaMaskProvider } = params;
-
-  if (useMetaMask && metaMaskProvider) {
-    try {
-      const provider = metaMaskProvider as { request: (args: unknown) => Promise<string> };
-      const data = '0x' +
-        'a1b2c3d4' +
-        to.slice(2).padStart(64, '0') +
-        msgHash.slice(2).padStart(64, '0') +
-        Array.from(new TextEncoder().encode(msgType))
-          .map(b => b.toString(16).padStart(2, '0'))
-          .join('')
-          .padStart(64, '0');
-
-      const txHash = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [{ from, to, value: '0x0', data: data.slice(0, 202), gas: '0x5208' }],
-      });
-      return { txHash, chain: 'ethereum' };
-    } catch {
-      // Fall through to PMT chain
-    }
-  }
-
+  const { from, to, msgHash, msgType, blockNum } = params;
+  // Always use PMTchain local ledger — no wallet popup per message
   return broadcastViaPMTChain(from, to, msgHash, msgType, blockNum);
 }
 

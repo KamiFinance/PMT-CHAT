@@ -794,9 +794,9 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       } catch {}
       try {
         const msgHash = await hashMessage(w.address, toAddr, msgContent, Date.now());
-        // Get provider for on-chain broadcast (any EIP-6963 wallet or window.ethereum)
-        const broadcastProvider = w.isMetaMask ? await getWalletProvider() : null;
-        const { txHash, chain } = await broadcastMessage({ from: w.address, to: toAddr, msgHash, msgType, blockNum: block, useMetaMask: !!broadcastProvider, metaMaskProvider: broadcastProvider ?? null });
+        // Always use PMTchain local ledger — never ask wallet to sign each message
+        // (using eth_sendTransaction per message would trigger a popup for every message)
+        const { txHash, chain } = await broadcastMessage({ from: w.address, to: toAddr, msgHash, msgType, blockNum: block, useMetaMask: false, metaMaskProvider: null });
         setMsgs(p => ({ ...p, [toAddr]: (p[toAddr] ?? []).map(m => m.id === msg.id ? { ...m, hash: shortHash(txHash), chain, onChain: true } : m) }));
       } catch {}
     }
