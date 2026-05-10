@@ -82,6 +82,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
   const iMine=(v)=>typeof v==='object'&&v!==null?Number((v as any)[myAddress??''])>0:Number(v)>0;
   const reactionEntries=Object.entries(reactions).filter(([,v])=>getRxnCount(v)>0);
   const longPressRef=useRef(null);
+  const [showReplyBtn,setShowReplyBtn]=useState(false);
   const swipeStartX=useRef(null);
   const swipeTranslate=useRef(0);
   const bubbleRef=useRef(null);
@@ -287,7 +288,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
       onTouchStart={(e)=>{handleLongPress(e);onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();onTouchEndSwipe();}}
       onTouchMove={(e)=>{cancelLongPress();onTouchMoveSwipe(e);}}>
-      <div style={{display:'flex',alignItems:'flex-end',gap:8,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
+      <div style={{display:'flex',alignItems:'flex-end',gap:4,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}
+        onMouseEnter={()=>setShowReplyBtn(true)} onMouseLeave={()=>setShowReplyBtn(false)}>
         {!isOut&&(
           <div style={{flexShrink:0}}>
             <ProfilePic
@@ -299,22 +301,9 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
             />
           </div>
         )}
-        <div className="msg-bubble-text" style={{maxWidth:'68%',padding:'9px 13px',borderRadius:16,fontSize:13.5,lineHeight:1.5,position:'relative',
+        <div className="msg-bubble-text" style={{maxWidth:'68%',padding:'9px 13px',borderRadius:16,fontSize:13.5,lineHeight:1.5,
           ...(isOut?{background:'#1a2a4a',border:'1px solid rgba(99,210,255,.15)',borderBottomRightRadius:4}
-                   :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4})}}
-          onMouseEnter={e=>{const b=e.currentTarget.querySelector('.reply-btn');if(b)b.style.opacity='1';}}
-          onMouseLeave={e=>{const b=e.currentTarget.querySelector('.reply-btn');if(b)b.style.opacity='0';}}>
-          {/* Reply button — visible on hover (desktop) */}
-          {onReply&&(
-            <button className="reply-btn" onClick={()=>onReply(msg)}
-              style={{position:'absolute',top:4,right:isOut?'auto':-28,left:isOut?-28:'auto',
-                background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'50%',
-                width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',
-                cursor:'pointer',fontSize:11,opacity:0,transition:'opacity .15s',flexShrink:0,
-                color:'var(--muted)',zIndex:2}}>
-              ↩
-            </button>
-          )}
+                   :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4})}}>
           {msg.senderName&&!isOut&&(
             <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent2)',marginBottom:3,fontWeight:600}}>{msg.senderName}</div>
           )}
@@ -322,6 +311,18 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
           <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup}/>
           {meta}
         </div>
+        {/* Reply button — shown in flex row on hover, stays visible when moving to click */}
+        {onReply&&(
+          <button onClick={(e)=>{e.stopPropagation();onReply(msg);}}
+            title="Reply"
+            style={{alignSelf:'center',background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:'50%',width:26,height:26,display:'flex',alignItems:'center',
+              justifyContent:'center',cursor:'pointer',fontSize:13,flexShrink:0,
+              color:'var(--muted)',opacity:showReplyBtn?1:0,transition:'opacity .15s',
+              WebkitTapHighlightColor:'transparent'}}>
+            ↩
+          </button>
+        )}
       </div>
       {reactionsBar}
       {picker}
