@@ -190,7 +190,7 @@ export function useInboxPoll({
           read: false,
           onChain: !!(inboxMsg.chain || inboxMsg.onChain),
           chain: inboxMsg.chain ?? 'pmt',
-          senderName: inboxMsg.fromName ?? senderAddr.slice(0, 8),
+          senderName: (inboxMsg as any).fromName ?? (inboxMsg as any).senderName ?? senderAddr.slice(0, 8),
           senderAddress: senderAddr,
           senderAvatarUrl,
           senderBio,
@@ -199,6 +199,12 @@ export function useInboxPoll({
         let extra: Partial<Message> = {};
         if (inboxMsg.type === 'voice') extra = reconstructVoiceMsg(inboxMsg);
         if (inboxMsg.type === 'image' || inboxMsg.type === 'file') extra = reconstructMediaMsg(inboxMsg);
+        if (inboxMsg.type === 'tx') extra = {
+          amount: (inboxMsg as any).amount,
+          coin: (inboxMsg as any).coin ?? 'PMT',
+          senderName: (inboxMsg as any).senderName ?? (inboxMsg as any).fromName ?? senderAddr.slice(0, 8),
+          senderAvatarUrl: (inboxMsg as any).senderAvatarUrl ?? senderAvatarUrl,
+        };
 
         const newMsg: Message = { ...base, ...extra };
 
