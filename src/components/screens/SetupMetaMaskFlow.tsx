@@ -34,9 +34,28 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
     if(pwd!==pwd2){setErr('Passwords do not match');return;}
     setSaving(true);
     try{
-      // Check username not taken (server check)
+      // Check if username is already taken — but allow if it belongs to THIS wallet
+      // (returning user who cleared browser data trying to reconnect)
       const avail=await checkUsernameAvailable(username.trim());
-      if(!avail){setErr('Username already taken — choose a different one.');setSaving(false);return;}
+      if(!avail){
+        // Username exists — check if it's owned by this wallet address
+        try{
+          const res=await fetch(`/api/auth?address=${encodeURIComponent(wallet.address.toLowerCase())}`);
+          if(res.ok){
+            const rec=await res.json();
+            if(rec.username?.toLowerCase()===username.trim().toLowerCase()){
+              // Same user reconnecting — username belongs to this address, allow it
+            } else {
+              setErr('Username already taken — choose a different one.');setSaving(false);return;
+            }
+          } else {
+            // Address not registered, but username taken by someone else
+            setErr('Username already taken — choose a different one.');setSaving(false);return;
+          }
+        }catch{
+          setErr('Username already taken — choose a different one.');setSaving(false);return;
+        }
+      }
       // Derive a key from password to encrypt account data
       const enc=new TextEncoder();
       const keyMat=await crypto.subtle.importKey('raw',enc.encode(pwd),{name:'PBKDF2'},false,['deriveBits','deriveKey']);
@@ -48,24 +67,37 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
       const iv=crypto.getRandomValues(new Uint8Array(12));
       const data=enc.encode(JSON.stringify({address:wallet.address,privateKey:wallet.privateKey||'metamask'}));
       const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data);
+      const encryptedArr=Array.from(new Uint8Array(encrypted));
       const account={
         username:username.trim(),
         address:wallet.address,
         salt:Array.from(salt),
         iv:Array.from(iv),
-        encrypted:Array.from(new Uint8Array(encrypted)),
+        encrypted:encryptedArr,
         isMetaMask:true,
         createdAt:Date.now(),
       };
       localStorage.setItem('pmt_account_'+wallet.address.toLowerCase(),JSON.stringify(account));
       localStorage.setItem('pmt_session',JSON.stringify({username:username.trim(),address:wallet.address}));
-      // Register on server so username shows as taken + enables address lookup
+      // Register on server: username + encrypted backup (enables cross-device recovery)
       try {
         const {PMTAuth} = await import('../../lib/auth');
         const {hash, salt: ps} = await PMTAuth.hashPassword(pwd);
         await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({username: username.trim(), passwordHash: hash, salt: ps, address: wallet.address})});
-      } catch { /* silent */ }
+          body: JSON.stringify({
+            username: username.trim(),
+            passwordHash: hash,
+            salt: ps,
+            address: wallet.address,
+            // Include encrypted backup so cloud recovery works on any device
+            encryptedBackup: JSON.stringify({
+              salt: Array.from(salt),
+              iv: Array.from(iv),
+              encrypted: encryptedArr,
+              isMetaMask: true,
+            }),
+          })});
+      } catch { /* silent — local account still works */ }
       onDone(username.trim());
     }catch(e){
       setErr('Failed to save: '+e.message);
