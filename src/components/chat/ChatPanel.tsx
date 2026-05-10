@@ -76,6 +76,45 @@ function EmojiPicker({onSelect,onClose}:{onSelect:(e:string)=>void,onClose:()=>v
   );
 }
 
+
+// Convert audio blob to WAV base64 for universal compatibility (iOS, Android, Chrome, Firefox)
+async function blobToWavBase64(blob: Blob): Promise<string> {
+  const arrayBuffer = await blob.arrayBuffer();
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+  audioCtx.close();
+  // Render to PCM
+  const numChannels = decoded.numberOfChannels;
+  const sampleRate = decoded.sampleRate;
+  const numSamples = decoded.length;
+  const pcmData = decoded.getChannelData(0); // mono
+  // Build WAV file
+  const wavBuffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(wavBuffer);
+  const writeStr = (offset: number, str: string) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+  for (let i = 0; i < numSamples; i++) {
+    view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcmData[i])) * 0x7FFF, true);
+  }
+  // Convert to base64
+  const bytes = new Uint8Array(wavBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return 'data:audio/wav;base64,' + btoa(binary);
+}
+
 export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
@@ -260,18 +299,27 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           const msgId='v'+Date.now();
           try{ localStorage.setItem('pmt_audio_'+msgId, audioBase64); }catch(e){}
 
-          // Always include base64 in message for reliable cross-device delivery
-          // (Pinata/IPFS is unreliable — base64 guarantees recipient gets the audio)
-          const sendVoice=(extra={})=>onSendRef.current({
-            type:'voice', audioUrl:url, audioMsgId:msgId,
-            audioB64:audioBase64, duration:dur, waveform:bars, ...extra
+          // Convert to WAV for universal compatibility (iOS, Android, all browsers)
+          // audioBase64 is the original format — wavBase64 is universally playable
+          blobToWavBase64(blob).then(wavBase64 => {
+            const sendVoice=(extra={})=>onSendRef.current({
+              type:'voice', audioUrl:url, audioMsgId:msgId,
+              audioB64:wavBase64, duration:dur, waveform:bars, ...extra
+            });
+            // Also try IPFS upload for redundancy
+            uploadToPinata(blob, 'voice_'+msgId+'.'+(mr.mimeType?.includes('mp4')||mr.mimeType?.includes('aac')?'m4a':'webm'))
+              .then(cid=>{ sendVoice({ipfsCid:cid, ipfsUrl:getIpfsUrl(cid)}); })
+              .catch(()=>{ sendVoice(); });
+          }).catch(()=>{
+            // WAV conversion failed — fall back to original format
+            const sendVoice=(extra={})=>onSendRef.current({
+              type:'voice', audioUrl:url, audioMsgId:msgId,
+              audioB64:audioBase64, duration:dur, waveform:bars, ...extra
+            });
+            uploadToPinata(blob, 'voice_'+msgId+'.webm')
+              .then(cid=>{ sendVoice({ipfsCid:cid, ipfsUrl:getIpfsUrl(cid)}); })
+              .catch(()=>{ sendVoice(); });
           });
-
-          // Try IPFS upload in background — if it works, resend with CID for efficiency
-          // If it fails, the already-sent base64 message is sufficient
-          uploadToPinata(blob, 'voice_'+msgId+'.'+(mr.mimeType?.includes('mp4')||mr.mimeType?.includes('aac')?'m4a':'webm'))
-            .then(cid=>{ sendVoice({ipfsCid:cid, ipfsUrl:getIpfsUrl(cid)}); })
-            .catch(()=>{ sendVoice(); });
         };
         reader.readAsDataURL(blob);
         setRecordSeconds(0);
