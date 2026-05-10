@@ -200,6 +200,7 @@ export function useInboxPoll({
           senderAddress: senderAddr,
           senderAvatarUrl,
           senderBio,
+          replyTo: (inboxMsg as any).replyTo ?? null,
         };
 
         let extra: Partial<Message> = {};
