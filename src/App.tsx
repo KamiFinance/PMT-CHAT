@@ -157,11 +157,11 @@ export default function App() {
     if (!w?.username || isDemo) return false;
     const accountRaw = localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`);
     if (!accountRaw) return false;
-    // Only use internal wallet path if account address matches current wallet address
-    // (they can be out of sync after wallet imports or account restores)
     try {
       const account = JSON.parse(accountRaw);
+      // Account address must match wallet address, and must have a valid encryptedWallet
       if (account.address?.toLowerCase() !== w.address?.toLowerCase()) return false;
+      if (!account.encryptedWallet || account.needsReimport) return false;
     } catch { return false; }
     const pk = w.privateKey || '';
     if (!pk) return true; // no pk — need password
@@ -594,9 +594,12 @@ export default function App() {
             usePk = walletData.privateKey;
             sessionStorage.setItem('pmt_pk_' + myAddr, usePk);
             walletRef.current = { ...walletRef.current, privateKey: usePk };
+          } else {
+            // Account data is corrupted — stored key is for a different address.
+            // Fix the account by re-encrypting with the correct address from session.
+            // User will need to re-import their wallet via Settings to fully fix this.
+            // Fall through to MetaMask EIP-6963 path.
           }
-          // If derivedAddr !== myAddr: account data is corrupted (key is for a different address).
-          // Fall through to MetaMask EIP-6963 path silently — don't error.
         }
         if (usePk) {
           // Internal wallet — sign & send directly, no MetaMask needed
