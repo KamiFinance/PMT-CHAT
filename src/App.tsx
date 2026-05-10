@@ -617,7 +617,7 @@ export default function App() {
                   chainId: '0x46df2', chainName: 'PMTchain',
                   nativeCurrency: { name: 'PMT', symbol: 'PMT', decimals: 18 },
                   rpcUrls: ['https://node1-ipm.dweb3.wtf'],
-                  blockExplorerUrls: ['https://explorer.publicmasterpiece.com'],
+                  blockExplorerUrls: ['https://pmtscan.com'],
                 }]});
               } else if (sw.code !== 4001) throw sw;
             }
@@ -662,10 +662,10 @@ export default function App() {
             senderName,
             senderAvatarUrl,
           };
-          await fetch('/api/inbox', {
+          await fetch(`/api/inbox?address=${addr}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to: addr, msg: payNotif }),
+            body: JSON.stringify(payNotif),
           });
         } catch { /* silent — local tx already recorded */ }
 
@@ -716,7 +716,7 @@ You can answer ANY question: crypto, blockchain, coding, math, science, history,
 - Chain ID: 0x46df2 (290290 decimal)
 - Native token: PMT (Publicmasterpiece Token)
 - RPC: wss://node1-ipm.dweb3.wtf (WebSocket) / https://node1-ipm.dweb3.wtf (HTTP)
-- Block explorer: https://explorer.publicmasterpiece.com
+- Block explorer: https://pmtscan.com
 - Consensus: Proof of Authority (PoA) — fast finality, low fees
 - Block time: ~3 seconds
 - Gas fees: extremely low (fractions of PMT)
@@ -745,7 +745,7 @@ You can answer ANY question: crypto, blockchain, coding, math, science, history,
 - RPC URL: https://node1-ipm.dweb3.wtf
 - Chain ID: 290290
 - Currency symbol: PMT
-- Block explorer: https://explorer.publicmasterpiece.com
+- Block explorer: https://pmtscan.com
 
 Answer questions about PMT, PMTchain, the app, or anything else the user asks.`, messages: [...history, { role: 'user', content: userMsg }] }),
         })

@@ -3,7 +3,7 @@ import React from 'react';
 
 export default function TxCard({msg, isOut}) {
   const explorerUrl = msg.hash && msg.hash.length > 20
-    ? `https://explorer.publicmasterpiece.com/tx/${msg.hash}`
+    ? `https://pmtscan.com/tx/${msg.hash}`
     : null;
 
   return (

@@ -41,7 +41,7 @@ function SwitchNetworkButton() {
       const PMT = { chainId:'0x46df2', chainName:'PMTchain',
         nativeCurrency:{name:'PM',symbol:'PMT',decimals:18},
         rpcUrls:['https://node1-ipm.dweb3.wtf'],
-        blockExplorerUrls:['https://explorer.publicmasterpiece.com'] };
+        blockExplorerUrls:['https://pmtscan.com'] };
       eth.request({method:'eth_requestAccounts'})
         .then(() => eth.request({method:'wallet_addEthereumChain', params:[PMT]}))
         .then(() => setSwitching(false))
@@ -52,7 +52,7 @@ function SwitchNetworkButton() {
   const PMT_CHAIN = { chainId: '0x46df2', chainName: 'PMTchain',
     nativeCurrency: { name: 'PM', symbol: 'PMT', decimals: 18 },
     rpcUrls: ['https://node1-ipm.dweb3.wtf'],
-    blockExplorerUrls: ['https://explorer.publicmasterpiece.com'] };
+    blockExplorerUrls: ['https://pmtscan.com'] };
 
   const doSwitch = () => {
     if (status === 'switching') { setStatus('idle'); return; }
@@ -82,7 +82,7 @@ function SwitchNetworkButton() {
     {label:'RPC URL', value:'https://node1-ipm.dweb3.wtf'},
     {label:'Chain ID', value:'290290'},
     {label:'Currency Symbol', value:'PM'},
-    {label:'Block Explorer', value:'https://explorer.publicmasterpiece.com'},
+    {label:'Block Explorer', value:'https://pmtscan.com'},
   ];
   return (
     <div style={{margin:'0 10px 6px',flexShrink:0}}>
