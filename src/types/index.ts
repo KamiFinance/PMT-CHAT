@@ -49,6 +49,7 @@ export interface Message {
   amount?: string;
   coin?: string;
   audioB64?: string | null;
+  replyTo?: { id: string; text: string; senderName: string; type?: string } | null;
   token?: string;
   txHash?: string;
 

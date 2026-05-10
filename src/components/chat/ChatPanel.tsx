@@ -120,6 +120,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
   const [showEmoji,setShowEmoji]=useState(false);
+  const [replyingTo,setReplyingTo]=useState(null); // message being replied to
   const [recording,setRecording]=useState(false);
   const fileInputRef=useRef(null);
   const attachBtnRef=useRef(null);
@@ -159,7 +160,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   useEffect(()=>{onSendRef.current=onSend;},[onSend]);
 
   useEffect(()=>bottomRef.current?.scrollIntoView({behavior:'smooth'}),[messages]);
-  useEffect(()=>{setText('');inputRef.current?.focus();setShowAttach(false);setShowEmoji(false);},[contact?.id]);
+  useEffect(()=>{setText('');setReplyingTo(null);inputRef.current?.focus();setShowAttach(false);setShowEmoji(false);},[contact?.id]);
   useEffect(()=>{
     if(!showAttach)return;
     const close=e=>{
@@ -169,7 +170,17 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     return()=>document.removeEventListener('click',close);
   },[showAttach]);
 
-  const send=()=>{const t=text.trim();if(!t)return;onSend(t);setText('');};
+  const send=()=>{
+    const t=text.trim();if(!t)return;
+    const extra=replyingTo?{replyTo:{
+      id:replyingTo.id,
+      text:replyingTo.text||'',
+      senderName:replyingTo.senderName||(replyingTo.out?'You':contact?.name||''),
+      type:replyingTo.type,
+    }}:{};
+    onSend({text:t,...extra});
+    setText('');setReplyingTo(null);
+  };
   const insertEmoji=(emoji:string)=>{
     const el=inputRef.current as any;
     if(!el){setText(p=>p+emoji);return;}
@@ -396,7 +407,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
             </div>
             {messages.map(m=>(
               <Bubble key={m.id} msg={m} isOut={m.out} contact={contact}
-                myAddress={myAddress} onReact={onReact} searchQuery={searchQuery} onJoinGroup={onJoinGroup}/>
+                myAddress={myAddress} onReact={onReact} searchQuery={searchQuery} onJoinGroup={onJoinGroup}
+                onReply={(msg)=>{setReplyingTo(msg);setTimeout(()=>inputRef.current?.focus(),50);}}/>
             ))}
             <div ref={bottomRef}/>
           </div>
@@ -452,6 +464,26 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           </div>
         </div>
 
+        {/* ── Reply preview bar ── */}
+        {replyingTo&&(
+          <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px 4px',
+            background:'var(--panel)',borderTop:'1px solid var(--border)',
+            borderLeft:'3px solid var(--accent2)',flexShrink:0}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',fontWeight:700,marginBottom:1}}>
+                ↩ Replying to {replyingTo.out?'yourself':contact?.name||''}
+              </div>
+              <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                {replyingTo.type==='voice'?'🎵 Voice message':replyingTo.type==='image'?'🖼 Image':replyingTo.type==='file'?'📎 File':replyingTo.text}
+              </div>
+            </div>
+            <button onClick={()=>setReplyingTo(null)}
+              style={{background:'none',border:'none',color:'var(--muted)',fontSize:18,cursor:'pointer',
+                flexShrink:0,lineHeight:1,padding:'0 4px'}}>
+              ×
+            </button>
+          </div>
+        )}
         {/* ── Input — .chat-passthrough makes background pass-through, buttons/textarea stay clickable ── */}
         <div className="chat-passthrough" style={{position:'absolute',bottom:0,left:0,right:0,zIndex:10}}>
           <div className="chat-input-row"

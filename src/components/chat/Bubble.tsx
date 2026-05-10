@@ -73,7 +73,7 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery,onJoinGroup}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,searchQuery,onJoinGroup}){
   const [showPicker,setShowPicker]=useState(false);
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const reactions=msg.reactions||{};
@@ -82,10 +82,57 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery,
   const iMine=(v)=>typeof v==='object'&&v!==null?Number((v as any)[myAddress??''])>0:Number(v)>0;
   const reactionEntries=Object.entries(reactions).filter(([,v])=>getRxnCount(v)>0);
   const longPressRef=useRef(null);
+  const swipeStartX=useRef(null);
+  const swipeTranslate=useRef(0);
+  const bubbleRef=useRef(null);
+
+  // Swipe-right to reply (mobile)
+  const onTouchStartSwipe=(e)=>{
+    swipeStartX.current=e.touches[0].clientX;
+    if(bubbleRef.current) bubbleRef.current.style.transition='none';
+  };
+  const onTouchMoveSwipe=(e)=>{
+    if(swipeStartX.current===null) return;
+    const dx=e.touches[0].clientX-swipeStartX.current;
+    if(dx>0&&dx<80){
+      swipeTranslate.current=dx;
+      if(bubbleRef.current) bubbleRef.current.style.transform=`translateX(${dx}px)`;
+    }
+  };
+  const onTouchEndSwipe=()=>{
+    if(swipeTranslate.current>40&&onReply) onReply(msg);
+    if(bubbleRef.current){
+      bubbleRef.current.style.transition='transform .2s ease';
+      bubbleRef.current.style.transform='translateX(0)';
+    }
+    swipeStartX.current=null;
+    swipeTranslate.current=0;
+  };
 
   const handleLongPress=()=>{longPressRef.current=setTimeout(()=>setShowPicker(true),500);};
   const cancelLongPress=()=>clearTimeout(longPressRef.current);
   const togglePicker=(e)=>{e.stopPropagation();setShowPicker(p=>!p);};
+
+  // Quoted message preview (shown when msg.replyTo is set)
+  const replyPreview=msg.replyTo&&(
+    <div style={{
+      borderLeft:'3px solid var(--accent2)',
+      background:'rgba(99,210,255,.07)',
+      borderRadius:'0 6px 6px 0',
+      padding:'4px 8px',
+      marginBottom:5,
+      cursor:'pointer',
+      maxWidth:'100%',
+      overflow:'hidden',
+    }}>
+      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',fontWeight:700,marginBottom:2}}>
+        ↩ {msg.replyTo.senderName}
+      </div>
+      <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+        {msg.replyTo.type==='voice'?'🎵 Voice message':msg.replyTo.type==='image'?'🖼 Image':msg.replyTo.type==='file'?'📎 File':msg.replyTo.text}
+      </div>
+    </div>
+  );
 
   const meta=(
     <div style={{display:'flex',alignItems:'center',gap:6,marginTop:5,flexWrap:'wrap'}}>
@@ -235,8 +282,11 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery,
   return(
     <>
     <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3}}
+      ref={bubbleRef}
       onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
-      onTouchStart={handleLongPress} onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
+      onTouchStart={(e)=>{handleLongPress(e);onTouchStartSwipe(e);}}
+      onTouchEnd={(e)=>{cancelLongPress();onTouchEndSwipe();}}
+      onTouchMove={(e)=>{cancelLongPress();onTouchMoveSwipe(e);}}>
       <div style={{display:'flex',alignItems:'flex-end',gap:8,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
         {!isOut&&(
           <div style={{flexShrink:0}}>
@@ -249,12 +299,26 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery,
             />
           </div>
         )}
-        <div className="msg-bubble-text" style={{maxWidth:'68%',padding:'9px 13px',borderRadius:16,fontSize:13.5,lineHeight:1.5,
+        <div className="msg-bubble-text" style={{maxWidth:'68%',padding:'9px 13px',borderRadius:16,fontSize:13.5,lineHeight:1.5,position:'relative',
           ...(isOut?{background:'#1a2a4a',border:'1px solid rgba(99,210,255,.15)',borderBottomRightRadius:4}
-                   :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4})}}>
+                   :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4})}}
+          onMouseEnter={e=>{const b=e.currentTarget.querySelector('.reply-btn');if(b)b.style.opacity='1';}}
+          onMouseLeave={e=>{const b=e.currentTarget.querySelector('.reply-btn');if(b)b.style.opacity='0';}}>
+          {/* Reply button — visible on hover (desktop) */}
+          {onReply&&(
+            <button className="reply-btn" onClick={()=>onReply(msg)}
+              style={{position:'absolute',top:4,right:isOut?'auto':-28,left:isOut?-28:'auto',
+                background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'50%',
+                width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',
+                cursor:'pointer',fontSize:11,opacity:0,transition:'opacity .15s',flexShrink:0,
+                color:'var(--muted)',zIndex:2}}>
+              ↩
+            </button>
+          )}
           {msg.senderName&&!isOut&&(
             <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent2)',marginBottom:3,fontWeight:600}}>{msg.senderName}</div>
           )}
+          {replyPreview}
           <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup}/>
           {meta}
         </div>
