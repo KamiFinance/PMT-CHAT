@@ -138,3 +138,11 @@ input,textarea,select{font-size:16px!important}
 .chat-passthrough [data-attach] *,
 .chat-passthrough .chat-clickable,
 .chat-passthrough .chat-clickable * { pointer-events: auto !important; }
+
+/* Emoji contenteditable input placeholder */
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+  opacity: 0.5;
+}

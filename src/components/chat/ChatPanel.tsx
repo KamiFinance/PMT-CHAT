@@ -7,6 +7,7 @@ import { now, rndHash, uid, formatSize, currentBlock } from '../../lib/utils';
 import Avatar from '../ui/Avatar';
 import Bubble from './Bubble';
 import Twemoji from '../ui/Twemoji';
+import EmojiInput from './EmojiInput';
 import AttachMenu from './AttachMenu';
 import MobileTopbar from '../ui/MobileTopbar';
 import BlockStrip from '../ui/BlockStrip';
@@ -218,6 +219,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const insertEmoji=(emoji:string)=>{
     const el=inputRef.current as any;
     if(!el){setText(p=>p+emoji);return;}
+    if(el.insertAtCursor){el.insertAtCursor(emoji);return;}
     const start=el.selectionStart??text.length;
     const end=el.selectionEnd??text.length;
     const newText=text.slice(0,start)+emoji+text.slice(end);
@@ -596,12 +598,9 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 </div>
                 <div style={{flex:1,background:'var(--surface)',border:'1px solid var(--border)',
                   borderRadius:12,display:'flex',alignItems:'flex-end',padding:'0 12px'}}>
-                  <textarea ref={inputRef} rows={1} value={text}
-                    onChange={e=>setText(e.target.value)} onKeyDown={key}
-                    placeholder="(encrypted on-chain)"
-                    style={{flex:1,background:'transparent',border:'none',outline:'none',
-                      color:'var(--text)',fontFamily:'var(--sans)',fontSize:13.5,
-                      padding:'10px 0',resize:'none',lineHeight:1.5,maxHeight:120}}/>
+                  <EmojiInput ref={inputRef} value={text}
+                    onChange={setText} onKeyDown={key}
+                    placeholder="(encrypted on-chain)"/>
                   <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',
                     opacity:.6,paddingBottom:11}}>🔒 E2E</span>
                 </div>
