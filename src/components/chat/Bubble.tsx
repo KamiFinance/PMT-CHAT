@@ -92,8 +92,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery,
       <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)'}}>{msg.time}</span>
       <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',opacity:.7}}>{msg.hash?msg.hash.slice(0,8)+'...'+msg.hash.slice(-4):''}</span>
       {msg.block&&<span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',opacity:.6}}>#{(msg.block||0).toLocaleString()}</span>}
-      <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.confirms===0?'var(--muted)':msg.confirms<6?'var(--accent)':'var(--accent3)'}}>
-        {msg.pending?'⏳':('✓'+msg.confirms)}
+      <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.pending?'var(--muted)':msg.confirms===0?'var(--muted)':msg.confirms<6?'var(--accent)':'var(--accent3)'}}>
+        {msg.pending?'✓':('✓'+msg.confirms)}
       </span>
       {isOut&&(
         <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.read?'var(--accent)':'var(--muted)'}}>
