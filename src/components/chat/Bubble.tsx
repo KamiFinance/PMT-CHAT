@@ -166,32 +166,38 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
     </div>
   );
 
+  // On yellow outgoing bubble, use dark/black text; otherwise use theme colors
+  const mc = isOut ? 'rgba(0,0,0,0.5)' : 'var(--muted)';
+  const mc2 = isOut ? 'rgba(0,0,0,0.45)' : 'var(--accent2)';
+  const mcOk = isOut ? 'rgba(0,0,0,0.6)' : 'var(--accent3)';
+
   const meta=(
     <div style={{display:'flex',alignItems:'center',gap:6,marginTop:5,flexWrap:'wrap'}}>
-      <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)'}}>{msg.time}</span>
-      <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',opacity:.7}}>{msg.hash?msg.hash.slice(0,8)+'...'+msg.hash.slice(-4):''}</span>
-      {msg.block&&<span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',opacity:.6}}>#{(msg.block||0).toLocaleString()}</span>}
-      <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.pending?'var(--muted)':msg.confirms===0?'var(--muted)':msg.confirms<6?'var(--accent)':'var(--accent3)'}}>
+      <span style={{fontFamily:'var(--mono)',fontSize:9,color:mc}}>{msg.time}</span>
+      <span style={{fontFamily:'var(--mono)',fontSize:9,color:mc2,opacity:.8}}>{msg.hash?msg.hash.slice(0,8)+'...'+msg.hash.slice(-4):''}</span>
+      {msg.block&&<span style={{fontFamily:'var(--mono)',fontSize:9,color:mc,opacity:.7}}>#{(msg.block||0).toLocaleString()}</span>}
+      <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.pending?mc:msg.confirms===0?mc:msg.confirms<6?mc2:mcOk}}>
         {msg.pending?'✓':('✓'+msg.confirms)}
       </span>
       {isOut&&(
-        <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.read?'var(--accent)':'var(--muted)'}}>
+        <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.read?mcOk:mc}}>
           {msg.pending?'':msg.read?'✓✓':'✓'}
         </span>
       )}
       {msg.onChain&&(
         <span title={`On-chain tx: ${msg.hash}`}
           style={{fontFamily:'var(--mono)',fontSize:8,
-            color:'var(--accent3)',background:'rgba(52,211,153,.12)',
-            border:'1px solid rgba(52,211,153,.3)',borderRadius:4,
-            padding:'0 4px',letterSpacing:.5}}>
+            color:isOut?'rgba(0,0,0,0.6)':'var(--accent3)',
+            background:isOut?'rgba(0,0,0,.1)':'rgba(52,211,153,.12)',
+            border:`1px solid ${isOut?'rgba(0,0,0,.2)':'rgba(52,211,153,.3)'}`,
+            borderRadius:4,padding:'0 4px',letterSpacing:.5}}>
           ⛓{msg.chain==='ethereum'?'ETH':'PMT'}
         </span>
       )}
       {onReact&&(
         <button onClick={togglePicker}
           style={{background:'none',border:'none',cursor:'pointer',fontSize:11,
-            color:'var(--muted)',padding:'0 2px',lineHeight:1,opacity:.6}}>
+            color:mc,padding:'0 2px',lineHeight:1,opacity:.6}}>
           😊
         </button>
       )}
