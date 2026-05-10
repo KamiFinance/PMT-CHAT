@@ -47,6 +47,7 @@ export interface Message {
 
   // TX
   amount?: string;
+  coin?: string;
   token?: string;
   txHash?: string;
 
