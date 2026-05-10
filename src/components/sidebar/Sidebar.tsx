@@ -22,7 +22,8 @@ function SwitchNetworkButton() {
     blockExplorerUrls: ['https://pmtscan.com'],
   };
 
-  // Discover MetaMask via EIP-6963
+  // Discover any EIP-6963 wallet (MetaMask, Coinbase, Rainbow, Trust, etc.)
+  // Falls back to window.ethereum for older wallets
   const getProvider = () => new Promise<any>((resolve) => {
     const found: any[] = [];
     const h = (e: any) => found.push(e.detail);
@@ -30,8 +31,10 @@ function SwitchNetworkButton() {
     window.dispatchEvent(new Event('eip6963:requestProvider'));
     setTimeout(() => {
       window.removeEventListener('eip6963:announceProvider', h);
+      // Prefer MetaMask if available, then any other EIP-6963 wallet, then window.ethereum
       const mm = found.find((p: any) => p.info?.rdns === 'io.metamask');
-      resolve(mm?.provider ?? (window as any).ethereum ?? null);
+      const any6963 = found[0]; // first announced provider
+      resolve(mm?.provider ?? any6963?.provider ?? (window as any).ethereum ?? null);
     }, 400);
   });
 
@@ -41,9 +44,16 @@ function SwitchNetworkButton() {
       setHasMM(true);
       providerRef.current = eth;
       eth.request({ method: 'eth_chainId' }).then(setChain).catch(() => {});
+      // Listen for chain changes on this provider
       const onChange = (id: string) => setChain(id);
       eth.on?.('chainChanged', onChange);
+      // Also listen via window.ethereum in case it's a different provider
+      const winEth = (window as any).ethereum;
+      if (winEth && winEth !== eth) {
+        winEth.on?.('chainChanged', onChange);
+      }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onPMT = chain === '0x46df2';
