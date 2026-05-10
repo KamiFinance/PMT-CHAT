@@ -3,6 +3,7 @@ import { now } from "../../lib/utils";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PMTCrypto } from '../../lib/crypto';
 import { PMTAuth } from '../../lib/auth';
+import { checkUsernameAvailable, loadCloudBackup } from '../../lib/cloudBackup';
 
 
 export default function ImportWalletFlow({onWallet,onBack}){
@@ -17,6 +18,7 @@ export default function ImportWalletFlow({onWallet,onBack}){
   const [loading,setLoading]=useState(false);
   const [finishing,setFinishing]=useState(false);
   const [importedWallet,setImportedWallet]=useState(null);
+  const [existingAccount,setExistingAccount]=useState(null); // {username, hasBackup} if wallet already registered
 
   // Step 1: validate the seed/key and advance to account creation
   const verifyImport=async()=>{
@@ -33,20 +35,36 @@ export default function ImportWalletFlow({onWallet,onBack}){
         w=C.importFromPrivateKey(input.trim());
       }
       setImportedWallet(w);
+      // Check if this wallet already has a registered account
+      try {
+        const res = await fetch(`/api/auth?address=${encodeURIComponent(w.address)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setExistingAccount(data); // {username, hasBackup}
+        } else {
+          setExistingAccount(null);
+        }
+      } catch { setExistingAccount(null); }
       setStep('account');
     }catch(e){
       setErr(e.message||'Import failed');
     }finally{setLoading(false);}
   };
 
-  // Step 2: create account with username+password
+  // Step 2: restore existing account OR create new account
   const finish=async()=>{
-    if(!username.trim())return setPwdErr('Please choose a username');
-    if(username.trim().length<3)return setPwdErr('Username must be at least 3 characters');
     if(password.length<8)return setPwdErr('Password must be at least 8 characters');
-    if(password!==confirmPwd)return setPwdErr('Passwords do not match');
+    if(!existingAccount && password!==confirmPwd)return setPwdErr('Passwords do not match');
+    if(!existingAccount && !username.trim())return setPwdErr('Please choose a username');
+    if(!existingAccount && username.trim().length<3)return setPwdErr('Username must be at least 3 characters');
     setPwdErr(null);setFinishing(true);
     try{
+      const useUsername = existingAccount ? existingAccount.username : username.trim();
+      // Check username availability for new accounts
+      if(!existingAccount){
+        const avail = await checkUsernameAvailable(useUsername);
+        if(!avail)return setPwdErr('Username already taken — choose a different one.');
+      }
       const walletData={
         address:importedWallet.address,
         privateKey:importedWallet.privateKey,
@@ -55,21 +73,39 @@ export default function ImportWalletFlow({onWallet,onBack}){
       const encrypted=await PMTAuth.encryptWallet(walletData,password);
       const {hash,salt}=await PMTAuth.hashPassword(password);
       const account={
-        username:username.trim(),
+        username:useUsername,
         address:importedWallet.address,
         passwordHash:hash,
         passwordSalt:salt,
         encryptedWallet:encrypted,
         createdAt:Date.now(),
       };
-      const key='pmt_account_'+username.trim().toLowerCase();
+      const key='pmt_account_'+useUsername.toLowerCase();
       localStorage.setItem(key,JSON.stringify(account));
-      localStorage.setItem('pmt_session',JSON.stringify({username:username.trim(),address:importedWallet.address}));
+      localStorage.setItem('pmt_session',JSON.stringify({username:useUsername,address:importedWallet.address}));
       sessionStorage.setItem('pmt_pk_'+importedWallet.address.toLowerCase(), importedWallet.privateKey);
+      // Restore cloud backup if existing account has one
+      let restoredContacts=[], restoredMessages={}, restoredProfile={};
+      if(existingAccount?.hasBackup){
+        try{
+          const authRes=await fetch(`/api/auth?username=${encodeURIComponent(useUsername)}`);
+          const authData=await authRes.json();
+          if(authData.encryptedBackup){
+            const backup=await loadCloudBackup(authData.encryptedBackup, password);
+            restoredContacts=backup.contacts||[];
+            restoredMessages=backup.messages||{};
+            restoredProfile=backup.profile||{};
+          }
+        }catch(e){ /* backup restore failed, continue without */ }
+      }
       onWallet({address:importedWallet.address,privateKey:importedWallet.privateKey,balance:'0.0000',network:'PMTchain',
-        chainId:'0x46df2',username:username.trim()});
+        chainId:'0x46df2',username:useUsername,sessionPassword:password,
+        ...(restoredContacts.length?{restoredContacts}:{}),
+        ...(Object.keys(restoredMessages).length?{restoredMessages}:{}),
+        ...(Object.keys(restoredProfile).length?{restoredProfile}:{}),
+      });
     }catch(e){
-      setPwdErr('Failed to secure wallet: '+e.message);
+      setPwdErr('Failed: '+e.message);
       setFinishing(false);
     }
   };
@@ -186,7 +222,9 @@ export default function ImportWalletFlow({onWallet,onBack}){
           <>
             <div style={{background:'rgba(52,211,153,.08)',border:'1px solid rgba(52,211,153,.2)',
               borderRadius:10,padding:'10px 14px',fontSize:12,color:'var(--accent3)',lineHeight:1.5}}>
-              Wallet imported successfully! Now create a username and password so you can log in quickly next time.
+              {existingAccount
+                ? `✓ Account found! This wallet belongs to "${existingAccount.username}". Enter your password to restore your account${existingAccount.hasBackup?' and all your data':''}.`
+                : 'Wallet imported successfully! Now create a username and password so you can log in quickly next time.'}
             </div>
             <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,padding:'10px 13px'}}>
               <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:3}}>WALLET ADDRESS</div>
@@ -194,14 +232,21 @@ export default function ImportWalletFlow({onWallet,onBack}){
             </div>
             <div>
               <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>USERNAME</div>
-              <input placeholder="Choose a username" value={username}
+              {!existingAccount && <input placeholder="Choose a username" value={username}
                 onChange={e=>{setUsername(e.target.value);setPwdErr(null);}}
                 style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
-                  borderRadius:9,padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',fontSize:14,outline:'none'}}/>
+                  borderRadius:9,padding:'10px 13px',color:'var(--text)',fontFamily:'var(--sans)',fontSize:14,outline:'none'}}/>}
+              {existingAccount && (
+                <div style={{background:'var(--surface)',border:'1px solid var(--accent2)',borderRadius:9,
+                  padding:'10px 13px',fontSize:14,color:'var(--accent2)',fontFamily:'var(--mono)'}}>
+                  👤 {existingAccount.username}
+                  {existingAccount.hasBackup && <span style={{fontSize:11,color:'var(--accent3)',marginLeft:8}}>☁ backup available</span>}
+                </div>
+              )}
             </div>
-            {[['Password','password',password,setPassword],['Confirm Password','confirmPwd',confirmPwd,setConfirmPwd]].map(([label,name,val,set])=>(
+            {[['Password','password',password,setPassword],['Confirm Password','confirmPwd',confirmPwd,setConfirmPwd]].filter(([label])=>!existingAccount||label==='Password').map(([label,name,val,set])=>(
               <div key={name}>
-                <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>{label.toUpperCase()}</div>
+                <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>{label.toUpperCase()}{existingAccount&&label==='Password'?<span style={{fontWeight:400,textTransform:'none',marginLeft:6}}>— your existing account password</span>:''}</div>
                 <input type="password" placeholder="password" value={val}
                   onChange={e=>{set(e.target.value);setPwdErr(null);}}
                   style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',

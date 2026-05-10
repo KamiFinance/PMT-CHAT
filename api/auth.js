@@ -42,6 +42,16 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const urlObj = new URL(req.url, `http://${req.headers.host}`);
       const username = (urlObj.searchParams.get('username') || '').toLowerCase().trim();
+      const address = (urlObj.searchParams.get('address') || '').toLowerCase().trim();
+      // Address lookup: find which account owns this wallet address
+      if (address) {
+        const uname = await redis('GET', `pmt:addr:${address}`);
+        if (!uname) { res.status(404).json({ error: 'No account found for this address' }); return; }
+        const raw2 = await redis('GET', `pmt:user:${uname}`);
+        if (!raw2) { res.status(404).json({ error: 'Account not found' }); return; }
+        const rec = JSON.parse(raw2);
+        return res.status(200).json({ username: uname, address: rec.address, hasBackup: !!rec.encryptedBackup });
+      }
       if (!username) { res.status(400).json({ error: 'username required' }); return; }
       const raw = await redis('GET', `pmt:user:${username}`);
       if (!raw) { res.status(404).json({ error: 'User not found' }); return; }
@@ -78,6 +88,8 @@ export default async function handler(req, res) {
         updated: Date.now(),
       };
       await redis('SET', key, JSON.stringify(record));
+      // Store address->username reverse lookup for wallet import detection
+      if (address) await redis('SET', `pmt:addr:${address.toLowerCase()}`, username.toLowerCase().trim());
       return res.status(200).json({ ok: true });
     }
 
