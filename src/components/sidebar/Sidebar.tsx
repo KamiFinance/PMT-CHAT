@@ -62,10 +62,8 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             borderRadius:4,padding:'2px 6px',color:'var(--accent2)'}}>{wallet?wallet.network:isDemo?'demo':' - '}</span>
         </div>
       </div>
-      {/* Switch Network button — visible when MetaMask is present */}
-      {!isDemo && typeof window !== 'undefined' && (window as any).ethereum && (
-        <SwitchNetworkButton/>
-      )}
+      {/* Switch Network button */}
+      {!isDemo && <SwitchNetworkButton/>}
       {/* Search */}
       <div style={{margin:'4px 10px 0',display:'flex',alignItems:'center',gap:6,background:'var(--surface)',
         border:'1px solid var(--border)',borderRadius:8,padding:'0 10px',flexShrink:0}}>
