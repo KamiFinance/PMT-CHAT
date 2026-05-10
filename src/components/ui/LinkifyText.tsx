@@ -60,7 +60,7 @@ function LinkPreview({ url }) {
     <>
       <div onClick={e => { e.stopPropagation(); setOpen(true); }}
         style={{ marginTop: 6, borderRadius: 10, overflow: 'hidden',
-          background: 'rgba(255,255,255,0.95)', border: 'none',
+          background: 'rgba(0,0,0,0.1)', border: 'none',
           cursor: 'pointer', transition: 'opacity .15s' }}
         onMouseEnter={e => e.currentTarget.style.opacity = '.8'}
         onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
@@ -71,10 +71,10 @@ function LinkPreview({ url }) {
         <div style={{ padding: '8px 10px 10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
             {data.favicon && <img src={data.favicon} alt="" style={{ width: 13, height: 13, borderRadius: 2 }} onError={e => e.target.style.display='none'} />}
-            <span style={{ fontSize: 10, color: 'rgba(0,0,0,0.45)', fontFamily: 'var(--mono)' }}>{data.domain}</span>
+            <span style={{ fontSize: 10, color: 'rgba(0,0,0,0.5)', fontFamily: 'var(--mono)' }}>{data.domain}</span>
           </div>
-          {data.title && <div style={{ fontSize: 13, fontWeight: 600, color: '#000', marginBottom: 2, lineHeight: 1.3 }}>{data.title}</div>}
-          {data.description && <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.55)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{data.description}</div>}
+          {data.title && <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(0,0,0,0.85)', marginBottom: 2, lineHeight: 1.3 }}>{data.title}</div>}
+          {data.description && <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.6)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{data.description}</div>}
         </div>
       </div>
       {open && <InAppBrowser url={url} onClose={() => setOpen(false)} />}
@@ -98,8 +98,8 @@ function GroupLinkPreview({ linkId, onJoinGroup }) {
   }, [linkId]);
 
   if (loading) return (
-    <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(255,255,255,0.92)',
-      border: 'none', borderRadius: 10, fontSize: 11, color: 'rgba(0,0,0,0.45)' }}>
+    <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(0,0,0,0.1)',
+      border: 'none', borderRadius: 10, fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>
       Loading group info…
     </div>
   );
@@ -109,7 +109,7 @@ function GroupLinkPreview({ linkId, onJoinGroup }) {
   return (
     <div onClick={e => { e.stopPropagation(); onJoinGroup && onJoinGroup(linkId); }}
       style={{ marginTop: 8, borderRadius: 12, overflow: 'hidden',
-        background: 'rgba(255,255,255,0.95)',
+        background: 'rgba(0,0,0,0.1)',
         border: 'none', cursor: 'pointer', transition: 'opacity .15s' }}
       onMouseEnter={e => e.currentTarget.style.opacity = '.85'}
       onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
