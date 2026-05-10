@@ -131,19 +131,24 @@ export default function LinkifyText({ text, query, onJoinGroup }) {
   const [browserUrl, setBrowserUrl] = useState(null);
   if (!text) return null;
 
+  // Pre-process: replace [PMT] tokens with a special marker before URL parsing
+  const PMT_PLACEHOLDER = 'PMT';
+  const hasPMT = text.includes('[PMT]');
+  const processedText = hasPMT ? text.replaceAll('[PMT]', PMT_PLACEHOLDER) : text;
+
   const parts = [];
   const joinIds: string[] = [];
   let last = 0, m;
   const re = new RegExp(URL_RE.source, 'gi');
   const firstUrl = { ref: null };
 
-  while ((m = re.exec(text)) !== null) {
+  while ((m = re.exec(processedText)) !== null) {
     if (m.index > last) parts.push({ type: 'text', value: text.slice(last, m.index) });
     parts.push({ type: 'url', value: m[0] });
     if (!firstUrl.ref && !JOIN_RE.test(normalizeUrl(m[0]))) firstUrl.ref = normalizeUrl(m[0]);
     last = m.index + m[0].length;
   }
-  if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
+  if (last < processedText.length) parts.push({ type: 'text', value: processedText.slice(last) });
 
   const highlight = (str) => {
     if (!query || !str) return str;
@@ -157,7 +162,15 @@ export default function LinkifyText({ text, query, onJoinGroup }) {
     <>
       <span>
         {parts.map((part, i) => {
-          if (part.type === 'text') return <span key={i}>{highlight(part.value)}</span>;
+          if (part.type === 'text') {
+            if (!part.value.includes('[PMT]')) return <span key={i}>{highlight(part.value)}</span>;
+            // Split on [PMT] and render each segment with logo images
+            return <span key={i}>{part.value.split('[PMT]').reduce((acc: React.ReactNode[], seg, si) => {
+              if (si > 0) acc.push(<img key={`pmt${i}-${si}`} src="/pmt-logo.png" style={{width:18,height:18,borderRadius:'50%',objectFit:'cover',verticalAlign:'middle',margin:'0 1px',display:'inline'}}/>);
+              if (seg) acc.push(<span key={`s${i}-${si}`}>{highlight(seg)}</span>);
+              return acc;
+            }, [])}</span>;
+          }
           const full = normalizeUrl(part.value);
           const joinMatch = JOIN_RE.exec(full);
           if (joinMatch && onJoinGroup) {

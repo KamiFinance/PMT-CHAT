@@ -37,7 +37,7 @@ const emojiRendersOk = (() => {
 })();
 
 const EMOJI_CATEGORIES = [
-  { label:'🏛', name:'PMT', emojis:['🪙','💎','🔒','🌐','🤝','💡','🚀','⚡','🏆','✨','🔑','💰','💻','📱','🌟','🎯','🏅','💹','🏦','💳','📊','📈','🎲','🎰','🌍','🔭','🎉','🔥','💥','🌈','🎪','🎭','💫','🔮','🧩','🎸','🎺','🥁','🎮','🕹','🔋','🛰','🌙','⭐','🌠','🌌'] },
+  { label:'🏛', name:'PMT', emojis:['__PMT__','🪙','💎','🔒','🌐','🤝','💡','🚀','⚡','🏆','✨','🔑','💰','💻','📱','🌟','🎯','🏅','💹','🏦','💳','📊','📈','🎲','🎰','🌍','🔭','🎉','🔥','💥','🌈','🎪','🎭','💫','🔮','🧩','🎸','🎺','🥁','🎮','🕹','🔋','🛰','🌙','⭐','🌠','🌌'] },
   { label:'😀', name:'Smileys', emojis:['😀','😂','🤣','😅','😊','😇','🥰','😍','🤩','😘','😗','😙','😚','🙂','🤗','🤭','🤫','🤔','😐','😑','😶','🙄','😏','😒','😞','😔','😟','😕','🙃','🤑','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😓','😩','😫','🥱','😤','😡','🤬','😈','💀','💩','🤡','👻','👽','🤖','😺','😸','😹','😻','😼','😽'] },
   { label:'👍', name:'Gestures', emojis:['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','🫶','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🫀','🫁','🧠','🦷','🦴','👀','👁','👅','👄','🫦','💋','🩸'] },
   { label:'❤️', name:'Hearts', emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❤️‍🩹','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉️','☸️','✡️','🔯','🕎','☯️','☦️','🛐','⛎','🔱','⚜️','🔰','♻️','✅','🈴'] },
@@ -84,13 +84,15 @@ function EmojiPicker({onSelect,onClose}:{onSelect:(e:string)=>void,onClose:()=>v
       <div style={{padding:'8px 6px',display:'grid',gridTemplateColumns:'repeat(8,1fr)',
         gap:2,maxHeight:220,overflowY:'auto'}}>
         {EMOJI_CATEGORIES[cat].emojis.filter(e=>emojiRendersOk(e)).map((e,i)=>(
-          <button key={e} onClick={()=>{onSelect(e);}}
+          <button key={e} onClick={()=>{onSelect(e==='__PMT__'?'[PMT]':e);}}
             style={{width:34,height:34,background:'transparent',border:'none',
               cursor:'pointer',fontSize:20,borderRadius:7,display:'flex',
               alignItems:'center',justifyContent:'center',transition:'background .1s'}}
             onMouseEnter={ev=>(ev.currentTarget.style.background='var(--surface2)')}
             onMouseLeave={ev=>(ev.currentTarget.style.background='transparent')}>
-            {e}
+            {e==='__PMT__'
+              ?<img src="/pmt-logo.png" style={{width:24,height:24,borderRadius:'50%',objectFit:'cover'}}/>
+              :e}
           </button>
         ))}
       </div>
