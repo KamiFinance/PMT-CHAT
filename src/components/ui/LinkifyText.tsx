@@ -50,7 +50,7 @@ function LinkPreview({ url }) {
 
   if (loading) return (
     <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(255,255,255,.03)',
-      border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--muted)' }}>
+      border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'rgba(0,0,0,0.45)' }}>
       Loading preview…
     </div>
   );
@@ -98,8 +98,8 @@ function GroupLinkPreview({ linkId, onJoinGroup }) {
   }, [linkId]);
 
   if (loading) return (
-    <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(255,255,255,.03)',
-      border: '1px solid var(--border)', borderRadius: 10, fontSize: 11, color: 'var(--muted)' }}>
+    <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(255,255,255,0.92)',
+      border: 'none', borderRadius: 10, fontSize: 11, color: 'rgba(0,0,0,0.45)' }}>
       Loading group info…
     </div>
   );
@@ -109,8 +109,8 @@ function GroupLinkPreview({ linkId, onJoinGroup }) {
   return (
     <div onClick={e => { e.stopPropagation(); onJoinGroup && onJoinGroup(linkId); }}
       style={{ marginTop: 8, borderRadius: 12, overflow: 'hidden',
-        background: 'linear-gradient(135deg, rgba(167,139,250,.08), rgba(139,92,246,.04))',
-        border: '1px solid rgba(167,139,250,.3)', cursor: 'pointer', transition: 'opacity .15s' }}
+        background: 'rgba(255,255,255,0.95)',
+        border: 'none', cursor: 'pointer', transition: 'opacity .15s' }}
       onMouseEnter={e => e.currentTarget.style.opacity = '.85'}
       onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
       {/* Group header with avatar */}
@@ -118,11 +118,11 @@ function GroupLinkPreview({ linkId, onJoinGroup }) {
         {g.avatarUrl ? (
           <img src={g.avatarUrl} alt={g.name}
             style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
-              border: '2px solid rgba(167,139,250,.4)' }} />
+              border: '2px solid rgba(0,0,0,0.08)' }} />
         ) : (
           <div style={{ width: 48, height: 48, borderRadius: '50%', flexShrink: 0, display: 'flex',
             alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700,
-            background: '#1e1b30', border: '2px solid rgba(167,139,250,.4)', color: 'var(--accent2)' }}>
+            background: 'rgba(0,0,0,0.08)', border: '2px solid rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.5)' }}>
             {g.name?.slice(0, 1).toUpperCase() || '#'}
           </div>
         )}
@@ -134,13 +134,13 @@ function GroupLinkPreview({ linkId, onJoinGroup }) {
       </div>
       {/* Footer: member count + join CTA */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '8px 14px 12px', borderTop: '1px solid rgba(167,139,250,.15)' }}>
-        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--muted)' }}>
+        padding: '8px 14px 12px', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'rgba(0,0,0,0.45)' }}>
           <span>👥 {g.memberCount} member{g.memberCount !== 1 ? 's' : ''}</span>
           {data.minPMT > 0 && <span>◈ {data.minPMT} PMT required</span>}
         </div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent2)',
-          background: 'rgba(167,139,250,.12)', border: '1px solid rgba(167,139,250,.3)',
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#faff63',
+          background: 'rgba(0,0,0,0.75)', border: 'none',
           borderRadius: 6, padding: '3px 10px' }}>
           Join Group
         </div>
