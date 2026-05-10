@@ -131,11 +131,79 @@ function LinkPreview({ url }) {
   );
 }
 
+
+// Group invite link preview card
+function GroupLinkPreview({ linkId, onJoinGroup }) {
+  const [data, setData] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/groups?link=${encodeURIComponent(linkId)}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+    return () => controller.abort();
+  }, [linkId]);
+
+  if (loading) return (
+    <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(255,255,255,.03)',
+      border: '1px solid var(--border)', borderRadius: 10, fontSize: 11, color: 'var(--muted)' }}>
+      Loading group info…
+    </div>
+  );
+  if (!data || data.error || !data.group) return null;
+
+  const g = data.group;
+  return (
+    <div onClick={e => { e.stopPropagation(); onJoinGroup && onJoinGroup(linkId); }}
+      style={{ marginTop: 8, borderRadius: 12, overflow: 'hidden',
+        background: 'linear-gradient(135deg, rgba(167,139,250,.08), rgba(139,92,246,.04))',
+        border: '1px solid rgba(167,139,250,.3)', cursor: 'pointer', transition: 'opacity .15s' }}
+      onMouseEnter={e => e.currentTarget.style.opacity = '.85'}
+      onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+      {/* Group header with avatar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+        {g.avatarUrl ? (
+          <img src={g.avatarUrl} alt={g.name}
+            style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
+              border: '2px solid rgba(167,139,250,.4)' }} />
+        ) : (
+          <div style={{ width: 48, height: 48, borderRadius: '50%', flexShrink: 0, display: 'flex',
+            alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700,
+            background: '#1e1b30', border: '2px solid rgba(167,139,250,.4)', color: 'var(--accent2)' }}>
+            {g.name?.slice(0, 1).toUpperCase() || '#'}
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{g.name}</div>
+          {g.bio && <div style={{ fontSize: 12, color: 'var(--text2)', overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.bio}</div>}
+        </div>
+      </div>
+      {/* Footer: member count + join CTA */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '8px 14px 12px', borderTop: '1px solid rgba(167,139,250,.15)' }}>
+        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--muted)' }}>
+          <span>👥 {g.memberCount} member{g.memberCount !== 1 ? 's' : ''}</span>
+          {data.minPMT > 0 && <span>◈ {data.minPMT} PMT required</span>}
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent2)',
+          background: 'rgba(167,139,250,.12)', border: '1px solid rgba(167,139,250,.3)',
+          borderRadius: 6, padding: '3px 10px' }}>
+          Join Group
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LinkifyText({ text, query, onJoinGroup }) {
   const [browserUrl, setBrowserUrl] = useState(null);
   if (!text) return null;
 
   const parts = [];
+  const joinIds: string[] = [];
   let last = 0, m;
   const re = new RegExp(URL_RE.source, 'gi');
   const firstUrl = { ref: null };
@@ -163,12 +231,15 @@ export default function LinkifyText({ text, query, onJoinGroup }) {
           if (part.type === 'text') return <span key={i}>{highlight(part.value)}</span>;
           const full = normalizeUrl(part.value);
           const joinMatch = JOIN_RE.exec(full);
-          if (joinMatch && onJoinGroup) return (
-            <span key={i} onClick={e => { e.stopPropagation(); onJoinGroup(joinMatch[1]); }}
-              style={{ color:'var(--accent3)',textDecoration:'underline',cursor:'pointer',wordBreak:'break-all' }}>
-              🔗 {part.value}
-            </span>
-          );
+          if (joinMatch && onJoinGroup) {
+            if (!joinIds.includes(joinMatch[1])) joinIds.push(joinMatch[1]);
+            return (
+              <span key={i} onClick={e => { e.stopPropagation(); onJoinGroup(joinMatch[1]); }}
+                style={{ color:'var(--accent3)',textDecoration:'underline',cursor:'pointer',wordBreak:'break-all' }}>
+                🔗 {part.value}
+              </span>
+            );
+          }
           return (
             <span key={i} onClick={e => { e.stopPropagation(); setBrowserUrl(full); }}
               style={{ color:'var(--accent)',textDecoration:'underline',cursor:'pointer',wordBreak:'break-all' }}>
@@ -178,6 +249,7 @@ export default function LinkifyText({ text, query, onJoinGroup }) {
         })}
       </span>
       {firstUrl.ref && <LinkPreview url={firstUrl.ref} />}
+      {joinIds.map(id => <GroupLinkPreview key={id} linkId={id} onJoinGroup={onJoinGroup} />)}
       {browserUrl && <InAppBrowser url={browserUrl} onClose={() => setBrowserUrl(null)} />}
     </>
   );
