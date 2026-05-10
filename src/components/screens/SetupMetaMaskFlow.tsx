@@ -3,7 +3,7 @@ import { now } from "../../lib/utils";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import Avatar from '../ui/Avatar';
-import { checkUsernameAvailable } from '../../lib/cloudBackup';
+import { checkUsernameAvailable, saveCloudBackup } from '../../lib/cloudBackup';
 export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
   const [username,setUsername]=useState('');
   const [pwd,setPwd]=useState('');
@@ -56,49 +56,27 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
           setErr('Username already taken — choose a different one.');setSaving(false);return;
         }
       }
-      // Derive a key from password to encrypt account data
-      const enc=new TextEncoder();
-      const keyMat=await crypto.subtle.importKey('raw',enc.encode(pwd),{name:'PBKDF2'},false,['deriveBits','deriveKey']);
-      const salt=crypto.getRandomValues(new Uint8Array(16));
-      const key=await crypto.subtle.deriveKey(
-        {name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},
-        keyMat,{name:'AES-GCM',length:256},false,['encrypt','decrypt']
-      );
-      const iv=crypto.getRandomValues(new Uint8Array(12));
-      const data=enc.encode(JSON.stringify({address:wallet.address,privateKey:wallet.privateKey||'metamask'}));
-      const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data);
-      const encryptedArr=Array.from(new Uint8Array(encrypted));
+      // Store minimal local account for session restoration
       const account={
         username:username.trim(),
         address:wallet.address,
-        salt:Array.from(salt),
-        iv:Array.from(iv),
-        encrypted:encryptedArr,
         isMetaMask:true,
         createdAt:Date.now(),
       };
       localStorage.setItem('pmt_account_'+wallet.address.toLowerCase(),JSON.stringify(account));
       localStorage.setItem('pmt_session',JSON.stringify({username:username.trim(),address:wallet.address}));
-      // Register on server: username + encrypted backup (enables cross-device recovery)
+      // Save cloud backup using standard saveCloudBackup (same format as all other wallets)
+      // For external wallets: privateKey is 'metamask' (handled by the wallet app)
       try {
-        const {PMTAuth} = await import('../../lib/auth');
-        const {hash, salt: ps} = await PMTAuth.hashPassword(pwd);
-        await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({
-            username: username.trim(),
-            passwordHash: hash,
-            salt: ps,
-            address: wallet.address,
-            // Include encrypted backup so cloud recovery works on any device
-            encryptedBackup: JSON.stringify({
-              salt: Array.from(salt),
-              iv: Array.from(iv),
-              encrypted: encryptedArr,
-              isMetaMask: true,
-            }),
-          })});
-      } catch { /* silent — local account still works */ }
-      onDone(username.trim());
+        await saveCloudBackup(username.trim(), pwd, {
+          wallet: { address: wallet.address, privateKey: 'metamask', username: username.trim() },
+          contacts: [],
+          messages: {},
+          profile: { name: username.trim() },
+        });
+      } catch { /* silent — local session still works, auto-backup will retry */ }
+      // Pass password so App.tsx can run auto-backups (keeps contacts/messages synced)
+      onDone(username.trim(), pwd);
     }catch(e){
       setErr('Failed to save: '+e.message);
     }

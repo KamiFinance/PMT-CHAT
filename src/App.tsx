@@ -1146,7 +1146,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     }}
     onLogout={() => { storage.clearSession(); setWallet(null); walletRef.current = null; setScreen('landing'); }}
   />;
-  if (screen === 'metamask_setup' && wallet) return <SetupMetaMaskFlow wallet={wallet} onDone={(username) => { setWallet(w => w ? { ...w, username } : w); setScreen('chat'); }} onSkip={() => {
+  if (screen === 'metamask_setup' && wallet) return <SetupMetaMaskFlow wallet={wallet} onDone={(username, password) => { if (password) sessionPasswordRef.current = password; setWallet(w => w ? { ...w, username, sessionPassword: password } : w); setScreen('chat'); }} onSkip={() => {
                 // Save minimal account so returning users skip setup next time
                 try {
                   const addr = walletRef.current?.address?.toLowerCase();

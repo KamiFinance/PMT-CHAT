@@ -3,7 +3,7 @@ import { now } from "../../lib/utils";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PMTCrypto } from '../../lib/crypto';
 import { PMTAuth } from '../../lib/auth';
-import { checkUsernameAvailable, loadCloudBackup } from '../../lib/cloudBackup';
+import { checkUsernameAvailable, loadCloudBackup, saveCloudBackup } from '../../lib/cloudBackup';
 
 
 export default function ImportWalletFlow({onWallet,onBack}){
@@ -84,6 +84,15 @@ export default function ImportWalletFlow({onWallet,onBack}){
       localStorage.setItem(key,JSON.stringify(account));
       localStorage.setItem('pmt_session',JSON.stringify({username:useUsername,address:importedWallet.address}));
       sessionStorage.setItem('pmt_pk_'+importedWallet.address.toLowerCase(), importedWallet.privateKey);
+      // For new accounts: immediately save to cloud so username/address is registered
+      if(!existingAccount){
+        try{
+          await saveCloudBackup(useUsername, password, {
+            wallet:{address:importedWallet.address,privateKey:importedWallet.privateKey,username:useUsername},
+            contacts:[],messages:{},profile:{name:useUsername},
+          });
+        }catch{ /* auto-backup will retry */ }
+      }
       // Restore cloud backup if existing account has one
       let restoredContacts=[], restoredMessages={}, restoredProfile={};
       if(existingAccount?.hasBackup){
