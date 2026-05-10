@@ -8,115 +8,145 @@ import ProfilePic from '../ui/ProfilePic';
 
 
 function SwitchNetworkButton() {
+  const [chain, setChain] = React.useState<string>('');
+  const [hasMM, setHasMM] = React.useState(false);
+  const [switching, setSwitching] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [copied, setCopied] = React.useState('');
-  const [currentChain, setCurrentChain] = React.useState('');
-  const [switching, setSwitching] = React.useState(false);
+  const providerRef = React.useRef<any>(null);
 
-  React.useEffect(() => {
-    const eth = (window as any).ethereum;
-    if (!eth) return;
-    eth.request({method:'eth_chainId'}).then((id: string) => setCurrentChain(id)).catch(()=>{});
-    const onChange = (id: string) => setCurrentChain(id);
-    eth.on?.('chainChanged', onChange);
-    return () => eth.removeListener?.('chainChanged', onChange);
-  }, []);
-
-  const copy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text).then(() => { setCopied(key); setTimeout(() => setCopied(''), 2000); });
+  const PMT_CHAIN = {
+    chainId: '0x46df2', chainName: 'PMTchain',
+    nativeCurrency: { name: 'PM', symbol: 'PMT', decimals: 18 },
+    rpcUrls: ['https://node1-ipm.dweb3.wtf'],
+    blockExplorerUrls: ['https://pmtscan.com'],
   };
 
-  const tryAutoSwitch = () => {
-    setSwitching(true);
-    // Try each discovered EIP-6963 provider
-    const providers: any[] = [];
-    const h = (e: any) => providers.push(e.detail);
+  // Discover MetaMask via EIP-6963
+  const getProvider = () => new Promise<any>((resolve) => {
+    const found: any[] = [];
+    const h = (e: any) => found.push(e.detail);
     window.addEventListener('eip6963:announceProvider', h);
     window.dispatchEvent(new Event('eip6963:requestProvider'));
     setTimeout(() => {
       window.removeEventListener('eip6963:announceProvider', h);
-      const mm = providers.find((p: any) => p.info?.rdns === 'io.metamask');
-      const eth = mm?.provider || (window as any).ethereum;
-      if (!eth) { setSwitching(false); setOpen(true); return; }
-      const PMT = { chainId:'0x46df2', chainName:'PMTchain',
-        nativeCurrency:{name:'PM',symbol:'PMT',decimals:18},
-        rpcUrls:['https://node1-ipm.dweb3.wtf'],
-        blockExplorerUrls:['https://pmtscan.com'] };
-      eth.request({method:'eth_requestAccounts'})
-        .then(() => eth.request({method:'wallet_addEthereumChain', params:[PMT]}))
-        .then(() => setSwitching(false))
-        .catch(() => { setSwitching(false); setOpen(true); });
+      const mm = found.find((p: any) => p.info?.rdns === 'io.metamask');
+      resolve(mm?.provider ?? (window as any).ethereum ?? null);
     }, 400);
+  });
+
+  React.useEffect(() => {
+    getProvider().then(eth => {
+      if (!eth) return;
+      setHasMM(true);
+      providerRef.current = eth;
+      eth.request({ method: 'eth_chainId' }).then(setChain).catch(() => {});
+      const onChange = (id: string) => setChain(id);
+      eth.on?.('chainChanged', onChange);
+    });
+  }, []);
+
+  const onPMT = chain === '0x46df2';
+
+  const switchNetwork = async () => {
+    if (onPMT || switching) return;
+    setSwitching(true);
+    try {
+      let eth = providerRef.current;
+      if (!eth) eth = await getProvider();
+      if (!eth) { setOpen(true); setSwitching(false); return; }
+      // Try switch first, add if chain not found (4902)
+      try {
+        await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x46df2' }] });
+      } catch (sw: any) {
+        if (sw.code === 4902 || sw.code === -32603) {
+          await eth.request({ method: 'wallet_addEthereumChain', params: [PMT_CHAIN] });
+        } else if (sw.code !== 4001) {
+          throw sw;
+        }
+      }
+      const newChain = await eth.request({ method: 'eth_chainId' });
+      setChain(newChain);
+    } catch {
+      setOpen(true); // show manual fallback
+    } finally {
+      setSwitching(false);
+    }
   };
 
-  const PMT_CHAIN = { chainId: '0x46df2', chainName: 'PMTchain',
-    nativeCurrency: { name: 'PM', symbol: 'PMT', decimals: 18 },
-    rpcUrls: ['https://node1-ipm.dweb3.wtf'],
-    blockExplorerUrls: ['https://pmtscan.com'] };
-
-  const doSwitch = () => {
-    if (status === 'switching') { setStatus('idle'); return; }
-    const eth = (window as any).ethereum;
-    if (!eth) { setStatus('error'); setErrMsg('No wallet extension found'); return; }
-    setStatus('switching'); setErrMsg('');
-    const timeout = setTimeout(() => setStatus('idle'), 30000);
-    const done = (ok: boolean, msg?: string) => {
-      clearTimeout(timeout);
-      if (ok) { setStatus('done'); setTimeout(() => setStatus('idle'), 3000); }
-      else { setStatus(msg ? 'error' : 'idle'); setErrMsg(msg || ''); }
-    };
-    const addChain = () => eth.request({ method: 'wallet_addEthereumChain', params: [PMT_CHAIN] })
-      .then(() => done(true))
-      .catch((e: any) => done(false, e.code === 4001 ? '' : e.message?.slice(0,50) || 'Failed'));
-    // Use wallet_addEthereumChain directly — skipping wallet_switchEthereumChain
-    // because MetaMask may have a wrong saved entry with chain ID 290290 (e.g. "BNB Chain").
-    // wallet_addEthereumChain always prompts the user and overwrites the saved entry correctly.
-    eth.request({ method: 'eth_requestAccounts' })
-      .then(() => addChain())
-      .catch((e: any) => done(false, e.code === 4001 ? '' : e.message?.slice(0,50) || ''));
-  };
-
-  const onPMT = currentChain === '0x46df2';
   const details = [
-    {label:'Network Name', value:'PMTchain'},
-    {label:'RPC URL', value:'https://node1-ipm.dweb3.wtf'},
-    {label:'Chain ID', value:'290290'},
-    {label:'Currency Symbol', value:'PM'},
-    {label:'Block Explorer', value:'https://pmtscan.com'},
+    { label: 'Network Name', value: 'PMTchain' },
+    { label: 'RPC URL', value: 'https://node1-ipm.dweb3.wtf' },
+    { label: 'Chain ID', value: '290290' },
+    { label: 'Currency Symbol', value: 'PMT' },
+    { label: 'Block Explorer', value: 'https://pmtscan.com' },
   ];
-  return (
-    <div style={{margin:'0 10px 6px',flexShrink:0}}>
-      <button onClick={onPMT ? undefined : tryAutoSwitch}
-        style={{width:'100%',padding:'9px 12px',
-          background:onPMT?'rgba(74,222,128,.08)':'var(--surface)',
-          border:`1px solid ${onPMT?'rgba(74,222,128,.3)':'var(--border)'}`,
-          borderRadius:9,color:onPMT?'var(--accent3)':'var(--accent2)',
-          fontSize:12,fontWeight:600,cursor:onPMT?'default':'pointer',
-          display:'flex',alignItems:'center',justifyContent:'center',gap:7,
-          transition:'all .15s',opacity:switching?0.7:1}}>
-        {switching && <span style={{width:10,height:10,border:'2px solid rgba(255,255,255,.2)',borderTopColor:'var(--accent2)',borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>}
-        {onPMT ? '✓ On PMTchain' : switching ? '⏳ Check MetaMask...' : '⛓ Switch to PMTchain'}
+
+  if (!hasMM) return (
+    <div style={{ margin: '0 10px 6px', flexShrink: 0 }}>
+      <button onClick={() => setOpen(v => !v)}
+        style={{ width: '100%', padding: '9px 12px', background: 'var(--surface)',
+          border: '1px solid var(--border)', borderRadius: 9,
+          color: 'var(--accent2)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+        ⛓ Add PMTchain
       </button>
-      {!onPMT && (
-        <button onClick={()=>setOpen((v: boolean)=>!v)}
-          style={{width:'100%',marginTop:4,padding:'6px',background:'transparent',
-            border:'none',color:'var(--muted)',fontSize:11,cursor:'pointer',textAlign:'center'}}>
+      {open && (
+        <div style={{ marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 9, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 2 }}>Add PMTchain manually in your wallet:</div>
+          {details.map(({ label, value }) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 10, color: 'var(--muted)', width: 88, flexShrink: 0 }}>{label}</span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+              <button onClick={() => { navigator.clipboard.writeText(value); setCopied(label); setTimeout(() => setCopied(''), 2000); }}
+                style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 4,
+                  padding: '2px 6px', fontSize: 10, color: copied === label ? 'var(--accent3)' : 'var(--muted)', cursor: 'pointer', flexShrink: 0 }}>
+                {copied === label ? '✓' : 'Copy'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ margin: '0 10px 6px', flexShrink: 0 }}>
+      <button onClick={switchNetwork} disabled={onPMT || switching}
+        style={{ width: '100%', padding: '9px 12px',
+          background: onPMT ? 'rgba(74,222,128,.08)' : 'rgba(248,113,113,.08)',
+          border: `1px solid ${onPMT ? 'rgba(74,222,128,.3)' : 'rgba(248,113,113,.4)'}`,
+          borderRadius: 9,
+          color: onPMT ? 'var(--accent3)' : '#f87171',
+          fontSize: 12, fontWeight: 600,
+          cursor: onPMT ? 'default' : switching ? 'wait' : 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+          transition: 'all .15s', opacity: switching ? 0.7 : 1 }}>
+        {switching && <span style={{ width: 10, height: 10, border: '2px solid rgba(248,113,113,.3)',
+          borderTopColor: '#f87171', borderRadius: '50%', display: 'inline-block',
+          animation: 'spin .7s linear infinite' }}/>}
+        {onPMT ? '✓ PMTchain' : switching ? '⏳ Switching...' : '⚠ Wrong Network — Switch'}
+      </button>
+      {!onPMT && !switching && (
+        <button onClick={() => setOpen(v => !v)}
+          style={{ width: '100%', marginTop: 4, padding: '6px', background: 'transparent',
+            border: 'none', color: 'var(--muted)', fontSize: 11, cursor: 'pointer', textAlign: 'center' }}>
           {open ? 'Hide manual setup' : '+ Add PMTchain manually'}
         </button>
       )}
       {open && !onPMT && (
-        <div style={{marginTop:4,background:'var(--surface)',border:'1px solid var(--border)',
-          borderRadius:9,padding:'10px 12px',display:'flex',flexDirection:'column',gap:6}}>
-          <div style={{fontSize:11,color:'var(--text2)',marginBottom:2}}>MetaMask → Add Network → Add manually:</div>
-          {details.map(({label,value}: {label:string,value:string})=>(
-            <div key={label} style={{display:'flex',alignItems:'center',gap:6}}>
-              <span style={{fontSize:10,color:'var(--muted)',width:88,flexShrink:0}}>{label}</span>
-              <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{value}</span>
-              <button onClick={()=>{navigator.clipboard.writeText(value);setCopied(label);setTimeout(()=>setCopied(''),2000);}}
-                style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:4,
-                  padding:'2px 6px',fontSize:10,color:copied===label?'var(--accent3)':'var(--muted)',
-                  cursor:'pointer',flexShrink:0}}>
-                {copied===label?'✓':'Copy'}
+        <div style={{ marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 9, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 2 }}>MetaMask → Add Network → Add manually:</div>
+          {details.map(({ label, value }) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 10, color: 'var(--muted)', width: 88, flexShrink: 0 }}>{label}</span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+              <button onClick={() => { navigator.clipboard.writeText(value); setCopied(label); setTimeout(() => setCopied(''), 2000); }}
+                style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 4,
+                  padding: '2px 6px', fontSize: 10, color: copied === label ? 'var(--accent3)' : 'var(--muted)', cursor: 'pointer', flexShrink: 0 }}>
+                {copied === label ? '✓' : 'Copy'}
               </button>
             </div>
           ))}
