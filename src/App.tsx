@@ -238,47 +238,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount
 
-  // Join group by invite link — used both from URL params and from in-chat link clicks
-  const handleJoinGroup = React.useCallback((joinId: string) => {
-    if (!wallet?.address) return;
-    fetch(`/api/groups?link=${encodeURIComponent(joinId)}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) { alert('Invite link error: ' + data.error); return; }
-        const pmtLine = data.minPMT > 0 ? `\n◈ Requires ${data.minPMT} PMT to join` : '';
-        if (window.confirm(`Join group "${data.group.name}"?\n${data.group.bio || ''}\nMembers: ${data.group.memberCount}${pmtLine}`)) {
-          fetch('/api/groups?action=join', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ linkId: joinId, address: wallet!.address }),
-          }).then(r => r.json()).then(d => {
-            if (d.ok) {
-              const g = d.group;
-              const contact = {
-                id: g.id, address: 'group_' + g.id, name: g.name, bio: g.bio,
-                avatarUrl: g.avatarUrl, avatar: g.name.slice(0, 2).toUpperCase(),
-                color: '#a78bfa', bg: '#1e1b30', online: false, isGroup: true,
-                members: g.members, groupId: g.id, createdBy: g.createdBy,
-                preview: d.alreadyMember ? 'Already a member' : 'Joined group', unread: 0,
-              };
-              if (!d.alreadyMember) setContacts(p => { if (p.find(x => x.id === g.id)) return p; return [contact, ...p]; });
-              selectContact(contact);
-            } else { alert('Could not join: ' + d.error); }
-          });
-        }
-      })
-      .catch(() => alert('Could not fetch invite link info.'));
-  }, [wallet?.address, setContacts, selectContact]);
 
-  // Handle invite link join on page load (?join=linkId)
-  React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const joinId = params.get('join');
-    if (!joinId || !wallet?.address) return;
-    window.history.replaceState({}, '', window.location.pathname);
-    handleJoinGroup(joinId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallet?.address]);
 
   // Fetch balance directly from PMTchain RPC — works for all wallet types
   useEffect(() => {
@@ -880,6 +840,48 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     setContacts(p => p.map(x => x.id === c.id ? { ...x, unread: 0 } : x));
     setMobileSidebarOpen(false);
   }, [setActiveAndRef]);
+
+  // Join group by invite link — defined after selectContact to avoid TDZ
+  const handleJoinGroup = useCallback((joinId: string) => {
+    if (!wallet?.address) return;
+    fetch(`/api/groups?link=${encodeURIComponent(joinId)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) { alert('Invite link error: ' + data.error); return; }
+        const pmtLine = (data.minPMT ?? 0) > 0 ? `\n◈ Requires ${data.minPMT} PMT to join` : '';
+        if (window.confirm(`Join group "${data.group.name}"?\n${data.group.bio || ''}\nMembers: ${data.group.memberCount}${pmtLine}`)) {
+          fetch('/api/groups?action=join', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ linkId: joinId, address: wallet!.address }),
+          }).then(r => r.json()).then(d => {
+            if (d.ok) {
+              const g = d.group;
+              const contact = {
+                id: g.id, address: 'group_' + g.id, name: g.name, bio: g.bio,
+                avatarUrl: g.avatarUrl, avatar: g.name.slice(0, 2).toUpperCase(),
+                color: '#a78bfa', bg: '#1e1b30', online: false, isGroup: true,
+                members: g.members, groupId: g.id, createdBy: g.createdBy,
+                preview: d.alreadyMember ? 'Already a member' : 'Joined group', unread: 0,
+              };
+              if (!d.alreadyMember) setContacts(p => { if (p.find(x => x.id === g.id)) return p; return [contact, ...p]; });
+              selectContact(contact);
+            } else { alert('Could not join: ' + d.error); }
+          });
+        }
+      })
+      .catch(() => alert('Could not fetch invite link info.'));
+  }, [wallet?.address, setContacts, selectContact]);
+
+  // Handle invite link join on page load (?join=linkId)
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const joinId = params.get('join');
+    if (!joinId || !wallet?.address) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    handleJoinGroup(joinId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet?.address]);
+
 
   const saveProfile = useCallback((np: Profile) => {
     setProfile(np); profileRef.current = np;
