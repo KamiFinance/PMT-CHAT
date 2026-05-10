@@ -252,24 +252,22 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         // so the inbox message stays small
         const reader=new FileReader();
         reader.onloadend=()=>{
-          const audioBase64=reader.result;
+          const audioBase64=reader.result as string;
           const msgId='v'+Date.now();
           try{ localStorage.setItem('pmt_audio_'+msgId, audioBase64); }catch(e){}
 
-          if(true){
-            // Upload to IPFS for cross-device delivery
-            uploadToPinata(blob, 'voice_'+msgId+'.'+(mr.mimeType?.includes('mp4')||mr.mimeType?.includes('aac')?'m4a':'webm'))
-              .then(cid=>{
-                const ipfsUrl=getIpfsUrl(cid);
-                onSendRef.current({type:'voice',audioUrl:url,audioMsgId:msgId,ipfsCid:cid,ipfsUrl,duration:dur,waveform:bars});
-              })
-              .catch(()=>{
-                // Fallback to base64
-                onSendRef.current({type:'voice',audioUrl:url,audioMsgId:msgId,duration:dur,waveform:bars});
-              });
-          } else {
-            onSendRef.current({type:'voice',audioUrl:url,audioMsgId:msgId,duration:dur,waveform:bars});
-          }
+          // Always include base64 in message for reliable cross-device delivery
+          // (Pinata/IPFS is unreliable — base64 guarantees recipient gets the audio)
+          const sendVoice=(extra={})=>onSendRef.current({
+            type:'voice', audioUrl:url, audioMsgId:msgId,
+            audioB64:audioBase64, duration:dur, waveform:bars, ...extra
+          });
+
+          // Try IPFS upload in background — if it works, resend with CID for efficiency
+          // If it fails, the already-sent base64 message is sufficient
+          uploadToPinata(blob, 'voice_'+msgId+'.'+(mr.mimeType?.includes('mp4')||mr.mimeType?.includes('aac')?'m4a':'webm'))
+            .then(cid=>{ sendVoice({ipfsCid:cid, ipfsUrl:getIpfsUrl(cid)}); })
+            .catch(()=>{ sendVoice(); });
         };
         reader.readAsDataURL(blob);
         setRecordSeconds(0);
