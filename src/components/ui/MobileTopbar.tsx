@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import ProfilePic from '../ui/ProfilePic';
 import SendModal from '../modals/SendModal';
+import { SwitchNetworkCompact } from './SwitchNetworkButton';
 
 export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact,onSendETH,needsPasswordToSend}){
   const [showSend,setShowSend]=useState(false);
@@ -30,7 +31,8 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
             </div>
           </div>
         </div>
-        {/* ↑PMT button — only for direct contacts */}
+        {/* Network indicator + ↑PMT button */}
+        <SwitchNetworkCompact/>
         {!contact.isGroup&&!contact.isAI&&onSendETH&&(
           <button onClick={()=>setShowSend(true)}
             style={{background:'var(--surface)',border:'1px solid var(--border)',
