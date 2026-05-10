@@ -215,14 +215,9 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         fileSize:formatSize(file.size),
         mimeType,
       });
-      // Upload to Pinata in background — upgrades to IPFS CID when done
-      uploadToPinata(file, file.name)
-        .then(cid=>{
-          if(onMediaUploaded) onMediaUploaded(msgId, cid, getIpfsUrl(cid));
-        })
-        .catch(()=>{
-          if(onMediaUploaded) onMediaUploaded(msgId, null, null, b64Data);
-        });
+      // No Pinata upload — b64Data in the relay handles cross-device delivery
+      // (avoids creating public pins on Pinata for private chat images)
+      if(onMediaUploaded) onMediaUploaded(msgId, null, null, b64Data);
     };
 
     if(isImage){
