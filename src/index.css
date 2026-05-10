@@ -8,14 +8,14 @@
   --surface2: #3a3a3c;
   --border: rgba(84,84,88,0.55);
   --border-h: rgba(84,84,88,0.8);
-  --accent: #0a84ff;
-  --accent2: #0a84ff;
+  --accent: #faff63;
+  --accent2: #faff63;
   --accent3: #30d158;
   --danger: #ff453a;
   --text: #ffffff;
   --text2: rgba(235,235,245,0.6);
   --muted: rgba(235,235,245,0.3);
-  --bubble-out: #0a84ff;
+  --bubble-out: #faff63;
   --bubble-in: #2c2c2e;
   --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
   --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
@@ -189,7 +189,7 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .modal-overlay { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
 /* Apple-style selection */
-::selection { background: rgba(10,132,255,0.3); }
+::selection { background: rgba(250,255,99,.3); }
 
 /* PMTchain button - make it Apple green */
 .switch-network-btn-active {
