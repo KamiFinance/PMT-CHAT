@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Avatar from '../ui/Avatar';
 import TxCard from './TxCard';
 import VoiceBubble from './VoiceBubble';
+import Twemoji from '../ui/Twemoji';
 import ImageBubble from './ImageBubble';
 import FileBubble from './FileBubble';
 import ReactionPicker from './ReactionPicker';
@@ -216,8 +217,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
               animation:'popIn .2s ease',
               opacity:mine?1:0.85}}>
             {emoji==='__PMT__'
-              ?<img src='/pmt-logo.png' style={{width:14,height:14,borderRadius:'50%',objectFit:'cover',verticalAlign:'middle'}}/>
-              :emoji}
+              ?<img src='/pmt-logo.png' style={{width:16,height:16,borderRadius:'50%',objectFit:'cover',verticalAlign:'middle'}}/>
+              :<Twemoji emoji={emoji} size={16} style={{verticalAlign:'middle'}}/>}
             <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text2)'}}>{count}</span>
           </button>
         );

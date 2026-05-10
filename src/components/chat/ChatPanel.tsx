@@ -6,6 +6,7 @@ import { now, rndHash, uid, formatSize, currentBlock } from '../../lib/utils';
 
 import Avatar from '../ui/Avatar';
 import Bubble from './Bubble';
+import Twemoji from '../ui/Twemoji';
 import AttachMenu from './AttachMenu';
 import MobileTopbar from '../ui/MobileTopbar';
 import BlockStrip from '../ui/BlockStrip';
@@ -76,7 +77,7 @@ function EmojiPicker({onSelect,onClose}:{onSelect:(e:string)=>void,onClose:()=>v
               alignItems:'center',justifyContent:'center',transition:'all .1s'}}>
             {ec.name==='PMT'
               ?<img src="/pmt-logo.png" style={{width:20,height:20,borderRadius:'50%',objectFit:'cover'}}/>
-              :ec.label}
+              :<Twemoji emoji={ec.label} size={18}/>}
           </button>
         ))}
       </div>
@@ -92,7 +93,7 @@ function EmojiPicker({onSelect,onClose}:{onSelect:(e:string)=>void,onClose:()=>v
             onMouseLeave={ev=>(ev.currentTarget.style.background='transparent')}>
             {e==='__PMT__'
               ?<img src="/pmt-logo.png" style={{width:24,height:24,borderRadius:'50%',objectFit:'cover'}}/>
-              :e}
+              :<Twemoji emoji={e} size={24}/>}
           </button>
         ))}
       </div>

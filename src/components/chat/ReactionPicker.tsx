@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { REACTION_EMOJIS } from '../../constants/ai';
 import React from 'react';
+import Twemoji from '../ui/Twemoji';
 
 // PMT logo is the first "emoji" in the reaction bar
 const ALL_REACTIONS = ['__PMT__', ...REACTION_EMOJIS];
@@ -21,8 +22,8 @@ export default function ReactionPicker({onPick,onClose,isOut}){
           onMouseEnter={ev=>ev.currentTarget.style.transform='scale(1.3)'}
           onMouseLeave={ev=>ev.currentTarget.style.transform='scale(1)'}>
           {e==='__PMT__'
-            ?<img src="/pmt-logo.png" style={{width:22,height:22,borderRadius:'50%',objectFit:'cover'}}/>
-            :e}
+            ?<img src="/pmt-logo.png" style={{width:24,height:24,borderRadius:'50%',objectFit:'cover'}}/>
+            :<Twemoji emoji={e} size={24}/>}
         </button>
       ))}
     </div>
