@@ -155,12 +155,12 @@ export default function App() {
   const needsPasswordToSend = React.useMemo(() => {
     const w = wallet;
     if (!w?.username || isDemo) return false;
+    // MetaMask users: if window.ethereum is available, always use MetaMask — never ask for password
+    if (typeof window !== 'undefined' && (window as any).ethereum) return false;
     const accountRaw = localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`);
     if (!accountRaw) {
-      // On mobile (no MetaMask), if user has username+address session they likely have a
-      // created wallet — show password prompt instead of failing with "No wallet found"
-      const hasNoEthereum = typeof window !== 'undefined' && !(window as any).ethereum;
-      return hasNoEthereum && !!w.address;
+      // On mobile (no MetaMask), user with address+username likely has a created wallet
+      return !!w.address;
     }
     try {
       const account = JSON.parse(accountRaw);
