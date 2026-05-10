@@ -55,7 +55,7 @@ input,textarea,select{font-size:16px!important}
   /* Sidebar: slide-in drawer */
   .sidebar-panel{
     position:fixed!important;top:0;left:0;bottom:0;
-    width:82vw!important;max-width:300px;
+    width:100vw!important;max-width:360px;
     z-index:800;
     transform:translateX(-105%);
     transition:transform .28s cubic-bezier(.4,0,.2,1);
@@ -112,8 +112,6 @@ input,textarea,select{font-size:16px!important}
   /* Bigger tap targets on mobile */
   .sidebar-footer button{min-height:48px!important;min-width:48px!important}
 
-  /* Sidebar always takes full 100% when open on mobile */
-  .sidebar-panel{width:88vw!important}
 }
 
 /* Desktop */
