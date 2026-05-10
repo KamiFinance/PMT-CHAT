@@ -674,18 +674,20 @@ export default function App() {
     const isVoice = typeof input === 'object' && input.type === 'voice';
     const isImage = typeof input === 'object' && input.type === 'image';
     const isFile  = typeof input === 'object' && input.type === 'file';
+    // Text can be plain string OR {type:'text', text:'...', replyTo:...} when replying
+    const textContent: string = typeof input === 'string' ? input : ((input as Message).text ?? '');
     const block = nextBlock();
     const inputReplyTo = typeof input === 'string' ? null : (input as Message).replyTo ?? null;
     const msg: Message = (isVoice || isImage || isFile)
       ? { id: uid(), out: true, ...(input as object), type: (input as Message).type, text: '', time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) }
-      : { id: uid(), out: true, type: 'text', text: input as string, time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) };
+      : { id: uid(), out: true, type: 'text', text: textContent, time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) };
     const addr = normalizeAddress(activeRef.current.address);
     setMsgs(p => ({ ...p, [addr]: [...(p[addr] ?? []), { ...msg, _toAddr: addr }] }));
-    const preview = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : input as string;
+    const preview = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : textContent;
     setContacts(p => p.map(c => c.id === activeRef.current?.id ? { ...c, preview } : c));
 
     // AI Agent
-    if (activeRef.current.isAI && typeof input === 'string') {
+    if (activeRef.current.isAI && (typeof input === 'string' || (typeof input === 'object' && (input as Message).type === 'text'))) {
       const userMsg = input;
       const typingId = `ai_typing_${Date.now()}`;
       setMsgs(p => ({ ...p, [addr]: [...(p[addr] ?? []), { id: typingId, out: false, type: 'text', text: '...', time: now(), block, confirms: 0, hash: rndHash(), isTyping: true }] }));
@@ -760,7 +762,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     if (!activeRef.current.isGroup && !activeRef.current.isAI && !isDemo && walletRef.current?.address) {
       const w = walletRef.current;
       const toAddr = normalizeAddress(activeRef.current.address);
-      const msgContent = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : input as string;
+      const msgContent = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : textContent;
       const msgType = isVoice ? 'voice' : isImage ? 'image' : isFile ? 'file' : 'text';
       const replyTo = typeof input === 'string' ? null : (input as Message).replyTo ?? null;
       try {

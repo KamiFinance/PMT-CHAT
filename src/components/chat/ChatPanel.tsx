@@ -172,13 +172,17 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
 
   const send=()=>{
     const t=text.trim();if(!t)return;
-    const extra=replyingTo?{replyTo:{
-      id:replyingTo.id,
-      text:replyingTo.text||'',
-      senderName:replyingTo.senderName||(replyingTo.out?'You':contact?.name||''),
-      type:replyingTo.type,
-    }}:{};
-    onSend({text:t,...extra});
+    if(replyingTo){
+      // Pass as object with type:'text' so sendMsg handles it correctly
+      onSend({type:'text',text:t,replyTo:{
+        id:replyingTo.id,
+        text:replyingTo.text||'',
+        senderName:replyingTo.senderName||(replyingTo.out?'You':contact?.name||''),
+        type:replyingTo.type,
+      }});
+    } else {
+      onSend(t); // plain string for normal sends (existing behaviour)
+    }
     setText('');setReplyingTo(null);
   };
   const insertEmoji=(emoji:string)=>{
