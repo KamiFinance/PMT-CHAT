@@ -10,6 +10,7 @@ import ImageBubble from './ImageBubble';
 import FileBubble from './FileBubble';
 import ReactionPicker from './ReactionPicker';
 import HighlightText from '../ui/HighlightText';
+import LinkifyText from '../ui/LinkifyText';
 // ── Sender Profile Card (popup when clicking avatar) ──────────────────────
 function SenderProfileCard({msg, contact, onClose}) {
   const name = msg.senderName || contact?.name || 'Unknown';
@@ -72,7 +73,7 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery,onJoinGroup}){
   const [showPicker,setShowPicker]=useState(false);
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const reactions=msg.reactions||{};
@@ -254,7 +255,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery}
           {msg.senderName&&!isOut&&(
             <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent2)',marginBottom:3,fontWeight:600}}>{msg.senderName}</div>
           )}
-          <HighlightText text={msg.text} query={searchQuery}/>
+          <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup}/>
           {meta}
         </div>
       </div>
