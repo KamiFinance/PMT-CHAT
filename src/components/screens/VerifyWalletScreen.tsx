@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { getWalletProvider } from '../../lib/wallet';
 import React, { useState, useRef } from 'react';
 import { getWCProvider, resetWCProvider } from '../../lib/walletconnect';
 import QRCode from 'qrcode';
@@ -88,7 +89,8 @@ export default function VerifyWalletScreen({ address, onVerified, onLogout }) {
 
   // Injected wallet (MetaMask extension / in-app browser)
   const connectInjected = async () => {
-    if (!window.ethereum) {
+    const eth = await getWalletProvider();
+    if (!eth) {
       // No injected wallet — show wallet picker on mobile, QR on desktop
       if (mob) { setShowWallets(true); } else { connectWCDesktop(); }
       return;
@@ -96,11 +98,11 @@ export default function VerifyWalletScreen({ address, onVerified, onLogout }) {
     setVerifying(true); setErr(null);
     try {
       try {
-        await window.ethereum.request({ method: 'wallet_requestPermissions', params: [{ eth_accounts: {} }] });
+        await eth.request({ method: 'wallet_requestPermissions', params: [{ eth_accounts: {} }] });
       } catch (permErr) {
         if (permErr.code === 4001) { setErr('Connection rejected — please approve in your wallet.'); return; }
       }
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      const accounts = await eth.request({ method: 'eth_accounts' });
       if (!accounts?.length) throw new Error('No accounts returned');
       const connected = accounts[0].toLowerCase();
       const expected  = address.toLowerCase();
@@ -171,7 +173,7 @@ export default function VerifyWalletScreen({ address, onVerified, onLogout }) {
               style={{ padding: 13, background: 'var(--accent)', border: 'none', borderRadius: 10, color: '#0a0c14', fontWeight: 600, fontSize: 14, cursor: verifying ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: verifying ? 0.7 : 1 }}>
               {verifying
                 ? <><span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,.3)', borderTopColor: '#0a0c14', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />Connecting...</>
-                : mob && !window.ethereum ? '🔐 Choose Wallet to Verify' : '🔐 Connect & Verify Wallet'}
+                : '🔐 Connect & Verify Wallet'}
             </button>
 
             {/* Desktop: WalletConnect QR */}

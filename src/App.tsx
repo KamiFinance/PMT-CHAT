@@ -5,6 +5,7 @@ import { STORAGE_KEYS } from './types';
 import { storage } from './lib/storage';
 import { AppContext } from './lib/context';
 import { now, rndHash, uid, normalizeAddress, shortHash, nextBlock, b64ToObjectUrl } from './lib/utils';
+import { getWalletProvider, ensurePMTchain } from './lib/wallet';
 
 function playNotifSound() {
   try {
@@ -155,7 +156,7 @@ export default function App() {
   const needsPasswordToSend = React.useMemo(() => {
     const w = wallet;
     if (!w?.username || isDemo) return false;
-    // MetaMask users: if window.ethereum is available, always use MetaMask — never ask for password
+    // External wallet users: if any EIP-6963 wallet is available, never ask for password
     if (typeof window !== 'undefined' && (window as any).ethereum) return false;
     const accountRaw = localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`);
     if (!accountRaw) {
@@ -607,36 +608,11 @@ export default function App() {
           const tx = await signer.sendTransaction({ to: addr, value: BigInt(Math.floor(parseFloat(amount) * 1e18)), gasLimit: 21000 });
           txHash = tx.hash;
         } else {
-          // External wallet (MetaMask) — use EIP-6963 provider directly
-          // This bypasses window.ethereum which may be hijacked by other extensions
-          const eth = await new Promise<any>((resolve) => {
-            const found: any[] = [];
-            const h = (e: any) => found.push(e.detail);
-            window.addEventListener('eip6963:announceProvider', h);
-            window.dispatchEvent(new Event('eip6963:requestProvider'));
-            setTimeout(() => {
-              window.removeEventListener('eip6963:announceProvider', h);
-              const mm = found.find((p: any) => p.info?.rdns === 'io.metamask');
-              resolve(mm?.provider ?? (window as any).ethereum ?? null);
-            }, 400);
-          });
+          // External wallet — use shared EIP-6963 utility (works with any wallet)
+          const eth = await getWalletProvider();
           if (!eth) throw new Error('No crypto wallet found. On mobile, use the ↑PMT button and enter your wallet password to send PMT.');
-          // Switch to PMTchain if needed
-          const currentChain = await eth.request({ method: 'eth_chainId' });
-          if (currentChain !== '0x46df2') {
-            try {
-              await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x46df2' }] });
-            } catch (sw: any) {
-              if (sw.code === 4902 || sw.code === -32603) {
-                await eth.request({ method: 'wallet_addEthereumChain', params: [{
-                  chainId: '0x46df2', chainName: 'PMTchain',
-                  nativeCurrency: { name: 'PMT', symbol: 'PMT', decimals: 18 },
-                  rpcUrls: ['https://node1-ipm.dweb3.wtf'],
-                  blockExplorerUrls: ['https://pmtscan.com'],
-                }]});
-              } else if (sw.code !== 4001) throw sw;
-            }
-          }
+          // Ensure on PMTchain (auto-add if needed)
+          await ensurePMTchain(eth);
           const accounts = await eth.request({ method: 'eth_accounts' });
           const fromAddr = accounts?.[0] ?? walletRef.current.address;
           // Fetch nonce directly from PMTchain RPC to avoid MetaMask nonce tracking mismatch
@@ -818,7 +794,9 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       } catch {}
       try {
         const msgHash = await hashMessage(w.address, toAddr, msgContent, Date.now());
-        const { txHash, chain } = await broadcastMessage({ from: w.address, to: toAddr, msgHash, msgType, blockNum: block, useMetaMask: !!(window.ethereum && w.isMetaMask), metaMaskProvider: window.ethereum ?? null });
+        // Get provider for on-chain broadcast (any EIP-6963 wallet or window.ethereum)
+        const broadcastProvider = w.isMetaMask ? await getWalletProvider() : null;
+        const { txHash, chain } = await broadcastMessage({ from: w.address, to: toAddr, msgHash, msgType, blockNum: block, useMetaMask: !!broadcastProvider, metaMaskProvider: broadcastProvider ?? null });
         setMsgs(p => ({ ...p, [toAddr]: (p[toAddr] ?? []).map(m => m.id === msg.id ? { ...m, hash: shortHash(txHash), chain, onChain: true } : m) }));
       } catch {}
     }
@@ -955,18 +933,19 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     setWcErr(null);
     setWcConnecting(true);
     try {
-      // Try injected wallet first (MetaMask, Trust, etc.)
-      if (window.ethereum) {
-        const perms = await (window.ethereum as any).request({method:'wallet_requestPermissions', params:[{eth_accounts:{}}]}).catch(() => null);
+      // Try any EIP-6963 wallet (MetaMask, Coinbase, Rainbow, Trust, etc.)
+      const injected = await getWalletProvider();
+      if (injected) {
+        const perms = await (injected as any).request({method:'wallet_requestPermissions', params:[{eth_accounts:{}}]}).catch(() => null);
         let accounts: string[] = [];
         if (perms) {
           const perm = perms?.find((p: any) => p.parentCapability === 'eth_accounts');
           accounts = perm?.caveats?.find((cv: any) => cv.type === 'restrictReturnedAccounts')?.value || [];
         }
-        if (!accounts.length) accounts = await (window.ethereum as any).request({method:'eth_requestAccounts'});
+        if (!accounts.length) accounts = await (injected as any).request({method:'eth_requestAccounts'});
         if (accounts.length) {
-          const chainId = await (window.ethereum as any).request({method:'eth_chainId'});
-          const balHex = await (window.ethereum as any).request({method:'eth_getBalance',params:[accounts[0],'latest']}).catch(()=>'0x0');
+          const chainId = await (injected as any).request({method:'eth_chainId'});
+          const balHex = await (injected as any).request({method:'eth_getBalance',params:[accounts[0],'latest']}).catch(()=>'0x0');
           const balEth = (parseInt(balHex,16)/1e18).toFixed(4);
           const netNames: Record<string,string> = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
           setWallet(prev => prev ? {...prev, connectedAddress: accounts[0], connectedNetwork: netNames[chainId]||('Chain '+parseInt(chainId,16)), connectedBalance: balEth} : prev);

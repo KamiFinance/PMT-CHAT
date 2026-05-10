@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { getWalletProvider, getWalletName } from '../../lib/wallet';
 import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import { getWCProvider, resetWCProvider } from '../../lib/walletconnect';
@@ -93,14 +94,12 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   useEffect(() => {
     const mob = isMobile();
     setMobile(mob);
-    if (mob && window.ethereum) {
-      setInWalletBrowser(true);
-      if (window.ethereum.isMetaMask)         setWalletBrowserName('MetaMask');
-      else if (window.ethereum.isTrust || window.ethereum.isTrustWallet) setWalletBrowserName('Trust');
-      else if (window.ethereum.isCoinbaseWallet) setWalletBrowserName('Coinbase');
-      else if (window.ethereum.isPhantom)     setWalletBrowserName('Phantom');
-      else                                    setWalletBrowserName('Wallet');
-    }
+    // Detect any available wallet via EIP-6963
+    getWalletProvider().then(eth => {
+      if (!eth) return;
+      if (mob) setInWalletBrowser(true);
+      getWalletName().then(name => setWalletBrowserName(name || 'Wallet'));
+    });
     if (!mob) {
       const found = [];
       const onAnnounce = e => {
@@ -223,7 +222,7 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   const handleConnectWallet = () => {
     setErr(null);
     if (mobile) {
-      if (window.ethereum) { connectWith(window.ethereum, walletBrowserName||'Wallet'); return; }
+      getWalletProvider().then(eth => { if (eth) connectWith(eth, walletBrowserName||'Wallet'); }); return;
       // Show wallet grid — WC starts only when user taps a specific wallet
       setShowMobile(true);
       return;
@@ -231,7 +230,7 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     // Desktop EIP-6963
     const evmWallets = wallets.filter(w => !w.name?.toLowerCase().includes('tron'));
     if (evmWallets.length === 0) {
-      if (window.ethereum?.isMetaMask) { connectWith(window.ethereum,'MetaMask'); return; }
+      getWalletProvider().then(eth => { if (eth) connectWith(eth,'MetaMask'); }); return;
       setErr('No wallet detected. Install MetaMask or use WalletConnect below.');
       return;
     }
