@@ -120,10 +120,10 @@ function SwitchNetworkButton() {
     <div style={{ margin: '0 10px 6px', flexShrink: 0 }}>
       <button onClick={switchNetwork} disabled={onPMT || switching}
         style={{ width: '100%', padding: '9px 12px',
-          background: onPMT ? 'rgba(74,222,128,.08)' : 'rgba(248,113,113,.08)',
+          background: onPMT ? 'rgba(48,209,88,.1)' : 'rgba(255,69,58,.1)',
           border: `1px solid ${onPMT ? 'rgba(74,222,128,.3)' : 'rgba(248,113,113,.4)'}`,
           borderRadius: 9,
-          color: onPMT ? 'var(--accent3)' : '#f87171',
+          color: onPMT ? '#30d158' : '#ff453a',
           fontSize: 12, fontWeight: 600,
           cursor: onPMT ? 'default' : switching ? 'wait' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -222,7 +222,7 @@ export function SwitchNetworkCompact() {
         background: onPMT ? 'rgba(74,222,128,.1)' : 'rgba(248,113,113,.1)',
         border: `1px solid ${onPMT ? 'rgba(74,222,128,.35)' : 'rgba(248,113,113,.45)'}`,
         borderRadius: 7,
-        color: onPMT ? 'var(--accent3)' : '#f87171',
+        color: onPMT ? '#30d158' : '#ff453a',
         fontSize: 10, fontWeight: 700,
         cursor: onPMT ? 'default' : 'pointer',
         flexShrink: 0,

@@ -147,20 +147,20 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
   // Quoted message preview (shown when msg.replyTo is set)
   const replyPreview=msg.replyTo&&(
     <div onClick={(e)=>{e.stopPropagation();jumpToReply();}} style={{
-      borderLeft:'3px solid var(--accent2)',
-      background:'rgba(99,210,255,.07)',
-      borderRadius:'0 6px 6px 0',
-      padding:'4px 8px',
-      marginBottom:5,
+      borderLeft:'3px solid rgba(255,255,255,0.5)',
+      background:'rgba(255,255,255,.12)',
+      borderRadius:'0 8px 8px 0',
+      padding:'5px 8px',
+      marginBottom:6,
       cursor:'pointer',
       maxWidth:'100%',
       overflow:'hidden',
       WebkitTapHighlightColor:'transparent',
     }}>
-      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',fontWeight:700,marginBottom:2}}>
+      <div style={{fontFamily:'var(--sans)',fontSize:11,color:'rgba(255,255,255,0.8)',fontWeight:600,marginBottom:2}}>
         ↩ {msg.replyTo.senderName}
       </div>
-      <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+      <div style={{fontSize:12,color:'rgba(255,255,255,0.65)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
         {msg.replyTo.type==='voice'?'🎵 Voice message':msg.replyTo.type==='image'?'🖼 Image':msg.replyTo.type==='file'?'📎 File':msg.replyTo.text}
       </div>
     </div>
@@ -322,8 +322,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
           </div>
         )}
         <div className="msg-bubble-text" style={{maxWidth:'68%',padding:'9px 13px',borderRadius:16,fontSize:13.5,lineHeight:1.5,
-          ...(isOut?{background:'#1a2a4a',border:'1px solid rgba(99,210,255,.15)',borderBottomRightRadius:4}
-                   :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4})}}>
+          ...(isOut?{background:'var(--bubble-out)',border:'none',borderBottomRightRadius:4,color:'#fff'}
+                   :{background:'var(--bubble-in)',border:'none',borderBottomLeftRadius:4})}}>
           {msg.senderName&&!isOut&&(
             <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent2)',marginBottom:3,fontWeight:600}}>{msg.senderName}</div>
           )}

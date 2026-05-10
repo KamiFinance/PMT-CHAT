@@ -1,11 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+/* Apple system font stack — no external font load needed */
 
 :root {
-  --bg: #040407; --panel: #000000; --surface: #0a0a0f; --surface2: #0f0f14;
-  --border: #faff63; --border-h: #faff63;
-  --accent: #faff63; --accent2: #a78bfa; --accent3: #34d399;
-  --danger: #f87171; --text: #e8f4ff; --text2: #9daec8; --muted: #5a6882;
-  --mono: 'Space Mono', monospace; --sans: 'DM Sans', sans-serif;
+  /* Apple dark mode palette */
+  --bg: #000000;
+  --panel: #1c1c1e;
+  --surface: #2c2c2e;
+  --surface2: #3a3a3c;
+  --border: rgba(84,84,88,0.55);
+  --border-h: rgba(84,84,88,0.8);
+  --accent: #0a84ff;
+  --accent2: #0a84ff;
+  --accent3: #30d158;
+  --danger: #ff453a;
+  --text: #ffffff;
+  --text2: rgba(235,235,245,0.6);
+  --muted: rgba(235,235,245,0.3);
+  --bubble-out: #0a84ff;
+  --bubble-in: #2c2c2e;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
   /* Safe area for iPhone notch/home indicator */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -13,17 +26,18 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 body.light-mode {
-  --bg: #f0f2f5; --panel: #ffffff; --surface: #f8f9fb; --surface2: #eef0f3;
-  --border: #d1d5db; --border-h: #6366f1;
-  --accent: #6366f1; --accent2: #8b5cf6; --accent3: #10b981;
-  --danger: #ef4444; --text: #111827; --text2: #4b5563; --muted: #9ca3af;
+  --bg: #f2f2f7; --panel: #ffffff; --surface: #f2f2f7; --surface2: #e5e5ea;
+  --border: rgba(60,60,67,0.18); --border-h: rgba(60,60,67,0.36);
+  --accent: #007aff; --accent2: #007aff; --accent3: #34c759;
+  --bubble-out: #007aff; --bubble-in: #e5e5ea;
+  --danger: #ff3b30; --text: #000000; --text2: rgba(60,60,67,0.6); --muted: rgba(60,60,67,0.3);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;overflow:hidden}
 body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
-::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb{background:rgba(84,84,88,0.5);border-radius:10px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -40,7 +54,7 @@ button,a{touch-action:manipulation}
 input,textarea,select{font-size:16px!important}
 /* App layout */
 .app-grid{display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden}
-.sidebar-panel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+.sidebar-panel{background:var(--panel);border-right:0.5px solid var(--border);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
 .contact-row{position:relative}
 .contact-row:hover .edit-btn{opacity:1!important}
 .chat-panel{display:flex;flex-direction:column;height:100vh;overflow:hidden;background:var(--bg)}
@@ -145,4 +159,41 @@ input,textarea,select{font-size:16px!important}
   color: var(--muted);
   pointer-events: none;
   opacity: 0.5;
+}
+
+/* ── Apple-style global enhancements ────────────────────── */
+
+/* Clean font rendering */
+body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+/* Contact row hover - subtle */
+.contact-row:hover { background: rgba(255,255,255,0.04) !important; }
+
+/* Message bubble meta text - smaller, subtle */
+.msg-bubble-text { border-radius: 18px !important; }
+
+/* Chat panel header blur */
+.desktop-topbar, .mobile-topbar {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 0.5px solid var(--border) !important;
+}
+
+/* Input area blur */
+.chat-input-row {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Clean modal */
+.modal-overlay { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+
+/* Apple-style selection */
+::selection { background: rgba(10,132,255,0.3); }
+
+/* PMTchain button - make it Apple green */
+.switch-network-btn-active {
+  background: rgba(48,209,88,0.15) !important;
+  border-color: rgba(48,209,88,0.4) !important;
+  color: #30d158 !important;
 }

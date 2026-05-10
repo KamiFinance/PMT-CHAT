@@ -522,7 +522,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         )}
         {/* ── Input — .chat-passthrough makes background pass-through, buttons/textarea stay clickable ── */}
         <div className="chat-passthrough" style={{position:'absolute',bottom:0,left:0,right:0,zIndex:10}}>
-          <div className="chat-input-row"
+          <div className="chat-input-row" 
             style={{padding:'12px 18px',
               borderTop:'1px solid var(--border)',background:'var(--panel)',
               display:'flex',flexDirection:'column',gap:6}}>
@@ -596,23 +596,23 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                   </button>
                   {showEmoji&&<EmojiPicker onSelect={e=>{insertEmoji(e);}} onClose={()=>setShowEmoji(false)}/>}
                 </div>
-                <div style={{flex:1,background:'var(--surface)',border:'1px solid var(--border)',
-                  borderRadius:12,display:'flex',alignItems:'flex-end',padding:'0 12px'}}>
+                <div style={{flex:1,background:'var(--surface)',border:'0.5px solid var(--border)',
+                  borderRadius:22,display:'flex',alignItems:'flex-end',padding:'0 12px'}}>
                   <EmojiInput ref={inputRef} value={text}
                     onChange={setText} onKeyDown={key}
                     placeholder="(encrypted on-chain)"/>
-                  <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',
-                    opacity:.6,paddingBottom:11}}>🔒 E2E</span>
+                  <span style={{fontFamily:'var(--sans)',fontSize:10,color:'var(--muted)',
+                    opacity:.8,paddingBottom:0,fontWeight:500}}>🔒 E2E</span>
                 </div>
                 {text.trim()?(
                   <button onClick={send}
-                    style={{width:44,height:44,background:'var(--accent)',border:'none',
-                      borderRadius:10,color:'#0a0c14',fontSize:18,display:'flex',alignItems:'center',
+                    style={{width:38,height:38,background:'var(--accent)',border:'none',
+                      borderRadius:19,color:'#fff',fontSize:16,display:'flex',alignItems:'center',
                       justifyContent:'center',flexShrink:0,cursor:'pointer',transition:'all .15s'}}>➤</button>
                 ):(
                   <button onClick={startRecording}
-                    style={{width:44,height:44,background:'var(--surface)',border:'1px solid var(--border)',
-                      borderRadius:10,color:'var(--accent2)',fontSize:20,display:'flex',alignItems:'center',
+                    style={{width:38,height:38,background:'var(--surface)',border:'none',
+                      borderRadius:19,color:'var(--accent)',fontSize:20,display:'flex',alignItems:'center',
                       justifyContent:'center',flexShrink:0,cursor:'pointer',transition:'all .15s'}}
                     title="Hold to record voice message">🎙</button>
                 )}

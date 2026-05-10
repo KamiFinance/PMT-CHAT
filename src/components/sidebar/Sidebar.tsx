@@ -35,7 +35,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           </div>
         </div>
         <button onClick={onSearch} title="Search messages"
-          style={{width:28,height:28,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:7,
+          style={{width:28,height:28,background:'var(--surface)',border:'none',borderRadius:8,
             color:'var(--muted)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
           ⌕
         </button>
@@ -47,32 +47,32 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
         </button>
       </div>
       {/* Wallet — click to open wallet modal */}
-      <div onClick={onWallet} style={{margin:'10px',padding:'10px 12px',background:'var(--surface)',border:'1px solid var(--border)',
+      <div onClick={onWallet} style={{margin:'10px',padding:'12px 14px',background:'var(--surface)',border:'none',
         borderRadius:10,flexShrink:0,cursor:'pointer',transition:'border-color .15s'}}
         onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
         onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
-          <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1.5px'}}>YOUR WALLET</div>
+          <div style={{fontFamily:'var(--sans)',fontSize:12,color:'var(--text2)',fontWeight:600,letterSpacing:'0.2px'}}>Wallet</div>
           <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',opacity:.7}}>👁 View</div>
         </div>
-        <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)'}}>{wallet?wallet.address.slice(0,6)+'...'+wallet.address.slice(-4):isDemo?'Demo Wallet':'Not connected'}</div>
+        <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--accent)'}}>{wallet?wallet.address.slice(0,6)+'...'+wallet.address.slice(-4):isDemo?'Demo Wallet':'Not connected'}</div>
         <div style={{display:'flex',alignItems:'center',gap:8,marginTop:5}}>
           <span style={{fontSize:12,color:'var(--accent3)',fontWeight:500}}>◈ {wallet?wallet.balance:isDemo?'2.847':'0.000'} PM</span>
-          <span style={{fontFamily:'var(--mono)',fontSize:9,background:'rgba(167,139,250,.15)',border:'1px solid rgba(167,139,250,.3)',
-            borderRadius:4,padding:'2px 6px',color:'var(--accent2)'}}>{wallet?wallet.network:isDemo?'demo':' - '}</span>
+          <span style={{fontFamily:'var(--sans)',fontSize:10,fontWeight:600,background:'rgba(10,132,255,.15)',border:'none',
+            borderRadius:6,padding:'3px 8px',color:'var(--accent)'}}>{wallet?wallet.network:isDemo?'demo':' - '}</span>
         </div>
       </div>
       {/* Switch Network button */}
       {!isDemo && <SwitchNetworkButton/>}
       {/* Search */}
-      <div style={{margin:'4px 10px 0',display:'flex',alignItems:'center',gap:6,background:'var(--surface)',
-        border:'1px solid var(--border)',borderRadius:8,padding:'0 10px',flexShrink:0}}>
+      <div style={{margin:'4px 10px 0',display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
+        border:'none',borderRadius:10,padding:'0 10px',flexShrink:0}}>
         <span style={{fontSize:14,color:'var(--muted)'}}>⌕</span>
         <input placeholder="Search contacts..." value={q} onChange={e=>setQ(e.target.value)}
-          style={{flex:1,background:'transparent',border:'none',outline:'none',color:'var(--text)',fontSize:12.5,padding:'8px 0'}}/>
+          style={{flex:1,background:'transparent',border:'none',outline:'none',color:'var(--text)',fontSize:14,padding:'8px 0'}}/>
       </div>
       {/* Label */}
-      <div style={{padding:'10px 14px 3px',fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1.5px',flexShrink:0}}>
+      <div style={{padding:'10px 14px 3px',fontFamily:'var(--sans)',fontSize:11,color:'var(--muted)',fontWeight:500,flexShrink:0}}>
         CONTACTS ({contacts.length})
       </div>
       {/* List */}
