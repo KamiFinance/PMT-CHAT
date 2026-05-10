@@ -222,20 +222,27 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   const handleConnectWallet = () => {
     setErr(null);
     if (mobile) {
-      getWalletProvider().then(eth => { if (eth) connectWith(eth, walletBrowserName||'Wallet'); }); return;
-      // Show wallet grid — WC starts only when user taps a specific wallet
-      setShowMobile(true);
+      if (inWalletBrowser) {
+        // Inside a wallet's in-app browser — connect directly via provider
+        getWalletProvider().then(eth => {
+          if (eth) connectWith(eth, walletBrowserName || 'Wallet');
+          else setShowMobile(true); // fallback: show wallet grid
+        });
+      } else {
+        // Regular mobile browser — show wallet grid (WalletConnect etc.)
+        setShowMobile(true);
+      }
       return;
     }
-    // Desktop EIP-6963
+    // Desktop: use EIP-6963 discovered wallets
     const evmWallets = wallets.filter(w => !w.name?.toLowerCase().includes('tron'));
-    if (evmWallets.length === 0) {
-      getWalletProvider().then(eth => { if (eth) connectWith(eth,'MetaMask'); }); return;
-      setErr('No wallet detected. Install MetaMask or use WalletConnect below.');
-      return;
-    }
     if (evmWallets.length === 1) { connectWith(evmWallets[0].provider, evmWallets[0].name); return; }
-    setShowPicker(true);
+    if (evmWallets.length > 1) { setShowPicker(true); return; }
+    // No EIP-6963 wallets — try window.ethereum fallback
+    getWalletProvider().then(eth => {
+      if (eth) connectWith(eth, 'Wallet');
+      else setErr('No wallet detected. Install MetaMask or use WalletConnect below.');
+    });
   };
 
   const evmWallets = wallets.filter(w => !w.name?.toLowerCase().includes('tron'));
