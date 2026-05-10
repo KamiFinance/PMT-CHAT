@@ -48,6 +48,7 @@ export interface Message {
   // TX
   amount?: string;
   coin?: string;
+  audioB64?: string | null;
   token?: string;
   txHash?: string;
 
