@@ -61,7 +61,7 @@ export const storage = {
         continue;
       }
       saveable[addr] = list.map((m) => {
-        if (m.type === 'voice') return { ...m, audioUrl: null };
+        if (m.type === 'voice') return { ...m, audioUrl: null }; // keep audioB64 for reload reconstruction
         if (m.type === 'image' || m.type === 'file') return { ...m, fileUrl: null };
         return m;
       });

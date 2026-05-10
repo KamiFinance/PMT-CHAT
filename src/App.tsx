@@ -306,8 +306,13 @@ export default function App() {
             if (m.ipfsCid) m.fileUrl = getIpfsUrl(m.ipfsCid);
             else if (m.b64Data) m.fileUrl = m.b64Data;
           }
-          if (m.type === 'voice' && m.audioMsgId && !m.audioUrl) {
-            try { const b64 = storage.getAudio(m.audioMsgId); if (b64) m.audioUrl = b64ToObjectUrl(b64); } catch {}
+          if (m.type === 'voice' && !m.audioUrl) {
+            try {
+              // Try audioB64 first (present on recipient side after inbox delivery)
+              const b64 = (m as any).audioB64 || (m.audioMsgId ? storage.getAudio(m.audioMsgId) : null);
+              if (b64) m.audioUrl = b64ToObjectUrl(b64);
+              else if (m.ipfsCid) m.audioUrl = `https://gateway.pinata.cloud/ipfs/${m.ipfsCid}`;
+            } catch {}
           }
           return m;
         })];

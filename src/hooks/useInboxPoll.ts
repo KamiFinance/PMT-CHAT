@@ -58,6 +58,8 @@ function reconstructVoiceMsg(inboxMsg: InboxMessage): Partial<Message> {
     duration: inboxMsg.duration ?? 0,
     waveform: inboxMsg.waveform ?? [],
     audioUrl,
+    audioB64: (inboxMsg as any).audioB64 ?? null, // persist so reload can reconstruct
+    audioMsgId: inboxMsg.audioMsgId,
     ipfsCid: inboxMsg.ipfsCid,
     ipfsUrl: inboxMsg.ipfsUrl,
   };
