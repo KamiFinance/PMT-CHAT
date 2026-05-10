@@ -119,12 +119,28 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
     if (!msg.replyTo?.id) return;
     const el = document.getElementById('msg-' + msg.replyTo.id);
     if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Find the nearest scrollable ancestor (overflow: auto/scroll)
+    let scrollParent: HTMLElement | null = el.parentElement;
+    while (scrollParent) {
+      const cs = window.getComputedStyle(scrollParent);
+      if (cs.overflowY === 'auto' || cs.overflowY === 'scroll') break;
+      scrollParent = scrollParent.parentElement;
+    }
+    if (scrollParent) {
+      // Scroll the container so the target is centered
+      const containerRect = scrollParent.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const targetScrollTop = scrollParent.scrollTop + elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
+      scrollParent.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+    } else {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
     // Flash highlight
-    el.style.transition = 'background .15s';
-    el.style.background = 'rgba(99,210,255,.18)';
-    el.style.borderRadius = '12px';
-    setTimeout(() => { el.style.background = ''; el.style.borderRadius = ''; }, 1200);
+    el.style.transition = 'background .2s, outline .2s';
+    el.style.background = 'rgba(99,210,255,.2)';
+    el.style.borderRadius = '10px';
+    el.style.outline = '2px solid rgba(99,210,255,.4)';
+    setTimeout(() => { el.style.background = ''; el.style.borderRadius = ''; el.style.outline = ''; }, 1500);
   };
 
   // Quoted message preview (shown when msg.replyTo is set)
