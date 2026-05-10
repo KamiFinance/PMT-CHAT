@@ -3,12 +3,29 @@ import { now } from "../../lib/utils";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import Avatar from '../ui/Avatar';
+import { checkUsernameAvailable } from '../../lib/cloudBackup';
 export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
   const [username,setUsername]=useState('');
   const [pwd,setPwd]=useState('');
   const [pwd2,setPwd2]=useState('');
   const [err,setErr]=useState('');
   const [saving,setSaving]=useState(false);
+  const [checking,setChecking]=useState(false);
+  const [usernameAvail,setUsernameAvail]=useState(null); // null | true | false
+
+  // Live username availability check
+  useEffect(()=>{
+    if(!username.trim()||username.trim().length<3){setUsernameAvail(null);return;}
+    setChecking(true);
+    const t=setTimeout(async()=>{
+      try{
+        const avail=await checkUsernameAvailable(username.trim());
+        setUsernameAvail(avail);
+      }catch{setUsernameAvail(null);}
+      finally{setChecking(false);}
+    },600);
+    return()=>clearTimeout(t);
+  },[username]);
 
   const save=async()=>{
     if(!username.trim()){setErr('Enter a username');return;}
@@ -17,16 +34,9 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
     if(pwd!==pwd2){setErr('Passwords do not match');return;}
     setSaving(true);
     try{
-      // Check username not taken
-      for(let i=0;i<localStorage.length;i++){
-        const k=localStorage.key(i);
-        if(k?.startsWith('pmt_account_')){
-          const a=JSON.parse(localStorage.getItem(k)||'{}');
-          if(a.username?.toLowerCase()===username.trim().toLowerCase()){
-            setErr('Username already taken');setSaving(false);return;
-          }
-        }
-      }
+      // Check username not taken (server check)
+      const avail=await checkUsernameAvailable(username.trim());
+      if(!avail){setErr('Username already taken — choose a different one.');setSaving(false);return;}
       // Derive a key from password to encrypt account data
       const enc=new TextEncoder();
       const keyMat=await crypto.subtle.importKey('raw',enc.encode(pwd),{name:'PBKDF2'},false,['deriveBits','deriveKey']);
@@ -49,6 +59,13 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
       };
       localStorage.setItem('pmt_account_'+wallet.address.toLowerCase(),JSON.stringify(account));
       localStorage.setItem('pmt_session',JSON.stringify({username:username.trim(),address:wallet.address}));
+      // Register on server so username shows as taken + enables address lookup
+      try {
+        const {PMTAuth} = await import('../../lib/auth');
+        const {hash, salt: ps} = await PMTAuth.hashPassword(pwd);
+        await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username: username.trim(), passwordHash: hash, salt: ps, address: wallet.address})});
+      } catch { /* silent */ }
       onDone(username.trim());
     }catch(e){
       setErr('Failed to save: '+e.message);
@@ -76,7 +93,12 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
         </div>
         <div>
           <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>USERNAME</div>
-          <input value={username} onChange={e=>setUsername(e.target.value)}
+          {username.trim().length>=3&&(
+            <div style={{fontSize:11,marginBottom:-8,color:checking?'var(--muted)':usernameAvail===true?'var(--accent3)':'var(--danger)'}}>
+              {checking?'Checking...':usernameAvail===true?'✓ Username available':'✗ Username already taken'}
+            </div>
+          )}
+          <input value={username} onChange={e=>{setUsername(e.target.value);setUsernameAvail(null);}}
             placeholder="Choose a username" autoFocus
             style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,
               padding:'10px 13px',color:'var(--text)',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
