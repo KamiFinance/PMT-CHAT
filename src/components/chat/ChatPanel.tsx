@@ -12,10 +12,32 @@ import BlockStrip from '../ui/BlockStrip';
 import SendModal from '../modals/SendModal';
 
 // ── Emoji Picker ────────────────────────────────────────────────────────────
-const PMT_LOGO_EMOJI = '🏛'; // placeholder shown in category tab; actual logo rendered via img
+const PMT_LOGO_EMOJI = '🏛';
+
+// Returns true if the emoji renders visibly (not blank box / not-found glyph)
+const emojiRendersOk = (() => {
+  const cache: Record<string,boolean> = {};
+  return (e: string): boolean => {
+    if (e === '__PMT__') return true;
+    if (cache[e] !== undefined) return cache[e];
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 10;
+      const ctx = canvas.getContext('2d')!;
+      ctx.font = '8px sans-serif';
+      ctx.fillText(e, 0, 8);
+      const d = ctx.getImageData(0, 0, 10, 10).data;
+      // If any pixel has been drawn, the emoji rendered
+      let hasPixel = false;
+      for (let i = 3; i < d.length; i += 4) { if (d[i] > 0) { hasPixel = true; break; } }
+      cache[e] = hasPixel;
+      return hasPixel;
+    } catch { return true; }
+  };
+})();
 
 const EMOJI_CATEGORIES = [
-  { label:'🏛', name:'PMT', emojis:['__PMT__','🪙','💎','🔐','⛓','🌐','🤝','💡','🚀','⚡','🏆','✨','🔑','💰','📡','🛡','⚙️','🔮','💫','🌟','🎯','🏅','🎖','🔭','🌍','💻','📱','🖥','⌨️','🖱','💾','💿','📀','🔒','🔓','🗝','📊','📈','📉','💹','🏦','💳','🪙','🎰','🎲','🃏','♟'] },
+  { label:'🏛', name:'PMT', emojis:['__PMT__','🪙','💎','🔒','🌐','🤝','💡','🚀','⚡','🏆','✨','🔑','💰','💻','📱','🌟','🎯','🏅','💹','🏦','💳','📊','📈','🎲','🎰','🌍','🔭','🎉','🔥','💥','🌈','🎪','🎭','💫','🔮','🧩','🎯','🎸','🎺','🥁','🎮','🕹','💡','🔋','📡','🛰','🌙','⭐','🌠','🌌'] },
   { label:'😀', name:'Smileys', emojis:['😀','😂','🤣','😅','😊','😇','🥰','😍','🤩','😘','😗','😙','😚','🙂','🤗','🤭','🤫','🤔','😐','😑','😶','🙄','😏','😒','😞','😔','😟','😕','🙃','🤑','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😓','😩','😫','🥱','😤','😡','🤬','😈','💀','💩','🤡','👻','👽','🤖','😺','😸','😹','😻','😼','😽'] },
   { label:'👍', name:'Gestures', emojis:['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','🫶','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🫀','🫁','🧠','🦷','🦴','👀','👁','👅','👄','🫦','💋','🩸'] },
   { label:'❤️', name:'Hearts', emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❤️‍🩹','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉️','☸️','✡️','🔯','🕎','☯️','☦️','🛐','⛎','🔱','⚜️','🔰','♻️','✅','🈴'] },
@@ -61,8 +83,8 @@ function EmojiPicker({onSelect,onClose}:{onSelect:(e:string)=>void,onClose:()=>v
       {/* Emoji grid */}
       <div style={{padding:'8px 6px',display:'grid',gridTemplateColumns:'repeat(8,1fr)',
         gap:2,maxHeight:220,overflowY:'auto'}}>
-        {EMOJI_CATEGORIES[cat].emojis.map((e,i)=>(
-          <button key={i} onClick={()=>{onSelect(e==='__PMT__'?'🏛':e);}}
+        {EMOJI_CATEGORIES[cat].emojis.filter(e=>emojiRendersOk(e)).map((e,i)=>(
+          <button key={e} onClick={()=>{onSelect(e==='__PMT__'?'🏛':e);}}
             style={{width:34,height:34,background:'transparent',border:'none',
               cursor:'pointer',fontSize:20,borderRadius:7,display:'flex',
               alignItems:'center',justifyContent:'center',transition:'background .1s'}}
