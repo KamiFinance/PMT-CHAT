@@ -127,6 +127,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [recordSeconds,setRecordSeconds]=useState(0);
   const recordSecondsRef=useRef(0); // ref to avoid stale closure in onstop
   const [recorderError,setRecorderError]=useState(null);
+  const [micMuted,setMicMuted]=useState(false);
+  const silentFramesRef=useRef(0); // consecutive silent frames counter
   const bottomRef=useRef(null);
   const messagesRef=useRef<HTMLDivElement>(null);
 
@@ -278,6 +280,9 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         analyser.getByteFrequencyData(dataArr);
         const avg=dataArr.reduce((a,b)=>a+b,0)/dataArr.length/255;
         waveformRef.current.push(avg);
+        // Mute detection: if avg < 0.005 for 2+ seconds, mic is likely muted/silent
+        if(avg < 0.005){ silentFramesRef.current++; } else { silentFramesRef.current=0; }
+        setMicMuted(silentFramesRef.current>=2);
       };
       mr.ondataavailable=e=>chunksRef.current.push(e.data);
       mr.onstop=()=>{
@@ -327,6 +332,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       };
       mr.start(100);
       mediaRecRef.current=mr;
+      setMicMuted(false);
+      silentFramesRef.current=0;
       setRecording(true);
       let s=0;
       timerRef.current=setInterval(()=>{
@@ -343,6 +350,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
 
   const stopRecording=()=>{
     clearInterval(timerRef.current);
+    setMicMuted(false);
+    silentFramesRef.current=0;
     if(mediaRecRef.current&&mediaRecRef.current.state!=='inactive'){
       mediaRecRef.current.stop();
     }
@@ -463,14 +472,35 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                   style={{width:38,height:38,background:'var(--surface)',border:'1px solid var(--border)',
                     borderRadius:9,color:'var(--danger)',fontSize:16,display:'flex',alignItems:'center',
                     justifyContent:'center',flexShrink:0,cursor:'pointer'}}>✕</button>
-                <div style={{flex:1,background:'var(--surface)',border:'1px solid rgba(248,113,113,.4)',
+                <div style={{flex:1,background:'var(--surface)',
+                  border:`1px solid ${micMuted?'rgba(251,191,36,.5)':'rgba(248,113,113,.4)'}`,
                   borderRadius:12,display:'flex',alignItems:'center',padding:'0 14px',gap:10,height:42}}>
-                  <div style={{width:8,height:8,borderRadius:'50%',background:'var(--danger)',
+                  <div style={{width:8,height:8,borderRadius:'50%',
+                    background:micMuted?'#fbbf24':'var(--danger)',
                     animation:'pulse 1s infinite',flexShrink:0}}/>
-                  <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--danger)'}}>
+                  <span style={{fontFamily:'var(--mono)',fontSize:11,
+                    color:micMuted?'#fbbf24':'var(--danger)'}}>
                     {String(Math.floor(recordSeconds/60)).padStart(2,'0')}:{String(recordSeconds%60).padStart(2,'0')}
                   </span>
-                  <span style={{fontSize:11,color:'var(--muted)',flex:1}}>Recording... tap stop to send</span>
+                  <span style={{fontSize:11,color:micMuted?'#fbbf24':'var(--muted)',flex:1}}>
+                    {micMuted?'🔇 Mic appears muted':'Recording... tap stop to send'}
+                  </span>
+                  {micMuted&&(
+                    <button onClick={()=>{
+                        try{
+                          const ua=navigator.userAgent;
+                          if(/Mac/.test(ua)){window.open('x-apple.systempreferences:com.apple.preference.sound','_self');}
+                          else if(/Win/.test(ua)){window.open('ms-settings:sound','_self');}
+                          else{window.open('chrome://settings/content/microphone','_blank');}
+                        }catch(e){}
+                      }}
+                      title="Check microphone settings"
+                      style={{fontSize:10,padding:'2px 8px',background:'rgba(251,191,36,.12)',
+                        border:'1px solid rgba(251,191,36,.35)',borderRadius:6,color:'#fbbf24',
+                        cursor:'pointer',flexShrink:0,whiteSpace:'nowrap',fontWeight:600}}>
+                      🔧 Fix mic
+                    </button>
+                  )}
                 </div>
                 <button onClick={stopRecording}
                   style={{width:40,height:40,background:'var(--danger)',border:'none',
