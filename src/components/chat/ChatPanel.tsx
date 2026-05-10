@@ -220,7 +220,11 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
       // Pick MIME type supported by this browser — iOS Safari needs audio/mp4, Chrome uses audio/webm
-      const mimeType = ['audio/mp4','audio/aac','audio/webm;codecs=opus','audio/webm','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t)) || '';
+      // Prefer webm/opus on desktop (Chrome/Firefox/Android), mp4 for Safari/iOS
+      // audio/mp4 in Chrome uses Opus codec which iOS can't play — webm is more explicit
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const mimeOrder = isIOS ? ['audio/mp4','audio/aac','audio/webm;codecs=opus','audio/webm'] : ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4','audio/aac'];
+      const mimeType = mimeOrder.find(t=>MediaRecorder.isTypeSupported(t)) || '';
       const mr=mimeType ? new MediaRecorder(stream,{mimeType}) : new MediaRecorder(stream);
       chunksRef.current=[];
       waveformRef.current=[];

@@ -30,7 +30,9 @@ function reconstructVoiceMsg(inboxMsg: InboxMessage): Partial<Message> {
   if ((inboxMsg as any).audioB64) {
     try {
       const b64 = (inboxMsg as any).audioB64 as string;
-      const mime = b64.split(';')[0].split(':')[1] || 'audio/mp4';
+      // Extract full MIME type including codecs (e.g. audio/webm;codecs=opus)
+      const mimeMatch = b64.match(/^data:([^;]+(?:;codecs=[^;]+)?);base64,/);
+      const mime = mimeMatch ? mimeMatch[1] : 'audio/mp4';
       const dec = atob(b64.split(',')[1]);
       const bytes = new Uint8Array(dec.length);
       for (let i = 0; i < dec.length; i++) bytes[i] = dec.charCodeAt(i);

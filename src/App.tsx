@@ -310,7 +310,17 @@ export default function App() {
             try {
               // Try audioB64 first (present on recipient side after inbox delivery)
               const b64 = (m as any).audioB64 || (m.audioMsgId ? storage.getAudio(m.audioMsgId) : null);
-              if (b64) m.audioUrl = b64ToObjectUrl(b64);
+              if (b64) {
+                // Preserve full MIME type including codecs for correct Blob type
+                const mimeMatch = (b64 as string).match(/^data:([^;]+(?:;codecs=[^;]+)?);base64,/);
+                const mime = mimeMatch ? mimeMatch[1] : 'audio/mp4';
+                try {
+                  const dec = atob((b64 as string).split(',')[1]);
+                  const bytes = new Uint8Array(dec.length);
+                  for (let i = 0; i < dec.length; i++) bytes[i] = dec.charCodeAt(i);
+                  m.audioUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+                } catch { m.audioUrl = b64ToObjectUrl(b64); }
+              }
               else if (m.ipfsCid) m.audioUrl = `https://gateway.pinata.cloud/ipfs/${m.ipfsCid}`;
             } catch {}
           }
