@@ -1,11 +1,13 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import ProfilePic from '../ui/ProfilePic';
+import SendModal from '../modals/SendModal';
 
-import Avatar from './Avatar';
-export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact}){
+export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact,onSendETH,needsPasswordToSend}){
+  const [showSend,setShowSend]=useState(false);
   if(contact){
     return(
+      <>
       <div className="mobile-topbar" style={{display:'none',alignItems:'center',gap:10,
         padding:'10px 14px',background:'var(--panel)',borderBottom:'1px solid var(--border)',
         flexShrink:0,minHeight:54,zIndex:10}}>
@@ -14,7 +16,6 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
             cursor:'pointer',padding:'2px 10px 2px 0',lineHeight:1,flexShrink:0,fontWeight:300}}>
           ‹
         </button>
-        {/* Avatar + name: single tappable area to open profile */}
         <div onClick={onViewContact&&!contact.isGroup?()=>onViewContact(contact):undefined}
           style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0,
             cursor:onViewContact&&!contact.isGroup?'pointer':'default',
@@ -29,7 +30,23 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
             </div>
           </div>
         </div>
+        {/* ↑PMT button — only for direct contacts */}
+        {!contact.isGroup&&!contact.isAI&&onSendETH&&(
+          <button onClick={()=>setShowSend(true)}
+            style={{background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:8,color:'var(--accent2)',fontSize:11,fontWeight:600,
+              cursor:'pointer',padding:'5px 9px',flexShrink:0,
+              WebkitTapHighlightColor:'transparent'}}>
+            ↑ PMT
+          </button>
+        )}
       </div>
+      {showSend&&onSendETH&&(
+        <SendModal contact={contact} onClose={()=>setShowSend(false)}
+          onSend={(amt,pwd)=>onSendETH(contact,amt,pwd)} isDemo={isDemo}
+          needsPassword={!!needsPasswordToSend}/>
+      )}
+      </>
     );
   }
   return(

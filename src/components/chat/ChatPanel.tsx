@@ -313,7 +313,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   };
   return(
     <>
-      <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact}/>
+      <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact} onSendETH={onSendETH} isDemo={isDemo} needsPasswordToSend={needsPasswordToSend}/>
 
       {/* Outer wrapper — fills the chat-panel flex slot */}
       <div style={{flex:1,position:'relative',overflow:'hidden',minHeight:0}}>
