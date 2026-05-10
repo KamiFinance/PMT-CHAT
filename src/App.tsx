@@ -643,6 +643,32 @@ export default function App() {
           }) as string;
         }
         setMsgs(p => ({ ...p, [addr]: (p[addr] ?? []).map(m => m.id === txId ? { ...m, hash: txHash, pending: false, confirms: 1 } : m) }));
+
+        // Relay payment notification to recipient's inbox so they see it cross-device
+        try {
+          const senderName = walletRef.current?.username || myAddr.slice(0, 8) + '...';
+          const senderAvatarUrl = profileRef.current?.avatarUrl || null;
+          const payNotif = {
+            id: 'pay_' + txHash.slice(0, 16),
+            type: 'tx',
+            out: false,
+            amount,
+            coin: 'PMT',
+            hash: txHash,
+            time: now(),
+            confirms: 1,
+            text: '',
+            from: myAddr,
+            senderName,
+            senderAvatarUrl,
+          };
+          await fetch('/api/inbox', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: addr, msg: payNotif }),
+          });
+        } catch { /* silent — local tx already recorded */ }
+
         return txHash;
       } catch (e: any) {
         setMsgs(p => ({ ...p, [addr]: (p[addr] ?? []).filter(m => m.id !== txId) }));

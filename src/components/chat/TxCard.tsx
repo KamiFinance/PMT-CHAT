@@ -1,22 +1,53 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React from 'react';
 
+export default function TxCard({msg, isOut}) {
+  const explorerUrl = msg.hash && msg.hash.length > 20
+    ? `https://explorer.publicmasterpiece.com/tx/${msg.hash}`
+    : null;
 
-export default function TxCard({msg,isOut}){
-  return(
-    <div style={{animation:'fadeIn .2s ease',background:'var(--surface)',border:'1px solid rgba(167,139,250,.25)',
-      borderRadius:12,padding:'12px 16px',maxWidth:240,margin:'2px 0'}}>
-      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1.5px',marginBottom:6}}>
-        {isOut?'SENT':'RECEIVED'}
+  return (
+    <div style={{ animation: 'fadeIn .2s ease', background: 'var(--surface)',
+      border: `1px solid ${isOut ? 'rgba(74,222,128,.2)' : 'rgba(167,139,250,.3)'}`,
+      borderRadius: 12, padding: '12px 16px', maxWidth: 240, margin: '2px 0' }}>
+
+      {/* SENT / RECEIVED label */}
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '1.5px', marginBottom: 6,
+        color: isOut ? 'rgba(74,222,128,.7)' : 'rgba(167,139,250,.8)' }}>
+        {isOut ? '↑ SENT' : '↓ RECEIVED'}
       </div>
-      <div style={{display:'flex',alignItems:'baseline',gap:6}}>
-        <span style={{fontFamily:'var(--mono)',fontSize:24,fontWeight:700,color:'var(--accent3)'}}>{msg.amount}</span>
-        <span style={{fontSize:12,color:'var(--muted)'}}>{msg.coin||'PMT'}</span>
+
+      {/* Amount */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 24, fontWeight: 700,
+          color: isOut ? 'var(--accent3)' : 'var(--accent2)' }}>{msg.amount}</span>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{msg.coin || 'PMT'}</span>
       </div>
-      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',marginTop:6,display:'flex',gap:8,flexWrap:'wrap'}}>
+
+      {/* From label on received */}
+      {!isOut && msg.senderName && (
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>
+          from <span style={{ color: 'var(--accent)', fontWeight: 500 }}>{msg.senderName}</span>
+        </div>
+      )}
+
+      {/* Time + hash + confirms */}
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)',
+        marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <span>{msg.time}</span>
-        <span style={{color:'var(--accent2)'}}>{msg.hash?msg.hash.slice(0,8)+'...'+msg.hash.slice(-4):''}</span>
-        <span style={{color:'var(--accent3)'}}>✓{msg.confirms}</span>
+        {msg.hash && msg.hash.length > 10 && (
+          explorerUrl ? (
+            <a href={explorerUrl} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{ color: 'var(--accent2)', textDecoration: 'none' }}>
+              {msg.hash.slice(0, 6)}…{msg.hash.slice(-4)}
+            </a>
+          ) : (
+            <span style={{ color: 'var(--accent2)' }}>{msg.hash.slice(0, 6)}…{msg.hash.slice(-4)}</span>
+          )
+        )}
+        {msg.confirms > 0 && <span style={{ color: 'var(--accent3)' }}>✓ {msg.confirms}</span>}
+        {msg.pending && <span style={{ color: 'var(--muted)' }}>⏳ pending</span>}
       </div>
     </div>
   );
