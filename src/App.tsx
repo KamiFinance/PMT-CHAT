@@ -156,17 +156,21 @@ export default function App() {
     const w = wallet;
     if (!w?.username || isDemo) return false;
     const accountRaw = localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`);
-    if (!accountRaw) return false;
+    if (!accountRaw) {
+      // On mobile (no MetaMask), if user has username+address session they likely have a
+      // created wallet — show password prompt instead of failing with "No wallet found"
+      const hasNoEthereum = typeof window !== 'undefined' && !(window as any).ethereum;
+      return hasNoEthereum && !!w.address;
+    }
     try {
       const account = JSON.parse(accountRaw);
-      // Account address must match wallet address, and must have a valid encryptedWallet
       if (account.address?.toLowerCase() !== w.address?.toLowerCase()) return false;
       if (!account.encryptedWallet || account.needsReimport) return false;
     } catch { return false; }
     const pk = w.privateKey || '';
-    if (!pk) return true; // no pk — need password
+    if (!pk) return true;
     try { return new ethers.Wallet(pk).address.toLowerCase() !== w.address?.toLowerCase(); }
-    catch { return true; } // invalid pk — need password
+    catch { return true; }
   }, [wallet, isDemo]);
   const prevAccountKeyRef = useRef<string | null>(null);
   // Session password — kept in memory only, never persisted, used for auto cloud backup
@@ -621,7 +625,7 @@ export default function App() {
               resolve(mm?.provider ?? (window as any).ethereum ?? null);
             }, 400);
           });
-          if (!eth) throw new Error('No wallet found. Please install MetaMask.');
+          if (!eth) throw new Error('No crypto wallet found. On mobile, use the ↑PMT button and enter your wallet password to send PMT.');
           // Switch to PMTchain if needed
           const currentChain = await eth.request({ method: 'eth_chainId' });
           if (currentChain !== '0x46df2') {
