@@ -227,23 +227,9 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
       {/* Invisible backdrop to close picker on outside tap */}
       <div onClick={()=>setShowPicker(false)}
         style={{position:'fixed',inset:0,zIndex:198}}/>
-      <div style={{position:'absolute',bottom:'calc(100% + 2px)',zIndex:199,...(isOut?{right:0}:{left:0}),
-        background:'var(--panel)',border:'1px solid var(--border)',borderRadius:24,
-        padding:'6px 10px',display:'flex',gap:4,
-        boxShadow:'0 8px 24px rgba(0,0,0,.6)',animation:'fadeIn .12s ease'}}>
-        {REACTION_EMOJIS.map(e=>(
-          <button key={e}
-            onClick={(ev)=>{ev.stopPropagation();onReact&&onReact(msg.id,e);setShowPicker(false);}}
-            style={{background:'none',border:'none',cursor:'pointer',fontSize:22,
-              padding:'4px 5px',borderRadius:8,minWidth:36,minHeight:36,
-              display:'flex',alignItems:'center',justifyContent:'center',
-              transition:'transform .1s'}}
-            onMouseEnter={ev=>ev.currentTarget.style.transform='scale(1.3)'}
-            onMouseLeave={ev=>ev.currentTarget.style.transform='scale(1)'}>
-            {e}
-          </button>
-        ))}
-      </div>
+      <ReactionPicker isOut={isOut}
+        onPick={(e)=>{onReact&&onReact(msg.id,e);}}
+        onClose={()=>setShowPicker(false)}/>
     </>
   );
 

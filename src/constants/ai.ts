@@ -15,4 +15,4 @@ export const AI_AGENT_CONTACT: Contact = {
   unread: 0,
 };
 
-export const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '🔥', '✅'];
+export const REACTION_EMOJIS = ['👍','❤️','😂','😮','🔥','✅','🎉','😢','🙏','💯','🤝','😍','💀','🫡','⚡','🥳','🤔','👀','💎','🚀'];

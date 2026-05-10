@@ -12,7 +12,10 @@ import BlockStrip from '../ui/BlockStrip';
 import SendModal from '../modals/SendModal';
 
 // ── Emoji Picker ────────────────────────────────────────────────────────────
+const PMT_LOGO_EMOJI = '🏛'; // placeholder shown in category tab; actual logo rendered via img
+
 const EMOJI_CATEGORIES = [
+  { label:'🏛', name:'PMT', emojis:['__PMT__','🪙','💎','🔐','⛓','🌐','🤝','💡','🚀','⚡','🏆','✨','🔑','💰','📡','🛡','⚙️','🔮','💫','🌟','🎯','🏅','🎖','🔭','🌍','💻','📱','🖥','⌨️','🖱','💾','💿','📀','🔒','🔓','🗝','📊','📈','📉','💹','🏦','💳','🪙','🎰','🎲','🃏','♟'] },
   { label:'😀', name:'Smileys', emojis:['😀','😂','🤣','😅','😊','😇','🥰','😍','🤩','😘','😗','😙','😚','🙂','🤗','🤭','🤫','🤔','😐','😑','😶','🙄','😏','😒','😞','😔','😟','😕','🙃','🤑','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😓','😩','😫','🥱','😤','😡','🤬','😈','💀','💩','🤡','👻','👽','🤖','😺','😸','😹','😻','😼','😽'] },
   { label:'👍', name:'Gestures', emojis:['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','🫶','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🫀','🫁','🧠','🦷','🦴','👀','👁','👅','👄','🫦','💋','🩸'] },
   { label:'❤️', name:'Hearts', emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❤️‍🩹','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉️','☸️','✡️','🔯','🕎','☯️','☦️','🛐','⛎','🔱','⚜️','🔰','♻️','✅','🈴'] },
@@ -43,13 +46,15 @@ function EmojiPicker({onSelect,onClose}:{onSelect:(e:string)=>void,onClose:()=>v
       display:'flex',flexDirection:'column'}}>
       {/* Category tabs */}
       <div style={{display:'flex',borderBottom:'1px solid var(--border)',padding:'4px 6px',gap:2,flexWrap:'wrap'}}>
-        {EMOJI_CATEGORIES.map((c,i)=>(
-          <button key={i} onClick={()=>setCat(i)} title={c.name}
+        {EMOJI_CATEGORIES.map((ec,i)=>(
+          <button key={i} onClick={()=>setCat(i)} title={ec.name}
             style={{width:32,height:32,background:cat===i?'var(--surface2)':'transparent',
               border:cat===i?'1px solid var(--border)':'1px solid transparent',
               borderRadius:8,cursor:'pointer',fontSize:16,display:'flex',
               alignItems:'center',justifyContent:'center',transition:'all .1s'}}>
-            {c.label}
+            {ec.name==='PMT'
+              ?<img src="/pmt-logo.png" style={{width:20,height:20,borderRadius:'50%',objectFit:'cover'}}/>
+              :ec.label}
           </button>
         ))}
       </div>
@@ -57,13 +62,15 @@ function EmojiPicker({onSelect,onClose}:{onSelect:(e:string)=>void,onClose:()=>v
       <div style={{padding:'8px 6px',display:'grid',gridTemplateColumns:'repeat(8,1fr)',
         gap:2,maxHeight:220,overflowY:'auto'}}>
         {EMOJI_CATEGORIES[cat].emojis.map((e,i)=>(
-          <button key={i} onClick={()=>{onSelect(e);}}
+          <button key={i} onClick={()=>{onSelect(e==='__PMT__'?'🏛':e);}}
             style={{width:34,height:34,background:'transparent',border:'none',
               cursor:'pointer',fontSize:20,borderRadius:7,display:'flex',
               alignItems:'center',justifyContent:'center',transition:'background .1s'}}
             onMouseEnter={ev=>(ev.currentTarget.style.background='var(--surface2)')}
             onMouseLeave={ev=>(ev.currentTarget.style.background='transparent')}>
-            {e}
+            {e==='__PMT__'
+              ?<img src="/pmt-logo.png" style={{width:24,height:24,borderRadius:'50%',objectFit:'cover'}}/>
+              :e}
           </button>
         ))}
       </div>
