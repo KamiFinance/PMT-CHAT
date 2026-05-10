@@ -131,24 +131,19 @@ export default function LinkifyText({ text, query, onJoinGroup }) {
   const [browserUrl, setBrowserUrl] = useState(null);
   if (!text) return null;
 
-  // Pre-process: replace [PMT] tokens with a special marker before URL parsing
-  const PMT_PLACEHOLDER = 'PMT';
-  const hasPMT = text.includes('[PMT]');
-  const processedText = hasPMT ? text.replaceAll('[PMT]', PMT_PLACEHOLDER) : text;
-
   const parts = [];
   const joinIds: string[] = [];
   let last = 0, m;
   const re = new RegExp(URL_RE.source, 'gi');
   const firstUrl = { ref: null };
 
-  while ((m = re.exec(processedText)) !== null) {
+  while ((m = re.exec(text)) !== null) {
     if (m.index > last) parts.push({ type: 'text', value: text.slice(last, m.index) });
     parts.push({ type: 'url', value: m[0] });
     if (!firstUrl.ref && !JOIN_RE.test(normalizeUrl(m[0]))) firstUrl.ref = normalizeUrl(m[0]);
     last = m.index + m[0].length;
   }
-  if (last < processedText.length) parts.push({ type: 'text', value: processedText.slice(last) });
+  if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
 
   const highlight = (str) => {
     if (!query || !str) return str;
