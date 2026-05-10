@@ -34,7 +34,7 @@ const JOIN_RE = /[?&]join=([a-z0-9]+)/i;
 
 
 // Small link preview card (like WhatsApp/Telegram)
-function LinkPreview({ url }) {
+function LinkPreview({ url, isOut = true }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -50,7 +50,7 @@ function LinkPreview({ url }) {
 
   if (loading) return (
     <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(255,255,255,.03)',
-      border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'rgba(0,0,0,0.45)' }}>
+      border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: isOut ? 'rgba(0,0,0,0.45)' : 'rgba(250,255,99,0.6)' }}>
       Loading preview…
     </div>
   );
@@ -71,10 +71,10 @@ function LinkPreview({ url }) {
         <div style={{ padding: '8px 10px 10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
             {data.favicon && <img src={data.favicon} alt="" style={{ width: 13, height: 13, borderRadius: 2 }} onError={e => e.target.style.display='none'} />}
-            <span style={{ fontSize: 10, color: 'rgba(0,0,0,0.5)', fontFamily: 'var(--mono)' }}>{data.domain}</span>
+            <span style={{ fontSize: 10, color: isOut ? 'rgba(0,0,0,0.5)' : '#faff63', fontFamily: 'var(--mono)' }}>{data.domain}</span>
           </div>
-          {data.title && <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(0,0,0,0.85)', marginBottom: 2, lineHeight: 1.3 }}>{data.title}</div>}
-          {data.description && <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.6)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{data.description}</div>}
+          {data.title && <div style={{ fontSize: 13, fontWeight: 600, color: isOut ? 'rgba(0,0,0,0.85)' : '#faff63', marginBottom: 2, lineHeight: 1.3 }}>{data.title}</div>}
+          {data.description && <div style={{ fontSize: 11, color: isOut ? 'rgba(0,0,0,0.6)' : 'rgba(250,255,99,0.75)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{data.description}</div>}
         </div>
       </div>
       {open && <InAppBrowser url={url} onClose={() => setOpen(false)} />}
@@ -84,7 +84,7 @@ function LinkPreview({ url }) {
 
 
 // Group invite link preview card
-function GroupLinkPreview({ linkId, onJoinGroup }) {
+function GroupLinkPreview({ linkId, onJoinGroup, isOut = true }) {
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -99,7 +99,7 @@ function GroupLinkPreview({ linkId, onJoinGroup }) {
 
   if (loading) return (
     <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(0,0,0,0.1)',
-      border: 'none', borderRadius: 10, fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>
+      border: 'none', borderRadius: 10, fontSize: 11, color: isOut ? 'rgba(0,0,0,0.5)' : 'rgba(250,255,99,0.7)' }}>
       Loading group info…
     </div>
   );
@@ -127,15 +127,15 @@ function GroupLinkPreview({ linkId, onJoinGroup }) {
           </div>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#000', marginBottom: 2 }}>{g.name}</div>
-          {g.bio && <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.55)', overflow: 'hidden',
+          <div style={{ fontSize: 14, fontWeight: 700, color: isOut ? '#000' : '#faff63', marginBottom: 2 }}>{g.name}</div>
+          {g.bio && <div style={{ fontSize: 12, color: isOut ? 'rgba(0,0,0,0.55)' : 'rgba(250,255,99,0.75)', overflow: 'hidden',
             textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.bio}</div>}
         </div>
       </div>
       {/* Footer: member count + join CTA */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '8px 14px 12px', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'rgba(0,0,0,0.45)' }}>
+        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: isOut ? 'rgba(0,0,0,0.45)' : 'rgba(250,255,99,0.6)' }}>
           <span>👥 {g.memberCount} member{g.memberCount !== 1 ? 's' : ''}</span>
           {data.minPMT > 0 && <span>◈ {data.minPMT} PMT required</span>}
         </div>
@@ -149,7 +149,7 @@ function GroupLinkPreview({ linkId, onJoinGroup }) {
   );
 }
 
-export default function LinkifyText({ text, query, onJoinGroup }) {
+export default function LinkifyText({ text, query, onJoinGroup, isOut = true }) {
   const [browserUrl, setBrowserUrl] = useState(null);
   if (!text) return null;
 
@@ -216,8 +216,8 @@ export default function LinkifyText({ text, query, onJoinGroup }) {
           );
         })}
       </span>
-      {firstUrl.ref && <LinkPreview url={firstUrl.ref} />}
-      {joinIds.map(id => <GroupLinkPreview key={id} linkId={id} onJoinGroup={onJoinGroup} />)}
+      {firstUrl.ref && <LinkPreview url={firstUrl.ref} isOut={isOut} />}
+      {joinIds.map(id => <GroupLinkPreview key={id} linkId={id} onJoinGroup={onJoinGroup} isOut={isOut} />)}
       {browserUrl && <InAppBrowser url={browserUrl} onClose={() => setBrowserUrl(null)} />}
     </>
   );

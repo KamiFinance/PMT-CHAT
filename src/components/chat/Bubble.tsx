@@ -334,7 +334,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
             <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent2)',marginBottom:3,fontWeight:600}}>{msg.senderName}</div>
           )}
           {replyPreview}
-          <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup}/>
+          <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup} isOut={isOut}/>
           {meta}
         </div>
         {/* Reply button — shown in flex row on hover, stays visible when moving to click */}
