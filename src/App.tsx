@@ -589,12 +589,14 @@ export default function App() {
           if (!walletData?.privateKey) throw new Error('Incorrect password. Please try again.');
           // Validate the decrypted key is for the current wallet address
           const derivedAddr = new ethers.Wallet(walletData.privateKey).address.toLowerCase();
-          if (derivedAddr !== myAddr) {
-            throw new Error(`This password unlocks wallet ${derivedAddr.slice(0,8)}... but you are logged in as ${myAddr.slice(0,8)}.... Please re-import the correct wallet.`);
+          if (derivedAddr === myAddr) {
+            // Key matches — cache it and use direct ethers.js path
+            usePk = walletData.privateKey;
+            sessionStorage.setItem('pmt_pk_' + myAddr, usePk);
+            walletRef.current = { ...walletRef.current, privateKey: usePk };
           }
-          usePk = walletData.privateKey;
-          sessionStorage.setItem('pmt_pk_' + myAddr, usePk);
-          walletRef.current = { ...walletRef.current, privateKey: usePk };
+          // If derivedAddr !== myAddr: account data is corrupted (key is for a different address).
+          // Fall through to MetaMask EIP-6963 path silently — don't error.
         }
         if (usePk) {
           // Internal wallet — sign & send directly, no MetaMask needed
