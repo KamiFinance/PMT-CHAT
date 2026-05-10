@@ -170,7 +170,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery,
   );
 
   if(msg.type==='voice') return(
-    <div style={{position:'relative'}} onMouseEnter={()=>setShowPicker(true)}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
       onTouchStart={handleLongPress} onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
       <VoiceBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
@@ -193,21 +193,21 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery,
     </div>
   );
   if(msg.type==='image') return(
-    <div style={{position:'relative'}} onMouseEnter={()=>setShowPicker(true)}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
       onTouchStart={handleLongPress} onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
       <ImageBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
     </div>
   );
   if(msg.type==='file') return(
-    <div style={{position:'relative'}} onMouseEnter={()=>setShowPicker(true)}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
       onTouchStart={handleLongPress} onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
       <FileBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
     </div>
   );
   if(msg.type==='tx') return(
-    <div style={{position:'relative'}} onMouseEnter={()=>setShowPicker(true)}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
       onTouchStart={handleLongPress} onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
       <div style={{display:'flex',alignItems:'flex-end',gap:8,marginBottom:3,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
         {!isOut&&(
@@ -235,7 +235,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,searchQuery,
   return(
     <>
     <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3}}
-      onMouseEnter={()=>setShowPicker(true)}
+      onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
       onTouchStart={handleLongPress} onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
       <div style={{display:'flex',alignItems:'flex-end',gap:8,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
         {!isOut&&(
