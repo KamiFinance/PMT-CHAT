@@ -237,7 +237,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
         ))}
       </div>
       {/* Footer */}
-      <div style={{padding:'10px',borderTop:'1px solid var(--border)',display:'flex',gap:6,flexShrink:0}}>
+      <div className="sidebar-footer" style={{padding:'10px',borderTop:'1px solid var(--border)',display:'flex',gap:6,flexShrink:0}}>
         {[['+','New Chat',onNew],['⊞','New Group',onNewGroup],['👤','Profile',onProfile],['⚙️','Settings',onSettings]].map(([icon,title,fn])=>(
           <button key={icon} onClick={fn} title={title}
             style={{flex:1,padding:10,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,

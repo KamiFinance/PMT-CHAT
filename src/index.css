@@ -40,7 +40,7 @@ button,a{touch-action:manipulation}
 input,textarea,select{font-size:16px!important}
 /* App layout */
 .app-grid{display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden}
-.sidebar-panel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.sidebar-panel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
 .contact-row{position:relative}
 .contact-row:hover .edit-btn{opacity:1!important}
 .chat-panel{display:flex;flex-direction:column;height:100vh;overflow:hidden;background:var(--bg)}
@@ -56,6 +56,7 @@ input,textarea,select{font-size:16px!important}
   .sidebar-panel{
     position:fixed!important;top:0;left:0;bottom:0;
     width:100vw!important;max-width:360px;
+    height:100%!important;
     z-index:800;
     transform:translateX(-105%);
     transition:transform .28s cubic-bezier(.4,0,.2,1);
