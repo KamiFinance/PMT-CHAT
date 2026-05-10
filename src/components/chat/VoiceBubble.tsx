@@ -13,29 +13,32 @@ export default function VoiceBubble({msg,isOut,contact}){
   const [audioUrl,setAudioUrl]=useState(msg.audioUrl||null);
   useEffect(()=>{
     if(audioUrl)return;
-    // Try IPFS first
+    // Try audioB64 FIRST (immediate, no network) before IPFS (slow, may fail)
+    if((msg as any).audioB64){
+      try{
+        const b64=(msg as any).audioB64 as string;
+        const mimeMatch=b64.match(/^data:([^;]+(?:;codecs=[^;]+)?);base64,/);
+        const mime=mimeMatch?mimeMatch[1]:'audio/mp4';
+        const dec=atob(b64.split(',')[1]);
+        const bytes=new Uint8Array(dec.length);
+        for(let i=0;i<dec.length;i++) bytes[i]=dec.charCodeAt(i);
+        setAudioUrl(URL.createObjectURL(new Blob([bytes],{type:mime})));
+        return;
+      }catch(e){}
+    }
+    // Fallback: IPFS
     if(msg.ipfsCid){
       setAudioUrl(getIpfsUrl(msg.ipfsCid)||('https://ipfs.io/ipfs/'+msg.ipfsCid));
       return;
     }
     if(msg.ipfsUrl){ setAudioUrl(msg.ipfsUrl); return; }
-    // audioB64 is included directly in relay message when no IPFS — cross-device playback
-    if((msg as any).audioB64){
-      try{
-        const b64=(msg as any).audioB64 as string;
-        const mime=b64.split(';')[0].split(':')[1]||'audio/mp4';
-        const dec=atob(b64.split(',')[1]);
-        const bytes=new Uint8Array(dec.length);
-        for(let i=0;i<dec.length;i++) bytes[i]=dec.charCodeAt(i);
-        setAudioUrl(URL.createObjectURL(new Blob([bytes],{type:mime})));
-      }catch(e){}
-      return;
-    }
+    // Same-device fallback: localStorage
     if(!msg.audioMsgId)return;
     try{
       const b64=localStorage.getItem('pmt_audio_'+msg.audioMsgId);
       if(!b64||b64.length<50)return;
-      const mime=b64.split(';')[0].split(':')[1]||'audio/webm';
+      const mimeMatch=b64.match(/^data:([^;]+(?:;codecs=[^;]+)?);base64,/);
+      const mime=mimeMatch?mimeMatch[1]:'audio/webm';
       const dec=atob(b64.split(',')[1]);
       const bytes=new Uint8Array(dec.length);
       for(let i=0;i<dec.length;i++) bytes[i]=dec.charCodeAt(i);
