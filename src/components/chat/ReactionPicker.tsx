@@ -14,7 +14,7 @@ export default function ReactionPicker({onPick,onClose,isOut}){
       boxShadow:'0 8px 24px rgba(0,0,0,.5)',animation:'fadeIn .12s ease',
       maxWidth:260}}>
       {ALL_REACTIONS.map(e=>(
-        <button key={e} onClick={(ev)=>{ev.stopPropagation();onPick(e==='__PMT__'?'🏛':e);onClose();}}
+        <button key={e} onClick={(ev)=>{ev.stopPropagation();onPick(e);onClose();}}
           style={{background:'none',border:'none',cursor:'pointer',fontSize:20,
             padding:'3px 4px',borderRadius:8,transition:'transform .1s',
             minWidth:34,minHeight:34,display:'flex',alignItems:'center',justifyContent:'center'}}

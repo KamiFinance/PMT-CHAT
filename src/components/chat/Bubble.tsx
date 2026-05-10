@@ -215,7 +215,10 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
               display:'flex',alignItems:'center',gap:3,
               animation:'popIn .2s ease',
               opacity:mine?1:0.85}}>
-            {emoji}<span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text2)'}}>{count}</span>
+            {emoji==='__PMT__'
+              ?<img src='/pmt-logo.png' style={{width:14,height:14,borderRadius:'50%',objectFit:'cover',verticalAlign:'middle'}}/>
+              :emoji}
+            <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text2)'}}>{count}</span>
           </button>
         );
       })}
