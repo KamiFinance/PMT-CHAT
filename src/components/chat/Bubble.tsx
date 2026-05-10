@@ -114,9 +114,22 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
   const cancelLongPress=()=>clearTimeout(longPressRef.current);
   const togglePicker=(e)=>{e.stopPropagation();setShowPicker(p=>!p);};
 
+  // Scroll to and highlight the original quoted message
+  const jumpToReply = () => {
+    if (!msg.replyTo?.id) return;
+    const el = document.getElementById('msg-' + msg.replyTo.id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Flash highlight
+    el.style.transition = 'background .15s';
+    el.style.background = 'rgba(99,210,255,.18)';
+    el.style.borderRadius = '12px';
+    setTimeout(() => { el.style.background = ''; el.style.borderRadius = ''; }, 1200);
+  };
+
   // Quoted message preview (shown when msg.replyTo is set)
   const replyPreview=msg.replyTo&&(
-    <div style={{
+    <div onClick={(e)=>{e.stopPropagation();jumpToReply();}} style={{
       borderLeft:'3px solid var(--accent2)',
       background:'rgba(99,210,255,.07)',
       borderRadius:'0 6px 6px 0',
@@ -125,6 +138,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
       cursor:'pointer',
       maxWidth:'100%',
       overflow:'hidden',
+      WebkitTapHighlightColor:'transparent',
     }}>
       <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',fontWeight:700,marginBottom:2}}>
         ↩ {msg.replyTo.senderName}
