@@ -26,12 +26,8 @@ interface UseInboxPollParams {
 
 function reconstructVoiceMsg(inboxMsg: InboxMessage): Partial<Message> {
   let audioUrl: string | null = null;
-  if (inboxMsg.ipfsCid) {
-    audioUrl = getIpfsUrl(inboxMsg.ipfsCid);
-  } else if (inboxMsg.ipfsUrl) {
-    audioUrl = inboxMsg.ipfsUrl;
-  } else if ((inboxMsg as any).audioB64) {
-    // audioB64 sent directly in relay (fallback when no IPFS) — cross-device playback
+  // Prefer base64 (immediate, no network) over IPFS (requires gateway fetch)
+  if ((inboxMsg as any).audioB64) {
     try {
       const b64 = (inboxMsg as any).audioB64 as string;
       const mime = b64.split(';')[0].split(':')[1] || 'audio/mp4';
@@ -39,8 +35,13 @@ function reconstructVoiceMsg(inboxMsg: InboxMessage): Partial<Message> {
       const bytes = new Uint8Array(dec.length);
       for (let i = 0; i < dec.length; i++) bytes[i] = dec.charCodeAt(i);
       audioUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
-    } catch { /* ignore */ }
-  } else if (inboxMsg.audioMsgId) {
+    } catch { /* fall through to IPFS */ }
+  }
+  if (!audioUrl && inboxMsg.ipfsCid) {
+    audioUrl = getIpfsUrl(inboxMsg.ipfsCid);
+  } else if (!audioUrl && inboxMsg.ipfsUrl) {
+    audioUrl = inboxMsg.ipfsUrl;
+  } else if (!audioUrl && inboxMsg.audioMsgId) {
     // Same-device fallback (audioMsgId in localStorage — only works on sender device)
     try {
       const b64 = storage.getAudio(inboxMsg.audioMsgId);
