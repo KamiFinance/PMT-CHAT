@@ -600,9 +600,24 @@ export default function App() {
             walletRef.current = { ...walletRef.current, privateKey: usePk };
           } else {
             // Account data is corrupted — stored key is for a different address.
-            // Fix the account by re-encrypting with the correct address from session.
-            // User will need to re-import their wallet via Settings to fully fix this.
-            // Fall through to MetaMask EIP-6963 path.
+            // On desktop: fall through to MetaMask. On mobile: show a clear error.
+            const noEthereum = !(window as any).ethereum;
+            if (noEthereum) {
+              throw new Error(`Your saved wallet key doesn't match your current wallet address. Please go to Settings → Import Wallet and re-import using your seed phrase to fix this.`);
+            }
+            // Mark account as needing re-import so password field stops showing
+            try {
+              const username = walletRef.current?.username ?? '';
+              const accountRaw2 = localStorage.getItem(`pmt_account_${username.toLowerCase()}`);
+              if (accountRaw2) {
+                const acc2 = JSON.parse(accountRaw2);
+                acc2.needsReimport = true;
+                acc2.encryptedWallet = null;
+                localStorage.setItem(`pmt_account_${username.toLowerCase()}`, JSON.stringify(acc2));
+                localStorage.setItem(`pmt_account_${myAddr}`, JSON.stringify(acc2));
+              }
+            } catch {}
+            // Desktop: fall through to MetaMask EIP-6963 path silently
           }
         }
         if (usePk) {
