@@ -200,3 +200,16 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
   border-color: rgba(48,209,88,0.4) !important;
   color: #30d158 !important;
 }
+
+/* ── iOS safe area spacer (CSS env() more reliable than inline style on iOS WebKit) ── */
+.ios-safe-top {
+  height: constant(safe-area-inset-top); /* iOS 11.0 */
+  height: env(safe-area-inset-top, 0px); /* iOS 11.2+ */
+  background: var(--panel);
+  flex-shrink: 0;
+  width: 100%;
+  display: none; /* hidden on desktop */
+}
+@media (max-width: 640px) {
+  .ios-safe-top { display: block; }
+}

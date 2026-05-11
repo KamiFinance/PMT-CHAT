@@ -37,7 +37,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
     <div className={`sidebar-panel${mobileOpen?' mobile-open':''}`}
       style={{background:'var(--panel)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
       {/* iOS PWA safe area spacer */}
-      <div style={{height:'env(safe-area-inset-top,0px)',background:'var(--panel)',flexShrink:0,width:'100%'}}/>
+      <div className="ios-safe-top"/>
       {/* Brand */}
       <div style={{padding:'16px 14px 12px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
         <div style={{cursor:'pointer'}} onClick={onProfile}>

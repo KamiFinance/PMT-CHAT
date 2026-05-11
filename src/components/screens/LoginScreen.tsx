@@ -80,10 +80,28 @@ export default function LoginScreen({onLogin,onBack}){
         const account=JSON.parse(stored);
         const ok=await PMTAuth.verifyPassword(password,account.passwordHash,account.passwordSalt);
         if(!ok)return setErr('Incorrect password. Please try again.');
-        // MetaMask accounts have no encryptedWallet — password auth doesn't apply
-        if(account.isMetaMask && !account.encryptedWallet){
-          // Show wallet connect instead of password auth
-          setErr('This account was created with an external wallet. Please use "Connect Wallet" to sign in.');
+        // Check if this account has wallet data we can decrypt
+        if(!account.encryptedWallet){
+          if(account.isMetaMask){
+            setErr('This account uses wallet login. Please use "Connect Wallet" to sign in.');
+          } else {
+            // Internal account without encrypted wallet (old format or migration issue)
+            // Fall through to cloud restore which may have the wallet data
+            setErr('Checking cloud backup…');
+            const backup2 = await loadCloudBackup(username.trim(), password).catch(()=>null);
+            if(backup2?.wallet?.privateKey && backup2.wallet.privateKey !== 'metamask'){
+              const rd2={address:backup2.wallet.address,privateKey:backup2.wallet.privateKey,
+                balance:'0.0000',network:'PMTchain',username:account.username,
+                sessionPassword:password,
+                restoredContacts:backup2.contacts??[],
+                restoredMessages:backup2.messages??{},
+                restoredProfile:backup2.profile??{}};
+              sessionStorage.setItem('pmt_pk_'+backup2.wallet.address.toLowerCase(), backup2.wallet.privateKey);
+              onLogin(rd2);
+            } else {
+              setErr('Account found but wallet data is incomplete. Please use "Create Wallet" to set up a new account.');
+            }
+          }
           setLoading(false); return;
         }
         const walletData=await PMTAuth.decryptWallet(account.encryptedWallet,password);
