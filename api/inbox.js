@@ -57,25 +57,27 @@ export default async function handler(req, res) {
 
       // Send push notification to recipient (fire-and-forget)
       try {
-        const sub = await redis('GET', `push:${address}`);
+        const addrKey = address.toLowerCase(); // always lowercase to match push-subscribe.js
+        const sub = await redis('GET', `push:${addrKey}`);
         if (sub && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-          const { default: webpush } = await import('web-push');
+          const webpush = await import('web-push').then(m => m.default || m);
           webpush.setVapidDetails('mailto:noreply@pmtchat.app',
             process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
           const subscription = typeof sub === 'string' ? JSON.parse(sub) : sub;
           const senderName = msg.fromName || msg.senderName || (msg.from || '').slice(0,8) || 'PMT-Chat';
           const body = msg.type === 'voice' ? '🎵 Voice message'
             : msg.type === 'image' ? '🖼 Image'
+            : msg.type === 'video' ? '🎬 Video'
             : msg.type === 'file' ? '📎 File'
             : (msg.text || 'New message').slice(0, 80);
           await webpush.sendNotification(subscription,
             JSON.stringify({ title: senderName, body, icon: '/icon-192.png', url: '/' })
           ).catch(async (e) => {
             if (e.statusCode === 410 || e.statusCode === 404)
-              await redis('DEL', `push:${address}`);
+              await redis('DEL', `push:${addrKey}`);
           });
         }
-      } catch (_) { /* push is best-effort */ }
+      } catch (pushErr) { console.warn('Push error:', pushErr?.message); }
 
       return res.status(200).json({ ok: true });
 

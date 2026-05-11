@@ -493,8 +493,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         {/* ── Header — .chat-passthrough makes all descendants pe:none, interactive elements pe:auto ── */}
         <div className="desktop-topbar"
           style={{position:'absolute',top:0,left:0,right:0,zIndex:10,
-            borderBottom:'1px solid var(--border)',background:'var(--panel)',
-            paddingTop:'env(safe-area-inset-top, 0px)'}}>
+            borderBottom:'1px solid var(--border)',background:'var(--panel)'}}>
           <div style={{padding:'12px 18px',display:'flex',alignItems:'center',gap:10}}>
             <span onClick={()=>{
                 if(contact.isGroup && onManageGroup && contact.createdBy?.toLowerCase()===myAddress?.toLowerCase()){
