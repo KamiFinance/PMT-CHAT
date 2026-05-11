@@ -12,6 +12,14 @@ import SwitchNetworkButton from '../ui/SwitchNetworkButton';
 
 export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onProfile,onSettings,onWallet,onLogout,wallet,isDemo,profile,onEditContact,onSearch,mobileOpen,onMobileClose}){
   const [q,setQ]=useState('');
+  const [canInstall,setCanInstall]=useState(false);
+  const [pushState,setPushState]=useState<string>('default');
+
+  useEffect(()=>{
+    const off=onInstallAvailable(()=>setCanInstall(true));
+    setPushState(getPushPermissionState());
+    return off;
+  },[]);
   const filtered=contacts.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.address.includes(q));
   return(
     <div className={`sidebar-panel${mobileOpen?' mobile-open':''}`}
