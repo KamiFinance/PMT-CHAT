@@ -66,13 +66,26 @@ export default function LoginScreen({onLogin,onBack}){
     setLoading(true);setErr(null);
     try{
       const key='pmt_account_'+username.trim().toLowerCase();
-      const stored=localStorage.getItem(key);
+      let stored=localStorage.getItem(key);
+      // Also try address-keyed lookup (MetaMask accounts stored by address, not username)
+      if(!stored){
+        try{
+          const sess=JSON.parse(localStorage.getItem('pmt_session')||'{}');
+          if(sess.address) stored=localStorage.getItem('pmt_account_'+sess.address.toLowerCase());
+        }catch{}
+      }
 
       if(stored){
         // Fast path: local account exists
         const account=JSON.parse(stored);
         const ok=await PMTAuth.verifyPassword(password,account.passwordHash,account.passwordSalt);
         if(!ok)return setErr('Incorrect password. Please try again.');
+        // MetaMask accounts have no encryptedWallet — password auth doesn't apply
+        if(account.isMetaMask && !account.encryptedWallet){
+          // Show wallet connect instead of password auth
+          setErr('This account was created with an external wallet. Please use "Connect Wallet" to sign in.');
+          setLoading(false); return;
+        }
         const walletData=await PMTAuth.decryptWallet(account.encryptedWallet,password);
         localStorage.setItem('pmt_session',JSON.stringify({username:account.username,address:account.address}));
         // Internal wallet (created/imported in-app): has privateKey, skip external verify
