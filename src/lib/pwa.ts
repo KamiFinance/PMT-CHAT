@@ -17,16 +17,20 @@ export async function requestPushPermission(address: string): Promise<boolean> {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return false;
     const reg = await navigator.serviceWorker.ready;
+    // Always unsubscribe old subscription and create fresh one
+    // This ensures we always have a valid subscription with current VAPID key
     const existing = await reg.pushManager.getSubscription();
-    const subscription = existing || await reg.pushManager.subscribe({
+    if (existing) await existing.unsubscribe();
+    const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
-    await fetch('/api/push-subscribe', {
+    const resp = await fetch('/api/push-subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address, subscription }),
+      body: JSON.stringify({ address: address.toLowerCase(), subscription }),
     });
+    if (!resp.ok) throw new Error('Failed to save subscription');
     return true;
   } catch (e) {
     console.warn('Push subscription failed:', e);
