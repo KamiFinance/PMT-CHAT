@@ -244,6 +244,17 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     fileInputRef.current.click();
   };
 
+  const handleCameraPhoto=(e:any)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const b64=ev.target?.result as string;
+      onSend({type:'image',b64Data:b64,fileName:file.name,fileSize:file.size});
+    };
+    reader.readAsDataURL(file);
+    e.target.value='';
+  };
   const handleFileChosen=e=>{
     const file=e.target.files[0];
     if(!file)return;

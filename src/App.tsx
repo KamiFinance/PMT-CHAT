@@ -1074,15 +1074,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
               try { const s = JSON.parse(localStorage.getItem('pmt_session') ?? '{}'); if (s.address?.toLowerCase() === addr) sessMatch = true; } catch {}
 
               if (savedAcct || sessMatch) {
-                // Returning user found locally — go straight to chat
+                // Returning user found locally — use handleWallet to load backup
                 try {
                   const acct = savedAcct ? JSON.parse(savedAcct) : null;
                   const username = acct?.username || addr.slice(0,8);
-                  const fullWallet = { ...w, username };
-                  setWallet(fullWallet); walletRef.current = fullWallet;
-                  localStorage.setItem('pmt_session', JSON.stringify({ username, address: w.address }));
-                  setScreen('chat');
-                  if (window.innerWidth < 768) setMobileSidebarOpen(true);
+                  handleWallet({ ...w, username, isMetaMask: true });
                   return;
                 } catch {}
               }
@@ -1092,14 +1088,12 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                 const resp = await fetch(`/api/auth?address=${addr}`);
                 if (resp.ok) {
                   const data = await resp.json();
-                  // Existing account on server — restore username and go to chat
                   const username = data.username || addr.slice(0,8);
-                  const fullWallet = { ...w, username };
-                  setWallet(fullWallet); walletRef.current = fullWallet;
+                  // Save locally for next time
                   localStorage.setItem('pmt_account_' + addr, JSON.stringify({ username, address: addr }));
                   localStorage.setItem('pmt_session', JSON.stringify({ username, address: w.address }));
-                  setScreen('chat');
-                  if (window.innerWidth < 768) setMobileSidebarOpen(true);
+                  // Use handleWallet so backup is loaded (contacts, messages, profile)
+                  handleWallet({ ...w, username, isMetaMask: true });
                   return;
                 }
               } catch { /* server unreachable — fall through to setup */ }

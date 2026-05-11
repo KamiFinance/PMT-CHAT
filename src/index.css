@@ -64,7 +64,9 @@ input,textarea,select{font-size:16px!important}
 /* ── Mobile (≤640px) ──────────────────────────────────── */
 @media(max-width:640px){
   /* Full-screen chat, no grid */
-  .app-grid{display:block!important;height:100dvh}
+  .app-grid{display:block!important;height:100dvh;padding-top:0}
+  /* Push entire app below iOS status bar */
+  .app-grid > main{padding-top:var(--safe-top)}
 
   /* Sidebar: slide-in drawer */
   .sidebar-panel{
@@ -174,6 +176,7 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 
 /* Chat panel header blur */
 .desktop-topbar, .mobile-topbar {
+  padding-top: var(--safe-top) !important;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 0.5px solid var(--border) !important;
