@@ -1099,8 +1099,25 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                   setWallet(w); walletRef.current = w; setScreen('metamask_setup');
                 }
               } else {
-                // New user — needs to create username/password
-                setWallet(w); walletRef.current = w; setScreen('metamask_setup');
+                // Not in localStorage — check server (works on different device/browser)
+                setWallet(w); walletRef.current = w;
+                fetch(`/api/auth?address=${addr}`)
+                  .then(r => r.ok ? r.json() : null)
+                  .then(data => {
+                    if (data?.username) {
+                      // Existing account found on server — show restore prompt
+                      const fw = { ...w, username: data.username };
+                      setWallet(fw); walletRef.current = fw;
+                      localStorage.setItem('pmt_session', JSON.stringify({ username: data.username, address: w.address }));
+                      setScreen('chat');
+                      if (window.innerWidth < 768) setMobileSidebarOpen(true);
+                      setShowWalletRestore(true);
+                    } else {
+                      // Truly new user
+                      setScreen('metamask_setup');
+                    }
+                  })
+                  .catch(() => setScreen('metamask_setup'));
               }
             }} />;
   if (screen === 'create') return <CreateWalletFlow onWallet={handleWallet} onBack={() => setScreen('landing')} />;
