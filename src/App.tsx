@@ -1066,37 +1066,46 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMTchain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); if(window.innerWidth<768)setMobileSidebarOpen(true); }, []);
   const handleLogout = useCallback(() => { if (walletRef.current?.address) sessionStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase()); storage.clearSession(); setWallet(null); walletRef.current = null; setIsDemo(false); setContacts([]); setMsgs({}); setActiveAndRef(null); setScreen('landing'); }, [setActiveAndRef]);
 
-  if (screen === 'landing') return <Landing onDemo={handleDemo} onCreateWallet={() => setScreen('create')} onImportWallet={() => setScreen('import')} onLogin={() => setScreen('login')} onMetaMask={(w: Wallet) => {
-              // Check if this wallet address already has a saved account
+  if (screen === 'landing') return <Landing onDemo={handleDemo} onCreateWallet={() => setScreen('create')} onImportWallet={() => setScreen('import')} onLogin={() => setScreen('login')} onMetaMask={async (w: Wallet) => {
               const addr = w.address.toLowerCase();
+              // First check localStorage for saved account
               const savedAcct = localStorage.getItem(`pmt_account_${addr}`);
-              // Also check if there's an active session for this address
               let sessMatch = false;
-              try {
-                const sess = localStorage.getItem('pmt_session');
-                if (sess) {
-                  const s = JSON.parse(sess);
-                  if (s.address?.toLowerCase() === addr) sessMatch = true;
-                }
-              } catch {}
+              try { const s = JSON.parse(localStorage.getItem('pmt_session') ?? '{}'); if (s.address?.toLowerCase() === addr) sessMatch = true; } catch {}
 
               if (savedAcct || sessMatch) {
-                // Returning user — go straight to chat
+                // Returning user found locally — go straight to chat
                 try {
                   const acct = savedAcct ? JSON.parse(savedAcct) : null;
                   const username = acct?.username || addr.slice(0,8);
                   const fullWallet = { ...w, username };
-                  setWallet(fullWallet);
-                  walletRef.current = fullWallet;
+                  setWallet(fullWallet); walletRef.current = fullWallet;
                   localStorage.setItem('pmt_session', JSON.stringify({ username, address: w.address }));
                   setScreen('chat');
-                } catch {
-                  setWallet(w); walletRef.current = w; setScreen('metamask_setup');
-                }
-              } else {
-                // New user — needs to create username/password
-                setWallet(w); walletRef.current = w; setScreen('metamask_setup');
+                  if (window.innerWidth < 768) setMobileSidebarOpen(true);
+                  return;
+                } catch {}
               }
+
+              // Not found locally — check server (works on new devices)
+              try {
+                const resp = await fetch(`/api/auth?address=${addr}`);
+                if (resp.ok) {
+                  const data = await resp.json();
+                  // Existing account on server — restore username and go to chat
+                  const username = data.username || addr.slice(0,8);
+                  const fullWallet = { ...w, username };
+                  setWallet(fullWallet); walletRef.current = fullWallet;
+                  localStorage.setItem('pmt_account_' + addr, JSON.stringify({ username, address: addr }));
+                  localStorage.setItem('pmt_session', JSON.stringify({ username, address: w.address }));
+                  setScreen('chat');
+                  if (window.innerWidth < 768) setMobileSidebarOpen(true);
+                  return;
+                }
+              } catch { /* server unreachable — fall through to setup */ }
+
+              // Truly new user — show setup
+              setWallet(w); walletRef.current = w; setScreen('metamask_setup');
             }} />;
   if (screen === 'create') return <CreateWalletFlow onWallet={handleWallet} onBack={() => setScreen('landing')} />;
   if (screen === 'import') return <ImportWalletFlow onWallet={handleWallet} onBack={() => setScreen('landing')} />;

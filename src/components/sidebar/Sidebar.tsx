@@ -14,10 +14,16 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
   const [q,setQ]=useState('');
   const [canInstall,setCanInstall]=useState(false);
   const [pushState,setPushState]=useState<string>('default');
+  const [showIosHint,setShowIosHint]=useState(false);
+
+  const isIos=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isInStandaloneMode=()=>(window.navigator as any).standalone===true||window.matchMedia('(display-mode: standalone)').matches;
 
   useEffect(()=>{
     const off=onInstallAvailable(()=>setCanInstall(true));
     setPushState(getPushPermissionState());
+    // Show iOS hint if on iOS Safari and not already installed
+    if(isIos()&&!isInStandaloneMode()) setShowIosHint(true);
     return off;
   },[]);
   const filtered=contacts.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.address.includes(q));
@@ -74,7 +80,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
       </div>
       {/* Switch Network button */}
       {!isDemo && <SwitchNetworkButton/>}
-      {/* ── Install banner ── */}
+      {/* ── Install banner — Android Chrome (auto prompt) ── */}
       {canInstall&&!isRunningAsPWA()&&(
         <div onClick={async()=>{await triggerInstallPrompt();setCanInstall(false);}}
           style={{margin:'0 10px 8px',padding:'10px 14px',background:'var(--accent)',
@@ -82,7 +88,25 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           <span style={{fontSize:20}}>📲</span>
           <div>
             <div style={{fontFamily:'var(--sans)',fontWeight:700,fontSize:13,color:'#0a0c14'}}>Install PMT-Chat</div>
-            <div style={{fontFamily:'var(--sans)',fontSize:11,color:'rgba(0,0,0,0.6)'}}>Add to Home Screen</div>
+            <div style={{fontFamily:'var(--sans)',fontSize:11,color:'rgba(0,0,0,0.6)'}}>Tap to add to Home Screen</div>
+          </div>
+        </div>
+      )}
+      {/* ── iOS install hint (Safari doesn't support beforeinstallprompt) ── */}
+      {showIosHint&&!canInstall&&(
+        <div style={{margin:'0 10px 8px',padding:'10px 14px',background:'var(--surface)',
+          border:'0.5px solid var(--border)',borderRadius:12,position:'relative'}}>
+          <button onClick={()=>setShowIosHint(false)}
+            style={{position:'absolute',top:6,right:10,background:'none',border:'none',
+              color:'var(--muted)',fontSize:16,cursor:'pointer',lineHeight:1}}>×</button>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:20}}>📲</span>
+            <div>
+              <div style={{fontFamily:'var(--sans)',fontWeight:700,fontSize:13,color:'var(--text)'}}>Install on iPhone</div>
+              <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--muted)',lineHeight:1.4}}>
+                Tap <strong style={{color:'var(--accent)'}}>Share ↑</strong> then <strong style={{color:'var(--accent)'}}>Add to Home Screen</strong>
+              </div>
+            </div>
           </div>
         </div>
       )}
