@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { onInstallAvailable, triggerInstallPrompt, isRunningAsPWA,
+         requestPushPermission, getPushPermissionState } from '../../lib/pwa';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Avatar from '../ui/Avatar';
 import { shortAddress } from '../../lib/utils';
@@ -64,6 +66,35 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
       </div>
       {/* Switch Network button */}
       {!isDemo && <SwitchNetworkButton/>}
+      {/* ── Install banner ── */}
+      {canInstall&&!isRunningAsPWA()&&(
+        <div onClick={async()=>{await triggerInstallPrompt();setCanInstall(false);}}
+          style={{margin:'0 10px 8px',padding:'10px 14px',background:'var(--accent)',
+            borderRadius:12,cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
+          <span style={{fontSize:20}}>📲</span>
+          <div>
+            <div style={{fontFamily:'var(--sans)',fontWeight:700,fontSize:13,color:'#0a0c14'}}>Install PMT-Chat</div>
+            <div style={{fontFamily:'var(--sans)',fontSize:11,color:'rgba(0,0,0,0.6)'}}>Add to Home Screen</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Push notifications ── */}
+      {wallet?.address&&pushState!=='granted'&&pushState!=='unsupported'&&(
+        <div onClick={async()=>{
+          const ok=await requestPushPermission(wallet.address);
+          setPushState(ok?'granted':'denied');
+        }} style={{margin:'0 10px 8px',padding:'10px 14px',background:'var(--surface)',
+          borderRadius:12,cursor:'pointer',display:'flex',alignItems:'center',gap:10,
+          border:'0.5px solid var(--border)'}}>
+          <span style={{fontSize:20}}>🔔</span>
+          <div>
+            <div style={{fontFamily:'var(--sans)',fontWeight:600,fontSize:13,color:'var(--text)'}}>Enable Notifications</div>
+            <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--muted)'}}>Get notified of new messages</div>
+          </div>
+        </div>
+      )}
+
       {/* Search */}
       <div style={{margin:'4px 10px 0',display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
         border:'none',borderRadius:10,padding:'0 10px',flexShrink:0}}>

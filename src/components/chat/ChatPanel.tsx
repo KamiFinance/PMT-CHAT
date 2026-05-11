@@ -154,6 +154,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [replyingTo,setReplyingTo]=useState(null); // message being replied to
   const [recording,setRecording]=useState(false);
   const fileInputRef=useRef(null);
+  const cameraInputRef=useRef(null);
   const attachBtnRef=useRef(null);
   const fileAcceptRef=useRef('*');
   const [recordSeconds,setRecordSeconds]=useState(0);
@@ -574,6 +575,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
               <div style={{display:'flex',alignItems:'flex-end',gap:8}}>
                 <div style={{position:'relative'}}>
                   <input ref={fileInputRef} type="file" style={{display:'none'}} onChange={handleFileChosen}/>
+                  <input ref={cameraInputRef} type="file" accept="image/*" capture="camera" style={{display:'none'}} onChange={handleCameraPhoto}/>
                   <button ref={attachBtnRef} data-attach="true" onClick={()=>setShowAttach(v=>!v)}
                     style={{width:44,height:44,background:showAttach?'var(--surface2)':'var(--surface)',
                       border:`1px solid ${showAttach?'var(--accent)':'var(--border)'}`,
