@@ -21,11 +21,17 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
 
   useEffect(()=>{
     const off=onInstallAvailable(()=>setCanInstall(true));
-    setPushState(getPushPermissionState());
+    const state=getPushPermissionState();
+    setPushState(state);
     // Show iOS hint if on iOS Safari and not already installed
     if(isIos()&&!isInStandaloneMode()) setShowIosHint(true);
+    // If permission already granted but subscription may not be saved (e.g. after re-install),
+    // silently re-subscribe so push works without user needing to tap the banner again
+    if(state==='granted'&&wallet?.address){
+      requestPushPermission(wallet.address).catch(()=>{});
+    }
     return off;
-  },[]);
+  },[wallet?.address]);
   const filtered=contacts.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.address.includes(q));
   return(
     <div className={`sidebar-panel${mobileOpen?' mobile-open':''}`}

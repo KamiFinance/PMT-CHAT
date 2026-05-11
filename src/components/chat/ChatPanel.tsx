@@ -461,6 +461,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
 
         {/* ── Messages div covers the ENTIRE area — always under the cursor ── */}
         <div ref={messagesRef}
+          className="chat-messages-area"
           style={{position:'absolute',inset:0,overflowY:'auto',
             paddingTop:62,paddingBottom:95,
             display:'flex',flexDirection:'column'}}>

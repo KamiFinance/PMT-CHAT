@@ -99,6 +99,10 @@ input,textarea,select{font-size:16px!important}
   /* Better chat input padding */
   .chat-input-row{padding:8px 10px!important}
 
+  /* Messages area: on mobile the topbar is in-flow (flex sibling), not absolute.
+     Reset the paddingTop that was designed for the absolute desktop topbar. */
+  .chat-messages-area{padding-top:8px!important}
+
   /* Notifications: full width */
   .notif-wrap{right:8px!important;left:8px!important;top:calc(8px + var(--safe-top))!important;max-width:100%!important}
   .notif-item{min-width:0!important;max-width:100%!important}
