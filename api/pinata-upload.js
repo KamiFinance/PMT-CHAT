@@ -1,6 +1,3 @@
-// Server-side Pinata upload proxy — JWT stays on server, never in client bundle
-// POST /api/pinata-upload (multipart/form-data with 'file', 'name' fields)
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -12,30 +9,58 @@ export default async function handler(req, res) {
   if (!jwt) return res.status(500).json({ error: 'PINATA_JWT not configured' });
 
   try {
-    // Read raw body and forward to Pinata (preserve multipart)
-    const chunks = [];
-    await new Promise((resolve, reject) => {
-      req.on('data', c => chunks.push(c));
-      req.on('end', resolve);
-      req.on('error', reject);
-    });
-    const body = Buffer.concat(chunks);
-    const contentType = req.headers['content-type'] || '';
+    const { data: base64Data, name, mimeType } = req.body || {};
+    if (!base64Data) return res.status(400).json({ error: 'data required' });
+
+    // Convert base64 to binary
+    const binary = Buffer.from(base64Data, 'base64');
+
+    // Build multipart form
+    const boundary = '----PMTBoundary' + Date.now();
+    const filename = name || 'file';
+
+    const header = [
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="file"; filename="${filename}"`,
+      `Content-Type: ${mimeType || 'application/octet-stream'}`,
+      '',
+    ].join('\r\n') + '\r\n';
+
+    const middle = [
+      '',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="pinataMetadata"',
+      '',
+      JSON.stringify({ name: filename }),
+      `--${boundary}--`,
+      '',
+    ].join('\r\n');
+
+    const body = Buffer.concat([
+      Buffer.from(header, 'utf8'),
+      binary,
+      Buffer.from(middle, 'utf8'),
+    ]);
 
     const upstream = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${jwt}`,
-        'Content-Type': contentType,
-        'Content-Length': body.length,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
       },
       body,
     });
 
-    const data = await upstream.json();
-    if (!upstream.ok) return res.status(upstream.status).json(data);
-    return res.status(200).json({ IpfsHash: data.IpfsHash });
+    const result = await upstream.json();
+    if (!upstream.ok) {
+      console.error('Pinata error:', result);
+      return res.status(upstream.status).json({ error: result?.error?.details || result?.error || 'Pinata error' });
+    }
+
+    const cid = result.IpfsHash;
+    return res.json({ cid, url: `https://gateway.pinata.cloud/ipfs/${cid}` });
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    console.error('pinata-upload error:', e);
+    res.status(500).json({ error: e.message });
   }
 }

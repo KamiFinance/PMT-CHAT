@@ -1,4 +1,4 @@
-const CACHE = 'pmt-chat-v4';
+const CACHE = 'pmt-chat-v5';
 const SHELL = ['/', '/index.html', '/pmt-logo.png', '/icon-192.png', '/icon-512.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -6,9 +6,16 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys()
-    .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-    .then(() => self.clients.claim()));
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+      .then(() => {
+        // Tell open tabs to reload so they get the new bundle
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+          .then(clients => clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' })));
+      })
+  );
 });
 
 self.addEventListener('fetch', e => {
@@ -16,16 +23,15 @@ self.addEventListener('fetch', e => {
     e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
     return;
   }
+  // Network-first for HTML/JS/CSS — always get fresh code
+  // Fall back to cache if offline
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const net = fetch(e.request).then(res => {
-        if (res.ok && e.request.method === 'GET') {
-          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-        }
-        return res;
-      }).catch(() => cached);
-      return cached || net;
-    })
+    fetch(e.request).then(res => {
+      if (res.ok && e.request.method === 'GET') {
+        caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+      }
+      return res;
+    }).catch(() => caches.match(e.request))
   );
 });
 
