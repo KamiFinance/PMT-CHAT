@@ -1027,6 +1027,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       }
     }
     setScreen('chat');
+    // On mobile, show sidebar first so user sees their contacts (not a black screen)
+    if (window.innerWidth < 768) setMobileSidebarOpen(true);
   }, [setContacts, setMsgs]);
 
   // On mount: if session was restored from localStorage but no password in memory,
@@ -1061,7 +1063,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
-  const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMTchain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); }, []);
+  const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMTchain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); if(window.innerWidth<768)setMobileSidebarOpen(true); }, []);
   const handleLogout = useCallback(() => { if (walletRef.current?.address) sessionStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase()); storage.clearSession(); setWallet(null); walletRef.current = null; setIsDemo(false); setContacts([]); setMsgs({}); setActiveAndRef(null); setScreen('landing'); }, [setActiveAndRef]);
 
   if (screen === 'landing') return <Landing onDemo={handleDemo} onCreateWallet={() => setScreen('create')} onImportWallet={() => setScreen('import')} onLogin={() => setScreen('login')} onMetaMask={(w: Wallet) => {
@@ -1107,7 +1109,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     }}
     onLogout={() => { storage.clearSession(); setWallet(null); walletRef.current = null; setScreen('landing'); }}
   />;
-  if (screen === 'metamask_setup' && wallet) return <SetupMetaMaskFlow wallet={wallet} onDone={(username, password) => { if (password) sessionPasswordRef.current = password; setWallet(w => w ? { ...w, username, sessionPassword: password } : w); setScreen('chat'); }} onSkip={() => {
+  if (screen === 'metamask_setup' && wallet) return <SetupMetaMaskFlow wallet={wallet} onDone={(username, password) => { if (password) sessionPasswordRef.current = password; setWallet(w => w ? { ...w, username, sessionPassword: password } : w); setScreen('chat'); if(window.innerWidth<768)setMobileSidebarOpen(true); }} onSkip={() => {
                 // Save minimal account so returning users skip setup next time
                 try {
                   const addr = walletRef.current?.address?.toLowerCase();
