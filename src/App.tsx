@@ -133,6 +133,10 @@ export default function App() {
   // One-time prompt to collect password for cloud backup when session was restored from localStorage
   const [backupPromptPassword, setBackupPromptPassword] = useState('');
   const [showBackupPrompt, setShowBackupPrompt] = useState(false);
+  const [showWalletRestore, setShowWalletRestore] = useState(false);
+  const [walletRestoreErr, setWalletRestoreErr] = useState('');
+  const [walletRestorePwd, setWalletRestorePwd] = useState('');
+  const [walletRestoreLoading, setWalletRestoreLoading] = useState(false);
   const [backupPromptErr, setBackupPromptErr] = useState('');
   const [backupPromptSaving, setBackupPromptSaving] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -286,27 +290,6 @@ export default function App() {
       setContacts(dc);
     } else {
       setContacts([AI_AGENT_CONTACT]);
-      // On iOS PWA, localStorage may be empty (isolated from Safari).
-      // If we have a session password, trigger a cloud restore silently.
-      setTimeout(() => {
-        const pass = sessionPasswordRef.current;
-        const uname = walletRef.current?.username;
-        if (!pass || !uname || !accountKey) return;
-        import('./lib/cloudBackup').then(({ loadCloudBackup }) => {
-          loadCloudBackup(uname, pass).then(backup => {
-            if (!backup) return;
-            if (backup.contacts?.length) {
-              const withAI = [AI_AGENT_CONTACT, ...backup.contacts.filter((c:any)=>!c.isAI)];
-              setContacts(withAI);
-              storage.setContacts(accountKey, backup.contacts);
-            }
-            if (backup.messages && Object.keys(backup.messages).length) {
-              setMsgs(backup.messages as any);
-              storage.setMsgs(accountKey, backup.messages as any);
-            }
-          }).catch(()=>{});
-        });
-      }, 2000);
     }
     const savedMsgs = storage.getMsgs(accountKey);
     // Note: on first mount, msgs are already loaded via useState initializer.
@@ -695,18 +678,16 @@ export default function App() {
     const isVoice = typeof input === 'object' && input.type === 'voice';
     const isImage = typeof input === 'object' && input.type === 'image';
     const isFile  = typeof input === 'object' && input.type === 'file';
-    const isVideo = typeof input === 'object' && input.type === 'video';
     // Text can be plain string OR {type:'text', text:'...', replyTo:...} when replying
     const textContent: string = typeof input === 'string' ? input : ((input as Message).text ?? '');
     const block = nextBlock();
     const inputReplyTo = typeof input === 'string' ? null : (input as Message).replyTo ?? null;
     const msg: Message = (isVoice || isImage || isFile)
       ? { id: uid(), out: true, ...(input as object), type: (input as Message).type, text: '', time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) }
-      : (isVideo ? { id: uid(), out: true, ...(input as object), type: 'video', text: '', time: now(), block, confirms: 0, hash: rndHash(), pending: true }
-      : { id: uid(), out: true, type: 'text', text: textContent, time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) });
+      : { id: uid(), out: true, type: 'text', text: textContent, time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) };
     const addr = normalizeAddress(activeRef.current.address);
     setMsgs(p => ({ ...p, [addr]: [...(p[addr] ?? []), { ...msg, _toAddr: addr }] }));
-    const preview = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isVideo ? `🎬 ${(input as Message).fileName ?? 'Video'}` : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : textContent;
+    const preview = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : textContent;
     setContacts(p => p.map(c => c.id === activeRef.current?.id ? { ...c, preview } : c));
 
     // AI Agent
@@ -795,7 +776,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
           const audioB64 = (!vi.ipfsCid && vi.audioMsgId) ? (() => { try { return storage.getAudio(vi.audioMsgId!); } catch { return null; } })() : null;
           const b64 = (vi as any).audioB64 || audioB64; // prefer direct b64 from message
           return { duration: vi.duration, waveform: vi.waveform, audioMsgId: vi.audioMsgId, ipfsCid: vi.ipfsCid, ipfsUrl: vi.ipfsUrl, ...(b64 ? { audioB64: b64 } : {}) };
-        })()), ...((isImage || isFile || isVideo) && { ipfsCid: (input as Message).ipfsCid ?? null, b64Data: (input as Message).b64Data ?? null, mediaMsgId: (input as Message).mediaMsgId, imgMsgId: (input as Message).imgMsgId, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }), from: w.address, fromName: profileRef.current?.name || w.username || w.address.slice(0, 8), fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : profileRef.current?._thumbUrl ?? null; })(), fromBio: profileRef.current?.bio ?? '', time: now(), block, hash: msg.hash, confirms: 0, ts: Date.now() };
+        })()), ...((isImage || isFile) && { ipfsCid: (input as Message).ipfsCid ?? null, b64Data: (input as Message).b64Data ?? null, mediaMsgId: (input as Message).mediaMsgId, imgMsgId: (input as Message).imgMsgId, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }), from: w.address, fromName: profileRef.current?.name || w.username || w.address.slice(0, 8), fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : profileRef.current?._thumbUrl ?? null; })(), fromBio: profileRef.current?.bio ?? '', time: now(), block, hash: msg.hash, confirms: 0, ts: Date.now() };
         const existing: object[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.inbox(toAddr)) ?? '[]');
         localStorage.setItem(STORAGE_KEYS.inbox(toAddr), JSON.stringify([...existing, inboxMsg]));
         // Also deliver via cross-device API relay (fire-and-forget)
@@ -834,7 +815,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       const msgContent = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : input as string;
       const inboxMsg = {
         id: msg.id, type: msg.type, text: msgContent,
-        ...((isImage || isFile || isVideo) && { ipfsCid: (input as Message).ipfsCid ?? null, b64Data: (input as Message).b64Data ?? null, mediaMsgId: (input as Message).mediaMsgId, imgMsgId: (input as Message).imgMsgId, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }),
+        ...((isImage || isFile) && { ipfsCid: (input as Message).ipfsCid ?? null, b64Data: (input as Message).b64Data ?? null, mediaMsgId: (input as Message).mediaMsgId, imgMsgId: (input as Message).imgMsgId, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }),
         ...(isVoice && (() => { const vi = input as Message; const audioB64 = (!vi.ipfsCid && vi.audioMsgId) ? (() => { try { return storage.getAudio(vi.audioMsgId!); } catch { return null; } })() : null; return { duration: vi.duration, waveform: vi.waveform, audioMsgId: vi.audioMsgId, ipfsCid: vi.ipfsCid, ipfsUrl: vi.ipfsUrl, ...(audioB64 ? { audioB64 } : {}) }; })()),
         from: w.address, fromName: profileRef.current?.name || w.username || w.address.slice(0, 8),
         fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : profileRef.current?._thumbUrl ?? null; })(),
@@ -1050,8 +1031,6 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       }
     }
     setScreen('chat');
-    // On mobile, show sidebar first so user sees their contacts (not a black screen)
-    if (window.innerWidth < 768) setMobileSidebarOpen(true);
   }, [setContacts, setMsgs]);
 
   // On mount: if session was restored from localStorage but no password in memory,
@@ -1086,43 +1065,43 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
-  const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMTchain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); if(window.innerWidth<768)setMobileSidebarOpen(true); }, []);
+  const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMTchain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); }, []);
   const handleLogout = useCallback(() => { if (walletRef.current?.address) sessionStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase()); storage.clearSession(); setWallet(null); walletRef.current = null; setIsDemo(false); setContacts([]); setMsgs({}); setActiveAndRef(null); setScreen('landing'); }, [setActiveAndRef]);
 
-  if (screen === 'landing') return <Landing onDemo={handleDemo} onCreateWallet={() => setScreen('create')} onImportWallet={() => setScreen('import')} onLogin={() => setScreen('login')} onMetaMask={async (w: Wallet) => {
+  if (screen === 'landing') return <Landing onDemo={handleDemo} onCreateWallet={() => setScreen('create')} onImportWallet={() => setScreen('import')} onLogin={() => setScreen('login')} onMetaMask={(w: Wallet) => {
+              // Check if this wallet address already has a saved account
               const addr = w.address.toLowerCase();
-              // First check localStorage for saved account
               const savedAcct = localStorage.getItem(`pmt_account_${addr}`);
+              // Also check if there's an active session for this address
               let sessMatch = false;
-              try { const s = JSON.parse(localStorage.getItem('pmt_session') ?? '{}'); if (s.address?.toLowerCase() === addr) sessMatch = true; } catch {}
+              try {
+                const sess = localStorage.getItem('pmt_session');
+                if (sess) {
+                  const s = JSON.parse(sess);
+                  if (s.address?.toLowerCase() === addr) sessMatch = true;
+                }
+              } catch {}
 
               if (savedAcct || sessMatch) {
-                // Returning user found locally — use handleWallet to load backup
+                // Returning user — set wallet then show restore prompt for backup
                 try {
                   const acct = savedAcct ? JSON.parse(savedAcct) : null;
                   const username = acct?.username || addr.slice(0,8);
-                  handleWallet({ ...w, username, isMetaMask: true });
-                  return;
-                } catch {}
-              }
-
-              // Not found locally — check server (works on new devices)
-              try {
-                const resp = await fetch(`/api/auth?address=${addr}`);
-                if (resp.ok) {
-                  const data = await resp.json();
-                  const username = data.username || addr.slice(0,8);
-                  // Save locally for next time
-                  localStorage.setItem('pmt_account_' + addr, JSON.stringify({ username, address: addr }));
+                  const fullWallet = { ...w, username };
+                  setWallet(fullWallet);
+                  walletRef.current = fullWallet;
                   localStorage.setItem('pmt_session', JSON.stringify({ username, address: w.address }));
-                  // Use handleWallet so backup is loaded (contacts, messages, profile)
-                  handleWallet({ ...w, username, isMetaMask: true });
-                  return;
+                  setScreen('chat');
+                  if (window.innerWidth < 768) setMobileSidebarOpen(true);
+                  // Show restore prompt so user can load their backup
+                  setShowWalletRestore(true);
+                } catch {
+                  setWallet(w); walletRef.current = w; setScreen('metamask_setup');
                 }
-              } catch { /* server unreachable — fall through to setup */ }
-
-              // Truly new user — show setup
-              setWallet(w); walletRef.current = w; setScreen('metamask_setup');
+              } else {
+                // New user — needs to create username/password
+                setWallet(w); walletRef.current = w; setScreen('metamask_setup');
+              }
             }} />;
   if (screen === 'create') return <CreateWalletFlow onWallet={handleWallet} onBack={() => setScreen('landing')} />;
   if (screen === 'import') return <ImportWalletFlow onWallet={handleWallet} onBack={() => setScreen('landing')} />;
@@ -1135,7 +1114,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     }}
     onLogout={() => { storage.clearSession(); setWallet(null); walletRef.current = null; setScreen('landing'); }}
   />;
-  if (screen === 'metamask_setup' && wallet) return <SetupMetaMaskFlow wallet={wallet} onDone={(username, password) => { if (password) sessionPasswordRef.current = password; setWallet(w => w ? { ...w, username, sessionPassword: password } : w); setScreen('chat'); if(window.innerWidth<768)setMobileSidebarOpen(true); }} onSkip={() => {
+  if (screen === 'metamask_setup' && wallet) return <SetupMetaMaskFlow wallet={wallet} onDone={(username, password) => { if (password) sessionPasswordRef.current = password; setWallet(w => w ? { ...w, username, sessionPassword: password } : w); setScreen('chat'); }} onSkip={() => {
                 // Save minimal account so returning users skip setup next time
                 try {
                   const addr = walletRef.current?.address?.toLowerCase();
@@ -1158,6 +1137,79 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         </main>
       </div>
       {showProfile && <ProfileModal profile={{ ...profile, address: wallet?.address ?? null }} onClose={() => setShowProfile(false)} onSave={saveProfile} />}
+
+      {/* Wallet backup restore prompt — shown after wallet connect for returning users */}
+      {showWalletRestore && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999,padding:16}}>
+          <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360,display:'flex',flexDirection:'column',gap:16}}>
+            <div style={{fontSize:18,fontWeight:700,color:'var(--text)'}}>Restore your backup</div>
+            <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.5}}>
+              Enter your PMT-Chat password to restore your contacts and messages from backup.
+            </div>
+            <input
+              type="password"
+              placeholder="Your backup password"
+              value={walletRestorePwd}
+              autoFocus
+              onChange={e=>{setWalletRestorePwd(e.target.value);setWalletRestoreErr('');}}
+              onKeyDown={async e=>{
+                if(e.key==='Enter'&&walletRestorePwd) {
+                  setWalletRestoreLoading(true);setWalletRestoreErr('');
+                  try{
+                    const uname=(wallet?.username||'').toLowerCase();
+                    const {loadCloudBackup}=await import('./lib/cloudBackup');
+                    const backup=await loadCloudBackup(uname,walletRestorePwd);
+                    if(backup){
+                      sessionPasswordRef.current=walletRestorePwd;
+                      handleWallet({...wallet!,username:uname,sessionPassword:walletRestorePwd,
+                        restoredContacts:backup.contacts??[],
+                        restoredMessages:backup.messages??{},
+                        restoredProfile:backup.profile??{}});
+                    }
+                    setShowWalletRestore(false);setWalletRestorePwd('');
+                  }catch(err:any){
+                    setWalletRestoreErr(err.message==='WRONG_PASSWORD'?'Incorrect password. Please try again.':'Restore failed: '+(err.message||'unknown error'));
+                  }finally{setWalletRestoreLoading(false);}
+                }
+              }}
+              style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,
+                padding:'12px 14px',color:'var(--text)',fontSize:15,outline:'none',width:'100%'}}/>
+            {walletRestoreErr&&<div style={{fontSize:12,color:'var(--danger)',marginTop:-8}}>{walletRestoreErr}</div>}
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={()=>{setShowWalletRestore(false);setWalletRestorePwd('');}}
+                style={{flex:1,padding:'11px',background:'var(--surface)',border:'1px solid var(--border)',
+                  borderRadius:10,color:'var(--text)',cursor:'pointer',fontSize:14}}>
+                Skip
+              </button>
+              <button
+                disabled={!walletRestorePwd||walletRestoreLoading}
+                onClick={async()=>{
+                  setWalletRestoreLoading(true);setWalletRestoreErr('');
+                  try{
+                    const uname=(wallet?.username||'').toLowerCase();
+                    const {loadCloudBackup}=await import('./lib/cloudBackup');
+                    const backup=await loadCloudBackup(uname,walletRestorePwd);
+                    if(backup){
+                      sessionPasswordRef.current=walletRestorePwd;
+                      handleWallet({...wallet!,username:uname,sessionPassword:walletRestorePwd,
+                        restoredContacts:backup.contacts??[],
+                        restoredMessages:backup.messages??{},
+                        restoredProfile:backup.profile??{}});
+                    }
+                    setShowWalletRestore(false);setWalletRestorePwd('');
+                  }catch(err:any){
+                    setWalletRestoreErr(err.message==='WRONG_PASSWORD'?'Incorrect password. Please try again.':'Restore failed: '+(err.message||'unknown error'));
+                  }finally{setWalletRestoreLoading(false);}
+                }}
+                style={{flex:2,padding:'11px',background:'var(--accent)',border:'none',
+                  borderRadius:10,color:'#0a0c14',fontWeight:700,cursor:'pointer',fontSize:14,
+                  opacity:(!walletRestorePwd||walletRestoreLoading)?0.5:1}}>
+                {walletRestoreLoading?'Restoring…':'Restore Backup'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* One-time backup password prompt — appears when session was restored but no cloud backup exists */}
       {showBackupPrompt && (
