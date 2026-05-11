@@ -260,7 +260,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     if(!file)return;
     const localUrl=URL.createObjectURL(file);
     const isImage=file.type.startsWith('image/');
-    const msgType=isImage?'image':'file';
+    const isVideo=file.type.startsWith('video/');
+    const msgType=isImage?'image':isVideo?'video':'file';
     const msgId='m'+Date.now();
 
     const sendWithB64=(b64Data,mimeType=file.type)=>{
@@ -300,6 +301,28 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         reader.readAsDataURL(file);
       };
       img.src=localUrl;
+    } else if(isVideo){
+      // Video: show local preview immediately, upload to IPFS, then relay
+      const localUrl=URL.createObjectURL(file);
+      const tmpId='vtmp'+Date.now();
+      // Add local-only message so sender sees preview immediately
+      onSend({type:'video',localUrl,fileName:file.name,fileSize:formatSize(file.size),
+        mimeType:file.type,uploading:true,mediaMsgId:tmpId});
+      // Upload then relay
+      const reader2=new FileReader();
+      reader2.onloadend=async()=>{
+        try{
+          const base64=(reader2.result as string).split(',')[1];
+          const resp=await fetch('/api/pinata-upload',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({data:base64,name:file.name,mimeType:file.type})});
+          const {cid,url}=await resp.json();
+          // Update local message with IPFS cid + relay to recipient
+          if(onMediaUploaded) onMediaUploaded(tmpId,cid,url,null);
+          onSendRef.current({type:'video',ipfsCid:cid,ipfsUrl:url,
+            fileName:file.name,fileSize:formatSize(file.size),mimeType:file.type});
+        }catch(e){console.warn('Video upload failed',e);}
+      };
+      reader2.readAsDataURL(file);
     } else {
       // Non-image files: send as-is
       const reader=new FileReader();

@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Avatar from '../ui/Avatar';
 import TxCard from './TxCard';
 import VoiceBubble from './VoiceBubble';
+import VideoBubble from './VideoBubble';
 import Twemoji from '../ui/Twemoji';
 import ImageBubble from './ImageBubble';
 import FileBubble from './FileBubble';
@@ -270,6 +271,15 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
     <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
       onTouchStart={handleLongPress} onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
       <ImageBubble msg={msg} isOut={isOut} contact={contact}/>
+      {reactionsBar}{picker}
+    </div>
+  );
+  if(msg.type==='video') return(
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
+      onTouchStart={(e)=>{handleLongPress(e);onTouchStartSwipe(e);}}
+      onTouchEnd={(e)=>{cancelLongPress();onTouchEndSwipe();}}
+      onTouchMove={(e)=>{cancelLongPress();onTouchMoveSwipe(e);}}>
+      <VideoBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
     </div>
   );

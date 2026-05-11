@@ -206,6 +206,13 @@ export function useInboxPoll({
         let extra: Partial<Message> = {};
         if (inboxMsg.type === 'voice') extra = reconstructVoiceMsg(inboxMsg);
         if (inboxMsg.type === 'image' || inboxMsg.type === 'file') extra = reconstructMediaMsg(inboxMsg);
+        if (inboxMsg.type === 'video') extra = {
+          ipfsCid: (inboxMsg as any).ipfsCid ?? null,
+          ipfsUrl: (inboxMsg as any).ipfsUrl ?? null,
+          fileName: (inboxMsg as any).fileName,
+          fileSize: (inboxMsg as any).fileSize,
+          mimeType: (inboxMsg as any).mimeType,
+        };
         if (inboxMsg.type === 'tx') extra = {
           amount: (inboxMsg as any).amount,
           coin: (inboxMsg as any).coin ?? 'PMT',
