@@ -302,7 +302,12 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       };
       img.src=localUrl;
     } else if(isVideo){
-      // Video: show local preview immediately, upload to IPFS, then relay
+      // 50MB size limit
+      if(file.size > 50 * 1024 * 1024){
+        alert('Video too large. Maximum size is 50MB.');
+        e.target.value='';
+        return;
+      }
       const localUrl=URL.createObjectURL(file);
       const tmpId='vtmp'+Date.now();
       // Add local-only message so sender sees preview immediately
@@ -488,7 +493,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         {/* ── Header — .chat-passthrough makes all descendants pe:none, interactive elements pe:auto ── */}
         <div className="desktop-topbar"
           style={{position:'absolute',top:0,left:0,right:0,zIndex:10,
-            borderBottom:'1px solid var(--border)',background:'var(--panel)'}}>
+            borderBottom:'1px solid var(--border)',background:'var(--panel)',
+            paddingTop:'env(safe-area-inset-top, 0px)'}}>
           <div style={{padding:'12px 18px',display:'flex',alignItems:'center',gap:10}}>
             <span onClick={()=>{
                 if(contact.isGroup && onManageGroup && contact.createdBy?.toLowerCase()===myAddress?.toLowerCase()){
