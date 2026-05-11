@@ -286,6 +286,27 @@ export default function App() {
       setContacts(dc);
     } else {
       setContacts([AI_AGENT_CONTACT]);
+      // On iOS PWA, localStorage may be empty (isolated from Safari).
+      // If we have a session password, trigger a cloud restore silently.
+      setTimeout(() => {
+        const pass = sessionPasswordRef.current;
+        const uname = walletRef.current?.username;
+        if (!pass || !uname || !accountKey) return;
+        import('./lib/cloudBackup').then(({ loadCloudBackup }) => {
+          loadCloudBackup(uname, pass).then(backup => {
+            if (!backup) return;
+            if (backup.contacts?.length) {
+              const withAI = [AI_AGENT_CONTACT, ...backup.contacts.filter((c:any)=>!c.isAI)];
+              setContacts(withAI);
+              storage.setContacts(accountKey, backup.contacts);
+            }
+            if (backup.messages && Object.keys(backup.messages).length) {
+              setMsgs(backup.messages as any);
+              storage.setMsgs(accountKey, backup.messages as any);
+            }
+          }).catch(()=>{});
+        });
+      }, 2000);
     }
     const savedMsgs = storage.getMsgs(accountKey);
     // Note: on first mount, msgs are already loaded via useState initializer.

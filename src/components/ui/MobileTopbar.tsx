@@ -10,7 +10,7 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
     return(
       <>
       <div className="mobile-topbar" style={{display:'none',alignItems:'center',gap:10,
-        paddingTop:'calc(10px + env(safe-area-inset-top, 0px))',paddingBottom:'10px',paddingLeft:'14px',paddingRight:'14px',
+        padding:'10px 14px',
         background:'var(--panel)',borderBottom:'1px solid var(--border)',
         flexShrink:0,minHeight:54,zIndex:10}}>
         <button onClick={onBack}
@@ -54,7 +54,7 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
   }
   return(
     <div className="mobile-topbar" style={{display:'none',alignItems:'center',gap:10,
-      paddingTop:'calc(10px + env(safe-area-inset-top, 0px))',paddingBottom:'10px',paddingLeft:'14px',paddingRight:'14px',
+      padding:'10px 14px',
       background:'var(--panel)',borderBottom:'1px solid var(--border)',
       flexShrink:0,minHeight:54,zIndex:10}}>
       <button onClick={onOpenSidebar}

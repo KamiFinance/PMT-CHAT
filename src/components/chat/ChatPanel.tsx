@@ -454,6 +454,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   };
   return(
     <>
+      {/* iOS PWA safe area spacer — pushes content below status bar reliably */}
+      <div style={{height:'env(safe-area-inset-top,0px)',background:'var(--panel)',flexShrink:0,width:'100%'}}/>
       <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact} onSendETH={onSendETH} isDemo={isDemo} needsPasswordToSend={needsPasswordToSend}/>
 
       {/* Outer wrapper — fills the chat-panel flex slot */}

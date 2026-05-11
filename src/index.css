@@ -74,8 +74,7 @@ input,textarea,select{font-size:16px!important}
     transform:translateX(-105%);
     transition:transform .28s cubic-bezier(.4,0,.2,1);
     box-shadow:6px 0 32px rgba(0,0,0,.6);
-    /* Account for iOS safe area */
-    padding-top:var(--safe-top);
+    /* iOS safe area handled by inline spacer div */
   }
   .sidebar-panel.mobile-open{transform:translateX(0)!important}
 

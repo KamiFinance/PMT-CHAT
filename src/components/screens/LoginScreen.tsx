@@ -91,13 +91,17 @@ export default function LoginScreen({onLogin,onBack}){
         // Internal wallet (created/imported in-app): has privateKey, skip external verify
         const loginData={address:walletData.address,privateKey:walletData.privateKey,
           balance:'0.0000',network:'PMTchain',username:account.username,sessionPassword:password};
-        if(walletData.privateKey){
-          // Clear any stale pmt_pk_ entries before saving the new one
+        if(walletData.privateKey && walletData.privateKey !== 'metamask'){
           Object.keys(sessionStorage).filter(k => k.startsWith('pmt_pk_')).forEach(k => sessionStorage.removeItem(k));
           sessionStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey);
           onLogin(loginData);
+        } else if(!walletData.privateKey || walletData.privateKey === ''){
+          // Empty key from local store — still let them in (password was verified)
+          onLogin(loginData);
+        } else {
+          // MetaMask account in local store — needs wallet signature
+          setPendingLogin(loginData); setVerifyStep(true);
         }
-        else{setPendingLogin(loginData);setVerifyStep(true);}
       } else {
         // Cloud restore: account not on this device — try IPFS backup
         setErr('Checking cloud backup…');
@@ -122,12 +126,19 @@ export default function LoginScreen({onLogin,onBack}){
           restoredContacts: contacts ?? [],
           restoredMessages: messages ?? {},
           restoredProfile: profile ?? {} };
-        // Internal wallet: has privateKey — no need for external wallet verify
-        if(w.privateKey){
+        // Determine login path based on privateKey value
+        if(w.privateKey && w.privateKey !== 'metamask'){
+          // Internal wallet with real key — direct login
           sessionStorage.setItem('pmt_pk_'+w.address.toLowerCase(), w.privateKey);
           onLogin(restoreData);
+        } else if(!w.privateKey || w.privateKey === '') {
+          // Empty key: backup saved before key was persisted, but password was verified → trust them
+          // This is safe: they proved identity via username + correct password against Redis
+          onLogin(restoreData);
+        } else {
+          // privateKey === 'metamask' → external wallet, needs signature verification
+          setPendingLogin(restoreData); setVerifyStep(true);
         }
-        else{setPendingLogin(restoreData);setVerifyStep(true);}
       }
     }catch(e){
       if(e.message==='WRONG_PASSWORD'||e.message?.includes('decrypt')||e.name==='OperationError')
