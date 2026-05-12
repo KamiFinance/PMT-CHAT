@@ -50,6 +50,12 @@ export default function LoginScreen({onLogin,onBack}){
   const [wcUri,setWcUri]=useState(null);
   const [showWalletGrid,setShowWalletGrid]=useState(false);
   const [waitApproval,setWaitApproval]=useState(false);
+  // Recovery flow — when backup exists but private key is missing
+  const [recoveryMode,setRecoveryMode]=useState(false);
+  const [recoveryInput,setRecoveryInput]=useState('');
+  const [recoveryErr,setRecoveryErr]=useState(null);
+  const [recoveryLoading,setRecoveryLoading]=useState(false);
+  const [pendingRecovery,setPendingRecovery]=useState<{address:string,contacts:any[],messages:any,profile:any,username:string,password:string}|null>(null);
 
   // Check if there are saved accounts
   const savedAccounts=[];
@@ -115,9 +121,18 @@ export default function LoginScreen({onLogin,onBack}){
               setLoading(false);return;
             }
             if(!bk.wallet?.privateKey){
-              // Incomplete backup — no private key. Show error, not verify screen.
+              // Backup exists but private key missing — offer recovery via key/seed phrase
+              setPendingRecovery({
+                address: bk.wallet.address,
+                contacts: bk.contacts??[],
+                messages: bk.messages??{},
+                profile: bk.profile??{},
+                username: uname,
+                password,
+              });
+              setRecoveryMode(true);
               setLoading(false);
-              return setErr('Your backup is missing wallet key data. Please log in from your original device first, or re-create your wallet.');
+              return;
             }
             privateKey=bk.wallet.privateKey??'';
             address=bk.wallet.address;
@@ -266,6 +281,101 @@ Switch to the correct account.`);
   };
 
   // Wallet verification step
+  const doRecovery = async () => {
+    if (!pendingRecovery || !recoveryInput.trim()) return;
+    setRecoveryLoading(true); setRecoveryErr(null);
+    try {
+      const { ethers } = await import('ethers');
+      const input = recoveryInput.trim();
+      let privateKey = '', address = '';
+      // Try as seed phrase (12 or 24 words)
+      const words = input.split(/\s+/);
+      if (words.length === 12 || words.length === 24) {
+        const wallet = ethers.Wallet.fromPhrase(words.join(' '));
+        privateKey = wallet.privateKey;
+        address = wallet.address;
+      } else {
+        // Try as private key
+        const wallet = new ethers.Wallet(input);
+        privateKey = wallet.privateKey;
+        address = wallet.address;
+      }
+      // Verify it matches the backup address
+      if (pendingRecovery.address && address.toLowerCase() !== pendingRecovery.address.toLowerCase()) {
+        setRecoveryErr(`This key belongs to ${address.slice(0,8)}...${address.slice(-6)} but your account is at ${pendingRecovery.address.slice(0,8)}...${pendingRecovery.address.slice(-6)}. Please use the correct key.`);
+        setRecoveryLoading(false); return;
+      }
+      // Re-save backup with private key included
+      const { saveCloudBackup } = await import('../lib/cloudBackup');
+      const { PMTAuth } = await import('../lib/auth');
+      const { hash: ph, salt: ps } = await PMTAuth.hashPassword(pendingRecovery.password);
+      const ew = await PMTAuth.encryptWallet({ address, privateKey }, pendingRecovery.password);
+      const acctData = { username: pendingRecovery.username, address, passwordHash: ph, passwordSalt: ps, encryptedWallet: ew };
+      localStorage.setItem(`pmt_account_${pendingRecovery.username}`, JSON.stringify(acctData));
+      localStorage.setItem(`pmt_account_${address.toLowerCase()}`, JSON.stringify(acctData));
+      localStorage.setItem(`pmt_pk_${address.toLowerCase()}`, privateKey);
+      sessionStorage.setItem(`pmt_pk_${address.toLowerCase()}`, privateKey);
+      localStorage.setItem('pmt_session', JSON.stringify({ username: pendingRecovery.username, address }));
+      // Save updated backup with private key
+      try {
+        await saveCloudBackup(pendingRecovery.username, pendingRecovery.password, {
+          wallet: { address, privateKey, username: pendingRecovery.username },
+          contacts: pendingRecovery.contacts,
+          messages: pendingRecovery.messages,
+          profile: pendingRecovery.profile,
+        });
+      } catch {}
+      setRecoveryLoading(false);
+      onLogin({ address, privateKey, balance: '0.0000', network: 'PMTchain',
+        username: pendingRecovery.username, sessionPassword: pendingRecovery.password,
+        restoredContacts: pendingRecovery.contacts,
+        restoredMessages: pendingRecovery.messages,
+        restoredProfile: pendingRecovery.profile });
+    } catch (e: any) {
+      setRecoveryErr('Invalid key or seed phrase. Please check and try again.');
+      setRecoveryLoading(false);
+    }
+  };
+
+  if (recoveryMode && pendingRecovery) return (
+    <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',padding:16}}>
+      <div style={{width:'100%',maxWidth:400,background:'var(--panel)',border:'1px solid var(--border)',borderRadius:20,padding:'28px 24px',display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <button onClick={()=>{setRecoveryMode(false);setRecoveryInput('');setRecoveryErr(null);}}
+            style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,width:32,height:32,color:'var(--muted)',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
+          <div>
+            <div style={{fontSize:17,fontWeight:600}}>Recover your wallet</div>
+            <div style={{fontSize:11,color:'var(--muted)',fontFamily:'var(--mono)'}}>ENTER PRIVATE KEY OR SEED PHRASE</div>
+          </div>
+        </div>
+        <div style={{background:'rgba(99,210,255,.08)',border:'1px solid rgba(99,210,255,.2)',borderRadius:10,padding:'10px 14px',fontSize:12.5,color:'var(--text2)',lineHeight:1.5}}>
+          Your account <strong style={{color:'var(--accent)'}}>{pendingRecovery.username}</strong> exists but the wallet key was not saved in your backup. Enter your private key (0x...) or 12/24-word seed phrase to restore access.
+        </div>
+        {pendingRecovery.address && (
+          <div style={{fontSize:11,color:'var(--muted)',fontFamily:'var(--mono)',wordBreak:'break-all'}}>
+            Expected address: {pendingRecovery.address}
+          </div>
+        )}
+        <textarea rows={3} placeholder={'Private key (0x...) or seed phrase (word1 word2 ... word12)'}
+          value={recoveryInput} onChange={e=>{setRecoveryInput(e.target.value);setRecoveryErr(null);}}
+          style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'12px 14px',
+            color:'var(--text)',fontFamily:'var(--mono)',fontSize:12.5,outline:'none',resize:'none',lineHeight:1.6,width:'100%'}}/>
+        {recoveryErr && <div style={{fontSize:12,color:'var(--danger)',lineHeight:1.5}}>{recoveryErr}</div>}
+        <div style={{background:'rgba(248,113,113,.07)',border:'1px solid rgba(248,113,113,.2)',borderRadius:9,padding:'10px 14px',fontSize:12,color:'var(--danger)',lineHeight:1.5}}>
+          Never share your private key or seed phrase with anyone.
+        </div>
+        <button onClick={doRecovery} disabled={!recoveryInput.trim()||recoveryLoading}
+          style={{padding:'13px',background:'var(--accent)',border:'none',borderRadius:10,color:'#0a0c14',
+            fontWeight:700,fontSize:14,cursor:recoveryLoading?'default':'pointer',
+            opacity:!recoveryInput.trim()||recoveryLoading?0.6:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          {recoveryLoading
+            ? <><span style={{width:14,height:14,border:'2px solid rgba(0,0,0,.3)',borderTopColor:'#0a0c14',borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>Recovering...</>
+            : '🔑 Recover & Login'}
+        </button>
+      </div>
+    </div>
+  );
+
   if(verifyStep&&pendingLogin) return(
     <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',
       background:'var(--bg)',padding:'16px'}}>
