@@ -164,7 +164,7 @@ export default function LoginScreen({onLogin,onBack}){
       localStorage.setItem('pmt_account_'+address.toLowerCase(),JSON.stringify(acctData));
       localStorage.setItem('pmt_session',JSON.stringify({username:uname,address}));
       sessionStorage.setItem('pmt_pk_'+address.toLowerCase(),privateKey);
-      localStorage.setItem('pmt_pk_'+address.toLowerCase(),privateKey);
+      
 
       // Step 3: Login with ALL data restored from backup (or empty if no backup yet)
       onLogin({address,privateKey,balance:'0.0000',network:'PMTchain',username:uname,
@@ -313,7 +313,7 @@ Switch to the correct account.`);
       const acctData = { username: pendingRecovery.username, address, passwordHash: ph, passwordSalt: ps, encryptedWallet: ew };
       localStorage.setItem(`pmt_account_${pendingRecovery.username}`, JSON.stringify(acctData));
       localStorage.setItem(`pmt_account_${address.toLowerCase()}`, JSON.stringify(acctData));
-      localStorage.setItem(`pmt_pk_${address.toLowerCase()}`, privateKey);
+      
       sessionStorage.setItem(`pmt_pk_${address.toLowerCase()}`, privateKey);
       localStorage.setItem('pmt_session', JSON.stringify({ username: pendingRecovery.username, address }));
       // Save updated backup with private key
