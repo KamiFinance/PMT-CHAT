@@ -90,13 +90,43 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   const [mobile,        setMobile]        = useState(false);
   const [mobileWcUri,   setMobileWcUri]   = useState<string|null>(null);
   const mobileQrRef                       = useRef<HTMLCanvasElement>(null);
+  const mobileProviderRef                 = useRef<any>(null);
   const [inWalletBrowser, setInWalletBrowser] = useState(false);
   const [walletBrowserName, setWalletBrowserName] = useState('');
 
   useEffect(() => {
-    getWCProvider().catch(() => {}); // pre-warm immediately, before anything else
+    getWCProvider().catch(() => {}); // pre-warm immediately
     const mob = isMobile();
     setMobile(mob);
+    // On mobile: proactively start a WC session so QR is ready before user taps
+    if (mob) {
+      getWCProvider().then(p => {
+        mobileProviderRef.current = p;
+        p.once('display_uri', (uri: string) => {
+          setMobileWcUri(uri);
+          setTimeout(() => {
+            if (mobileQrRef.current) {
+              QRCode.toCanvas(mobileQrRef.current, uri, {
+                width: 220, margin: 1, color: { dark: '#000000', light: '#ffffff' }
+              }).catch(() => {});
+            }
+          }, 50);
+        });
+        // Don't await — let it run in background
+        p.connect().then(async () => {
+          // Auto-complete if session establishes while grid is open
+          const accounts = p.accounts || [];
+          if (!accounts.length) return;
+          const address = accounts[0], chainId = p.chainId;
+          const chainHex = chainId ? '0x'+chainId.toString(16) : '0x1';
+          const netNames: Record<string,string> = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
+          let balEth = '0.0000';
+          try { const h = await p.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h as string,16)/1e18).toFixed(4); } catch {}
+          setShowMobile(false); setMobileWcUri(null);
+          onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
+        }).catch(() => {});
+      }).catch(() => {});
+    }
     // Detect any available wallet via EIP-6963
     getWalletProvider().then(eth => {
       if (!eth) return;
@@ -160,41 +190,17 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     }, 600);
   };
 
-  // Start WC session proactively when wallet grid opens
+  // If background session already generated a URI, QR shows instantly
+  // Otherwise restart (user opened grid before background init completed)
   const startMobileWC = async () => {
-    setMobileWcUri(null);
+    if (mobileWcUri) return; // already ready — QR will show immediately
     setErr(null);
     try {
-      // Use pre-warmed provider — only reset if already has connected accounts
-      const existing = await getWCProvider().catch(()=>null);
-      if (existing?.accounts?.length) resetWCProvider();
+      resetWCProvider();
       const provider = await getWCProvider();
-
-      const finish = async () => {
-        const accounts = provider.accounts || [];
-        if (!accounts.length) return;
-        setWaitingApproval(false);
-        setShowMobile(false);
-        setMobileWcUri(null);
-        const address = accounts[0], chainId = provider.chainId;
-        const chainHex = chainId ? '0x'+chainId.toString(16) : '0x1';
-        const netNames = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
-        let balEth = '0.0000';
-        try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h,16)/1e18).toFixed(4); } catch {}
-        onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
-      };
-
-      // Auto-connect when user returns from wallet app
-      const onVisible = () => {
-        if (document.hidden) return;
-        document.removeEventListener('visibilitychange', onVisible);
-        setTimeout(finish, 800);
-      };
-      document.addEventListener('visibilitychange', onVisible);
-
-      provider.once('display_uri', (uri) => {
+      mobileProviderRef.current = provider;
+      provider.once('display_uri', (uri: string) => {
         setMobileWcUri(uri);
-        // Render QR
         setTimeout(() => {
           if (mobileQrRef.current) {
             QRCode.toCanvas(mobileQrRef.current, uri, {
@@ -203,17 +209,8 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
           }
         }, 50);
       });
-
-      provider.connect()
-        .then(finish)
-        .catch(e => {
-          document.removeEventListener('visibilitychange', onVisible);
-          setWaitingApproval(false);
-          resetWCProvider();
-          const msg = e.message||String(e);
-          if (!msg.includes('reset') && !msg.includes('closed')) setErr('WalletConnect: '+msg);
-        });
-    } catch(e) {
+      provider.connect().catch(() => {});
+    } catch(e: any) {
       setErr('WalletConnect: '+(e.message||String(e)));
     }
   };
