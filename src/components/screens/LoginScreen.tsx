@@ -109,34 +109,32 @@ export default function LoginScreen({onLogin,onBack}){
         // Internal wallet (created/imported in-app): has privateKey, skip external verify
         const loginData={address:walletData.address,privateKey:walletData.privateKey,
           balance:'0.0000',network:'PMTchain',username:account.username,sessionPassword:password};
-        // Check if contacts exist in localStorage for this address
-        const contactsKey = `pmt_contacts_${walletData.address.toLowerCase()}`;
-        const localContacts = localStorage.getItem(contactsKey);
-        const hasLocalContacts = localContacts && JSON.parse(localContacts||'[]').length > 0;
+
+        // Always load backup and merge: backup may have newer data (other device, or
+        // contacts added after last local save). For internal wallets, this is safe
+        // because the user proved identity with the correct password.
+        const doLoginWithRestore = async () => {
+          try {
+            const bk = await loadCloudBackup(username.trim(), password);
+            if (bk && (bk.contacts?.length || bk.profile || bk.messages)) {
+              onLogin({...loginData,
+                restoredContacts: bk.contacts ?? [],
+                restoredMessages: bk.messages ?? {},
+                restoredProfile: bk.profile ?? {}});
+            } else {
+              onLogin(loginData);
+            }
+          } catch {
+            onLogin(loginData);
+          }
+        };
 
         if(walletData.privateKey && walletData.privateKey !== 'metamask'){
           Object.keys(sessionStorage).filter(k => k.startsWith('pmt_pk_')).forEach(k => sessionStorage.removeItem(k));
           sessionStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey);
-          if(!hasLocalContacts){
-            // No contacts locally — try cloud restore to get contacts/messages
-            try{
-              const bk = await loadCloudBackup(username.trim(), password);
-              if(bk){
-                onLogin({...loginData,
-                  restoredContacts: bk.contacts??[],
-                  restoredMessages: bk.messages??{},
-                  restoredProfile: bk.profile??{}});
-              } else { onLogin(loginData); }
-            }catch{ onLogin(loginData); }
-          } else { onLogin(loginData); }
+          await doLoginWithRestore();
         } else if(!walletData.privateKey || walletData.privateKey === ''){
-          if(!hasLocalContacts){
-            try{
-              const bk = await loadCloudBackup(username.trim(), password);
-              if(bk){ onLogin({...loginData, restoredContacts:bk.contacts??[], restoredMessages:bk.messages??{}, restoredProfile:bk.profile??{}}); }
-              else { onLogin(loginData); }
-            }catch{ onLogin(loginData); }
-          } else { onLogin(loginData); }
+          await doLoginWithRestore();
         } else {
           // MetaMask account in local store — needs wallet signature
           setPendingLogin(loginData); setVerifyStep(true);
