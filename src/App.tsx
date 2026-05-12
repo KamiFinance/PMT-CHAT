@@ -453,33 +453,43 @@ export default function App() {
     });
   }, [isDemo]);
 
-  // Auto cloud backup — debounced 5s after any message/contact change.
+  // Auto cloud backup — immediate when new contact added, debounced 1.5s for messages.
+  const prevContactCount = useRef(0);
   useEffect(() => {
     if (!wallet?.address || isDemo) return;
     const password = sessionPasswordRef.current;
     if (!password) return; // no password in memory — skip
+    const realCount = contacts.filter((c: any) => !c.isAI).length;
+    if (realCount > prevContactCount.current) {
+      // New real contact added — back up immediately (critical for incognito)
+      prevContactCount.current = realCount;
+      runBackup(password).catch(() => {});
+      return;
+    }
+    prevContactCount.current = realCount;
     const timer = setTimeout(() => {
       runBackup(password).catch(() => { /* offline — silent */ });
-    }, 5000);
+    }, 1500);
     return () => clearTimeout(timer);
   }, [contacts, msgs, wallet?.address, wallet?.username, isDemo, runBackup]);
 
-  // On mobile: back up immediately when app goes to background or page is hidden.
-  // iOS kills Safari tabs quickly — the 5s debounce above may never fire.
+  // Flush backup when app goes to background or page is hidden/closed.
+  // Critical for incognito tabs (no persistent localStorage) and iOS (kills tabs fast).
   useEffect(() => {
     const flush = () => {
       const password = sessionPasswordRef.current;
       if (!password || !wallet?.address || isDemo) return;
       runBackup(password).catch(() => {});
     };
-    // visibilitychange fires when user switches apps on iOS
     const onHide = () => { if (document.hidden) flush(); };
-    // pagehide fires when iOS kills the tab
     document.addEventListener('visibilitychange', onHide);
     window.addEventListener('pagehide', flush);
+    // beforeunload fires on tab close in most browsers (including Chrome incognito)
+    window.addEventListener('beforeunload', flush);
     return () => {
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', flush);
     };
   }, [wallet?.address, isDemo, runBackup]);
 
