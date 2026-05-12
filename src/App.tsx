@@ -1104,25 +1104,23 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   const handleWallet = useCallback((w: Wallet & { restoredContacts?: any[]; restoredMessages?: Record<string,any[]>; restoredProfile?: any; sessionPassword?: string }) => {
     // Write restored data to storage BEFORE setWallet so the accountKey useEffect
     // finds them and doesn't overwrite with AI_AGENT_CONTACT only
-    if (w.address && (w.restoredContacts?.length || w.restoredMessages)) {
+    if (w.address && w.restoredContacts !== undefined) {
       const ak = normalizeAddress(w.address);
-      if (w.restoredContacts?.length) storage.setContacts(ak, w.restoredContacts);
-      if (w.restoredMessages && Object.keys(w.restoredMessages).length) storage.setMsgs(ak, w.restoredMessages);
+      storage.setContacts(ak, w.restoredContacts.length ? w.restoredContacts : [AI_AGENT_CONTACT]);
+      if (w.restoredMessages) storage.setMsgs(ak, w.restoredMessages);
     }
     setWallet(w);
     walletRef.current = w;
     // Keep password in memory for auto cloud backup (never stored to localStorage)
     if (w.sessionPassword) sessionPasswordRef.current = w.sessionPassword;
-    // If cloud restore: seed contacts and messages
-    if (w.restoredContacts?.length) {
-      // Always ensure AI agent contact is present after restore
+    // Backup is source of truth — always apply restored data when provided
+    if (w.restoredContacts !== undefined) {
       const hasAI = w.restoredContacts.some((c: any) => c.isAI);
-      setContacts(hasAI ? w.restoredContacts : [AI_AGENT_CONTACT, ...w.restoredContacts]);
-      // Restore pmt_profile_{addr} keys so contact avatars/bios are available immediately
-      w.restoredContacts.forEach((ct: any) => {
-        if (!ct.address || ct.isAI) return;
-        // Groups: skip pmt_profile (all data is in the contact object itself)
-        if (ct.isGroup) return;
+      const ctx = hasAI ? w.restoredContacts : [AI_AGENT_CONTACT, ...w.restoredContacts];
+      setContacts(ctx);
+      // Restore contact profile cache
+      ctx.forEach((ct: any) => {
+        if (!ct.address || ct.isAI || ct.isGroup) return;
         try {
           const key = `pmt_profile_${ct.address.toLowerCase()}`;
           const existing = JSON.parse(localStorage.getItem(key) ?? '{}');
@@ -1136,13 +1134,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         } catch { /* ignore */ }
       });
     }
-    if (w.restoredMessages && Object.keys(w.restoredMessages).length) {
+    if (w.restoredMessages !== undefined) {
       setMsgs(w.restoredMessages as MsgsMap);
     }
     if (w.restoredProfile) {
       setProfile(w.restoredProfile as Profile);
-      profileRef.current = w.restoredProfile as Profile;
-      // Also save own profile to pmt_profile_{addr} for cross-component access
       if (w.address) {
         try {
           localStorage.setItem(`pmt_profile_${w.address.toLowerCase()}`,

@@ -65,9 +65,11 @@ export default function LoginScreen({onLogin,onBack}){
     if(!password)return setErr('Enter your password');
     setLoading(true);setErr(null);
     try{
-      const key='pmt_account_'+username.trim().toLowerCase();
+      const uname=username.trim().toLowerCase();
+
+      // Step 1: Try local account for quick password verification
+      const key='pmt_account_'+uname;
       let stored=localStorage.getItem(key);
-      // Also try address-keyed lookup (MetaMask accounts stored by address, not username)
       if(!stored){
         try{
           const sess=JSON.parse(localStorage.getItem('pmt_session')||'{}');
@@ -75,154 +77,69 @@ export default function LoginScreen({onLogin,onBack}){
         }catch{}
       }
 
+      let privateKey='', address='';
+
       if(stored){
-        // Fast path: local account exists
         const account=JSON.parse(stored);
         const ok=await PMTAuth.verifyPassword(password,account.passwordHash,account.passwordSalt);
-        if(!ok){
-          // Local verify failed — if no encryptedWallet the account is corrupted, try cloud backup
-          if(!account.encryptedWallet){
-            localStorage.removeItem('pmt_account_'+username.trim().toLowerCase());
-            if(account.address) localStorage.removeItem('pmt_account_'+account.address.toLowerCase());
-            setErr('Checking cloud backup…');
-            let bkFix=null, bkErr='';
-            try { bkFix=await loadCloudBackup(username.trim(),password); }
-            catch(e:any){ bkErr=e.message||''; }
-            if(!bkFix){
-              setLoading(false);
-              return setErr(bkErr==='WRONG_PASSWORD'||bkErr===''?'Incorrect password. Please try again.':'Account found but backup could not be loaded. Check your password.');
-            }
-            const{wallet:wFix,contacts:cFix,messages:mFix,profile:pFix}=bkFix;
-            if(!wFix?.privateKey||wFix.privateKey==='metamask'){setLoading(false);return setErr('Incorrect password. Please try again.');}
-            const{hash:phFix,salt:psFix}=await PMTAuth.hashPassword(password);
-            const ewFix=await PMTAuth.encryptWallet({address:wFix.address,privateKey:wFix.privateKey??''},password);
-            const fixed={username:username.trim().toLowerCase(),address:wFix.address,passwordHash:phFix,passwordSalt:psFix,encryptedWallet:ewFix};
-            localStorage.setItem('pmt_account_'+username.trim().toLowerCase(),JSON.stringify(fixed));
-            localStorage.setItem('pmt_account_'+wFix.address.toLowerCase(),JSON.stringify(fixed));
-            // Must set pmt_session so sendETH reads correct address after login
-            localStorage.setItem('pmt_session',JSON.stringify({username:username.trim().toLowerCase(),address:wFix.address}));
-            sessionStorage.setItem('pmt_pk_'+wFix.address.toLowerCase(),wFix.privateKey??''); localStorage.setItem('pmt_pk_'+wFix.address.toLowerCase(),wFix.privateKey??'');
-            setLoading(false);
-            onLogin({address:wFix.address,privateKey:wFix.privateKey??'',balance:'0.0000',network:'PMTchain',
-              username:username.trim().toLowerCase(),sessionPassword:password,
-              restoredContacts:cFix??[],restoredMessages:mFix??{},restoredProfile:pFix??{}});
-            return;
+        if(ok && account.encryptedWallet){
+          // Local verify passed — decrypt pk directly
+          const wd=await PMTAuth.decryptWallet(account.encryptedWallet,password);
+          privateKey=wd.privateKey??'';
+          address=wd.address;
+        } else if(!account.encryptedWallet||!ok){
+          // Corrupted or no wallet — fall through to cloud restore
+          if(account.address){
+            localStorage.removeItem('pmt_account_'+uname);
+            localStorage.removeItem('pmt_account_'+account.address.toLowerCase());
           }
-          setLoading(false);return setErr('Incorrect password. Please try again.');
-        }
-        // Check if this account has wallet data we can decrypt
-        if(!account.encryptedWallet){
-          if(account.isMetaMask){
-            setErr('This account uses wallet login. Please use "Connect Wallet" to sign in.');
-          } else {
-            // Internal account without encrypted wallet (old format or migration issue)
-            // Fall through to cloud restore which may have the wallet data
-            setErr('Checking cloud backup…');
-            const backup2 = await loadCloudBackup(username.trim(), password).catch(()=>null);
-            if(backup2?.wallet?.privateKey && backup2.wallet.privateKey !== 'metamask'){
-              const rd2={address:backup2.wallet.address,privateKey:backup2.wallet.privateKey,
-                balance:'0.0000',network:'PMTchain',username:account.username,
-                sessionPassword:password,
-                restoredContacts:backup2.contacts??[],
-                restoredMessages:backup2.messages??{},
-                restoredProfile:backup2.profile??{}};
-              sessionStorage.setItem('pmt_pk_'+backup2.wallet.address.toLowerCase(), backup2.wallet.privateKey); localStorage.setItem('pmt_pk_'+backup2.wallet.address.toLowerCase(), backup2.wallet.privateKey);
-              onLogin(rd2);
-            } else {
-              setErr('Account found but wallet data is incomplete. Please use "Create Wallet" to set up a new account.');
-            }
-          }
-          setLoading(false); return;
-        }
-        const walletData=await PMTAuth.decryptWallet(account.encryptedWallet,password);
-        localStorage.setItem('pmt_session',JSON.stringify({username:account.username,address:account.address}));
-        // Internal wallet (created/imported in-app): has privateKey, skip external verify
-        const loginData={address:walletData.address,privateKey:walletData.privateKey,
-          balance:'0.0000',network:'PMTchain',username:account.username,sessionPassword:password};
-
-        // Check local contacts using the CORRECT storage key: pmt_contacts_user_${addr}
-        const { storage: stor } = await import('../../lib/storage');
-        const localKey = `user_${walletData.address.toLowerCase()}`;
-        const localCtx = stor.getContacts(localKey);
-        const hasRealContacts = localCtx.filter((c:any) => !c.isAI).length > 0;
-        const localProfile = localStorage.getItem(`pmt_profile_${walletData.address.toLowerCase()}`);
-        const hasProfile = localProfile && JSON.parse(localProfile||'{}').name;
-
-        const doLogin = async () => {
-          // If local has real data, use it — no need to hit Redis (fast)
-          if (hasRealContacts && hasProfile) { onLogin(loginData); return; }
-          // Otherwise load backup for missing pieces
-          try {
-            const bk = await loadCloudBackup(username.trim(), password);
-            if (bk) {
-              const useContacts = hasRealContacts ? undefined : (bk.contacts ?? []);
-              const useMessages = bk.messages ?? {};
-              const useProfile  = hasProfile ? undefined : (bk.profile ?? {});
-              onLogin({...loginData,
-                ...(useContacts !== undefined ? {restoredContacts: useContacts} : {}),
-                restoredMessages: useMessages,
-                ...(useProfile  !== undefined ? {restoredProfile:  useProfile}  : {})});
-            } else {
-              onLogin(loginData);
-            }
-          } catch {
-            onLogin(loginData);
-          }
-        };
-
-        if(walletData.privateKey && walletData.privateKey !== 'metamask'){
-          Object.keys(sessionStorage).filter(k => k.startsWith('pmt_pk_')).forEach(k => sessionStorage.removeItem(k));
-          sessionStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey); localStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey);
-          await doLogin();
-        } else if(!walletData.privateKey || walletData.privateKey === ''){
-          await doLogin();
-        } else {
-          // MetaMask account in local store — needs wallet signature
-          setPendingLogin(loginData); setVerifyStep(true);
-        }
-      } else {
-        // Cloud restore: account not on this device — try IPFS backup
-        setErr('Checking cloud backup…');
-        const backup = await loadCloudBackup(username.trim(), password);
-        if(!backup) return setErr('Account not found. Check your username or create a new wallet.');
-        const { wallet: w, contacts, messages, profile } = backup;
-        // Use the canonical salt from Redis so future backups produce the same passwordHash
-        const canonicalSalt = (backup as any)._canonicalSalt;
-        const canonicalHash = (backup as any)._passwordHash;
-        const { hash: passwordHash, salt: passwordSalt } = canonicalSalt
-          ? { hash: canonicalHash, salt: canonicalSalt }
-          : await PMTAuth.hashPassword(password);
-        const encryptedWallet = await PMTAuth.encryptWallet({ address: w.address, privateKey: w.privateKey ?? '' }, password);
-        // Store under BOTH username key and address key for reliable lookup
-        const acctData = { username: username.trim().toLowerCase(), address: w.address, passwordHash, passwordSalt, encryptedWallet };
-        localStorage.setItem('pmt_account_'+username.trim().toLowerCase(), JSON.stringify(acctData));
-        localStorage.setItem('pmt_account_'+w.address.toLowerCase(), JSON.stringify(acctData));
-        localStorage.setItem('pmt_session', JSON.stringify({username: username.trim().toLowerCase(), address: w.address}));
-        const restoreData={ address: w.address, privateKey: w.privateKey ?? '', balance:'0.0000',
-          network:'PMTchain', username: username.trim().toLowerCase(),
-          sessionPassword: password,
-          restoredContacts: contacts ?? [],
-          restoredMessages: messages ?? {},
-          restoredProfile: profile ?? {} };
-        // Determine login path based on privateKey value
-        if(w.privateKey && w.privateKey !== 'metamask'){
-          // Internal wallet with real key — direct login
-          sessionStorage.setItem('pmt_pk_'+w.address.toLowerCase(), w.privateKey);
-          onLogin(restoreData);
-        } else if(!w.privateKey || w.privateKey === '') {
-          // Empty key: backup saved before key was persisted, but password was verified → trust them
-          // This is safe: they proved identity via username + correct password against Redis
-          onLogin(restoreData);
-        } else {
-          // privateKey === 'metamask' → external wallet, needs signature verification
-          setPendingLogin(restoreData); setVerifyStep(true);
+          stored=null;
         }
       }
-    }catch(e){
+
+      // Step 2: ALWAYS load from cloud backup (source of truth)
+      setErr('Restoring your account…');
+      const bk=await loadCloudBackup(uname,password);
+      if(!bk) throw new Error('NO_BACKUP');
+
+      const{wallet:w,contacts,messages,profile}=bk;
+
+      // Use cloud backup wallet if local decrypt didn't work
+      if(!privateKey){
+        if(!w?.privateKey||w.privateKey==='metamask'){
+          // External wallet login (rare path — normally via Connect Wallet button)
+          const restoreData={address:w.address,privateKey:'metamask',balance:'0.0000',
+            network:'PMTchain',username:uname,sessionPassword:password,
+            restoredContacts:contacts??[],restoredMessages:messages??{},restoredProfile:profile??{}};
+          setPendingLogin(restoreData);setVerifyStep(true);
+          setLoading(false);return;
+        }
+        privateKey=w.privateKey??'';
+        address=w.address;
+      }
+
+      // Save account locally for future fast-path verification
+      const{hash:ph,salt:ps}=await PMTAuth.hashPassword(password);
+      const ew=await PMTAuth.encryptWallet({address,privateKey},password);
+      const acctData={username:uname,address,passwordHash:ph,passwordSalt:ps,encryptedWallet:ew};
+      localStorage.setItem('pmt_account_'+uname,JSON.stringify(acctData));
+      localStorage.setItem('pmt_account_'+address.toLowerCase(),JSON.stringify(acctData));
+      localStorage.setItem('pmt_session',JSON.stringify({username:uname,address}));
+      sessionStorage.setItem('pmt_pk_'+address.toLowerCase(),privateKey);
+      localStorage.setItem('pmt_pk_'+address.toLowerCase(),privateKey);
+
+      // Step 3: Login with ALL data restored from backup
+      onLogin({address,privateKey,balance:'0.0000',network:'PMTchain',username:uname,
+        sessionPassword:password,
+        restoredContacts:contacts??[],
+        restoredMessages:messages??{},
+        restoredProfile:profile??{}});
+
+    }catch(e:any){
       if(e.message==='WRONG_PASSWORD'||e.message?.includes('decrypt')||e.name==='OperationError')
         setErr('Incorrect password. Please try again.');
       else if(e.message==='NO_BACKUP')
-        setErr('Account found but no backup saved yet. Log in on your other device first, then try here again.');
+        setErr('Account not found. Check your username, or create a new wallet.');
       else setErr('Login failed: '+e.message);
     }finally{setLoading(false);}
   };
