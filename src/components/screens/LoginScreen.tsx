@@ -106,12 +106,18 @@ export default function LoginScreen({onLogin,onBack}){
         if(bk){
           // Use backup wallet if local decrypt didn't work
           if(!privateKey){
-            if(!bk.wallet?.privateKey||bk.wallet.privateKey==='metamask'){
+            if(bk.wallet?.privateKey==='metamask'){
+              // Explicitly an external wallet — needs signature verification
               const restoreData={address:bk.wallet.address,privateKey:'metamask',balance:'0.0000',
                 network:'PMTchain',username:uname,sessionPassword:password,
                 restoredContacts:bk.contacts??[],restoredMessages:bk.messages??{},restoredProfile:bk.profile??{}};
               setPendingLogin(restoreData);setVerifyStep(true);
               setLoading(false);return;
+            }
+            if(!bk.wallet?.privateKey){
+              // Incomplete backup — no private key. Show error, not verify screen.
+              setLoading(false);
+              return setErr('Your backup is missing wallet key data. Please log in from your original device first, or re-create your wallet.');
             }
             privateKey=bk.wallet.privateKey??'';
             address=bk.wallet.address;
