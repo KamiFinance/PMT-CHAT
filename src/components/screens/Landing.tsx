@@ -90,7 +90,6 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   const [mobile,        setMobile]        = useState(false);
   const [mobileWcUri,   setMobileWcUri]   = useState<string|null>(null);
   const mobileQrRef                       = useRef<HTMLCanvasElement>(null);
-  const mobileProviderRef                 = useRef<any>(null);
   const [inWalletBrowser, setInWalletBrowser] = useState(false);
   const [walletBrowserName, setWalletBrowserName] = useState('');
 
@@ -98,35 +97,7 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     getWCProvider().catch(() => {}); // pre-warm immediately
     const mob = isMobile();
     setMobile(mob);
-    // On mobile: proactively start a WC session so QR is ready before user taps
-    if (mob) {
-      getWCProvider().then(p => {
-        mobileProviderRef.current = p;
-        p.once('display_uri', (uri: string) => {
-          setMobileWcUri(uri);
-          setTimeout(() => {
-            if (mobileQrRef.current) {
-              QRCode.toCanvas(mobileQrRef.current, uri, {
-                width: 220, margin: 1, color: { dark: '#000000', light: '#ffffff' }
-              }).catch(() => {});
-            }
-          }, 50);
-        });
-        // Don't await — let it run in background
-        p.connect().then(async () => {
-          // Auto-complete if session establishes while grid is open
-          const accounts = p.accounts || [];
-          if (!accounts.length) return;
-          const address = accounts[0], chainId = p.chainId;
-          const chainHex = chainId ? '0x'+chainId.toString(16) : '0x1';
-          const netNames: Record<string,string> = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
-          let balEth = '0.0000';
-          try { const h = await p.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h as string,16)/1e18).toFixed(4); } catch {}
-          setShowMobile(false); setMobileWcUri(null);
-          onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
-        }).catch(() => {});
-      }).catch(() => {});
-    }
+
     // Detect any available wallet via EIP-6963
     getWalletProvider().then(eth => {
       if (!eth) return;
@@ -179,26 +150,19 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   };
 
   // ── YELLOW BUTTON: tap wallet → WC starts → wallet opens to approval ──────
-  // Called when user taps a wallet icon — URI already ready from startMobileWC
-  const connectViaWallet = (schemeTemplate) => {
+  const connectViaWallet = (schemeTemplate: (u:string)=>string) => {
     if (!mobileWcUri) return;
     setShowMobile(false);
     setWaitingApproval(true);
-    // Delay 600ms so session proposal reaches relay before MetaMask opens
-    setTimeout(() => {
-      window.location.href = schemeTemplate(mobileWcUri);
-    }, 600);
+    window.location.href = schemeTemplate(mobileWcUri);
   };
 
-  // If background session already generated a URI, QR shows instantly
-  // Otherwise restart (user opened grid before background init completed)
   const startMobileWC = async () => {
-    if (mobileWcUri) return; // already ready — QR will show immediately
+    setMobileWcUri(null);
     setErr(null);
     try {
-      resetWCProvider();
+      // Re-use pre-warmed provider (WS already connected = fast URI generation)
       const provider = await getWCProvider();
-      mobileProviderRef.current = provider;
       provider.once('display_uri', (uri: string) => {
         setMobileWcUri(uri);
         setTimeout(() => {
@@ -209,7 +173,41 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
           }
         }, 50);
       });
-      provider.connect().catch(() => {});
+      // Auto-connect when user returns from wallet app
+      const onVisible = () => {
+        if (document.hidden) return;
+        document.removeEventListener('visibilitychange', onVisible);
+        setTimeout(async () => {
+          const accs = provider.accounts || [];
+          if (!accs.length) return;
+          const address = accs[0], chainId = provider.chainId;
+          const chainHex = chainId ? '0x'+chainId.toString(16) : '0x1';
+          const nets: Record<string,string> = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
+          let bal = '0.0000';
+          try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); bal=(parseInt(h as string,16)/1e18).toFixed(4); } catch {}
+          setWaitingApproval(false); setMobileWcUri(null);
+          onMetaMask({address, balance:bal, network:nets[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
+        }, 800);
+      };
+      document.addEventListener('visibilitychange', onVisible);
+      provider.connect()
+        .then(async () => {
+          document.removeEventListener('visibilitychange', onVisible);
+          const accs = provider.accounts || [];
+          if (!accs.length) return;
+          const address = accs[0], chainId = provider.chainId;
+          const chainHex = chainId ? '0x'+chainId.toString(16) : '0x1';
+          const nets: Record<string,string> = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
+          let bal = '0.0000';
+          try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); bal=(parseInt(h as string,16)/1e18).toFixed(4); } catch {}
+          setWaitingApproval(false); setShowMobile(false); setMobileWcUri(null);
+          onMetaMask({address, balance:bal, network:nets[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
+        })
+        .catch(e => {
+          document.removeEventListener('visibilitychange', onVisible);
+          const msg = (e as any).message||String(e);
+          if (!msg.includes('reset')&&!msg.includes('closed')) setErr('WalletConnect: '+msg);
+        });
     } catch(e: any) {
       setErr('WalletConnect: '+(e.message||String(e)));
     }
