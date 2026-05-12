@@ -20,13 +20,13 @@ const WALLET_ICON = {
 
 // 8 wallets with native WC app schemes (open approval screen, not website)
 const WALLETS = [
-  { id:'metamask', name:'MetaMask', scheme: u => `https://metamask.app.link/wc?uri=${encodeURIComponent(u)}` },
-  { id:'trust',    name:'Trust',    scheme: u => `https://link.trustwallet.com/wc?uri=${encodeURIComponent(u)}` },
+  { id:'metamask', name:'MetaMask', scheme: u => `metamask://wc?uri=${encodeURIComponent(u)}` },
+  { id:'trust',    name:'Trust',    scheme: u => `trust://wc?uri=${encodeURIComponent(u)}` },
   { id:'coinbase', name:'Coinbase', scheme: u => `cbwallet://wc?uri=${encodeURIComponent(u)}` },
   { id:'rainbow',  name:'Rainbow',  scheme: u => `rainbow://wc?uri=${encodeURIComponent(u)}` },
   { id:'phantom',  name:'Phantom',  scheme: u => `phantom://wc?uri=${encodeURIComponent(u)}` },
   { id:'imtoken',  name:'imToken',  scheme: u => `imtokenv2://wc?uri=${encodeURIComponent(u)}` },
-  { id:'safepal',  name:'SafePal',  scheme: u => `https://safepal.com/wc?uri=${encodeURIComponent(u)}` },
+  { id:'safepal',  name:'SafePal',  scheme: u => `safepalwallet://wc?uri=${encodeURIComponent(u)}` },
   { id:'tangem',   name:'Tangem',   scheme: u => `tangem://wc?uri=${encodeURIComponent(u)}` },
 ];
 
@@ -88,6 +88,8 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   const [wcUri,         setWcUri]         = useState(null);    // desktop WC QR modal (blue)
   const [wcConnecting,  setWcConnecting]  = useState(false);
   const [mobile,        setMobile]        = useState(false);
+  const [mobileWcUri,   setMobileWcUri]   = useState(null);
+  const mobileQrRef = useRef(null);
   const [inWalletBrowser, setInWalletBrowser] = useState(false);
   const [walletBrowserName, setWalletBrowserName] = useState('');
 
@@ -159,6 +161,7 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     let balEth = '0.0000';
     try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h,16)/1e18).toFixed(4); } catch {}
     sessionStorage.removeItem('pmt_wc_pending');
+    setMobileWcUri(null);
     onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName});
   };
 
@@ -172,6 +175,14 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
 
       provider.once('display_uri', (uri) => {
         sessionStorage.setItem('pmt_wc_pending', '1');
+        // Store URI for QR fallback
+        setMobileWcUri(uri);
+        setTimeout(() => {
+          if (mobileQrRef.current) {
+            QRCode.toCanvas(mobileQrRef.current, uri, { width: 180, margin: 1, color: { dark: '#000', light: '#fff' } }).catch(()=>{});
+          }
+        }, 100);
+        // Open wallet app via custom scheme (silent fail if not installed)
         window.location.href = schemeTemplate(uri);
 
         // Auto-connect: poll every 800ms after deep-link navigation
@@ -387,8 +398,17 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
               ))}
             </div>
             <p style={{fontSize:11,color:'var(--muted)',textAlign:'center',margin:'10px 0 4px',lineHeight:1.5}}>
-              After approving in your wallet, come back to this page.
+              Don't have the app? Use the QR code below with any wallet.
             </p>
+            {mobileWcUri && (
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'8px 0'}}>
+                <canvas ref={mobileQrRef} style={{borderRadius:10,display:'block'}}/>
+                <button onClick={()=>{navigator.clipboard?.writeText(mobileWcUri);}}
+                  style={{fontSize:11,color:'var(--accent)',background:'none',border:'none',cursor:'pointer',fontFamily:'var(--mono)'}}>
+                  Copy WC URI
+                </button>
+              </div>
+            )}
             <button onClick={()=>setShowMobile(false)}
               style={{width:'100%',padding:'9px',background:'transparent',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:12}}>
               Cancel
