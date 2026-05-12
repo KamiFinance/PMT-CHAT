@@ -170,18 +170,12 @@ export default function App() {
     if (!w?.username || isDemo) return false;
     // Connect Wallet users (MetaMask/WalletConnect) never need password — they sign via wallet
     if ((w as any).isMetaMask || w.privateKey === 'metamask') return false;
-    // External wallet users: if any EIP-6963 wallet is available, never ask for password
-    if (typeof window !== 'undefined' && (window as any).ethereum) return false;
-    // Look up account by username OR address (Connect Wallet stores by address only)
+    // Look up account by username OR address
     const accountRaw = localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`)
       || localStorage.getItem(`pmt_account_${w.address?.toLowerCase()}`);
-    if (!accountRaw) {
-      // On mobile (no MetaMask), user with address+username likely has a created wallet
-      return !!w.address;
-    }
+    if (!accountRaw) return !!w.address; // mobile without saved account = needs pk
     try {
       const account = JSON.parse(accountRaw);
-      if (account.address?.toLowerCase() !== w.address?.toLowerCase()) return false;
       if (account.isMetaMask) return false; // Connect Wallet — never needs password
       if (!account.encryptedWallet || account.needsReimport) return false;
     } catch { return false; }
