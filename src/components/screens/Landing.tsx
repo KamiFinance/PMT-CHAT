@@ -153,28 +153,43 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     setWaitingApproval(true);
     setErr(null);
     try {
-      resetWCProvider();
+      // Only reset if already connected — reuse pre-warmed provider if fresh
+      const existing = await getWCProvider().catch(() => null);
+      if (existing?.accounts?.length) resetWCProvider();
       const provider = await getWCProvider();
-      provider.once('display_uri', (uri) => {
-        window.location.href = schemeTemplate(uri);
-      });
-      provider.connect().then(async () => {
-        setWaitingApproval(false);
+
+      const finish = async () => {
         const accounts = provider.accounts || [];
-        if (!accounts.length) { setErr('No accounts found.'); resetWCProvider(); return; }
-        const address  = accounts[0];
-        const chainId  = provider.chainId;
-        const chainHex = chainId ? '0x' + chainId.toString(16) : '0x1';
+        if (!accounts.length) return;
+        setWaitingApproval(false);
+        const address = accounts[0], chainId = provider.chainId;
+        const chainHex = chainId ? '0x'+chainId.toString(16) : '0x1';
         const netNames = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
         let balEth = '0.0000';
         try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h,16)/1e18).toFixed(4); } catch {}
         onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
-      }).catch(e => {
-        setWaitingApproval(false);
-        resetWCProvider();
-        const msg = e.message||String(e);
-        if (!msg.includes('reset') && !msg.includes('closed')) setErr('Connection failed: '+msg);
+      };
+
+      // When user returns from wallet app — check if approved
+      const onVisible = () => {
+        if (document.hidden) return;
+        document.removeEventListener('visibilitychange', onVisible);
+        setTimeout(finish, 1000);
+      };
+      document.addEventListener('visibilitychange', onVisible);
+
+      provider.once('display_uri', (uri) => {
+        window.location.href = schemeTemplate(uri);
       });
+
+      provider.connect()
+        .then(finish)
+        .catch(e => {
+          document.removeEventListener('visibilitychange', onVisible);
+          setWaitingApproval(false); resetWCProvider();
+          const msg = e.message||String(e);
+          if (!msg.includes('reset') && !msg.includes('closed')) setErr('Connection failed: '+msg);
+        });
     } catch(e) {
       setWaitingApproval(false); resetWCProvider();
       setErr('WalletConnect: '+(e.message||String(e)));
@@ -351,24 +366,6 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
                 Approve the connection in your wallet, then come back here.
               </p>
             </div>
-            <button
-              onClick={async()=>{
-                try{
-                  const p=await getWCProvider();
-                  const accs=p.accounts||await p.request({method:'eth_accounts'}).catch(()=>[]);
-                  if(accs&&accs.length>0){
-                    setWaitingApproval(false);
-                    const addr=accs[0],cid=p.chainId,hex=cid?'0x'+cid.toString(16):'0x1';
-                    const nets={'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0x46df2':'PMTchain'};
-                    let bal='0.0000';try{const h=await p.request({method:'eth_getBalance',params:[addr,'latest']});bal=(parseInt(h,16)/1e18).toFixed(4);}catch{}
-                    onMetaMask({address:addr,balance:bal,network:nets[hex]||('Chain '+cid),chainId:hex,isMetaMask:true,walletName:'WalletConnect'});
-                  }else{setErr('Not connected yet — approve in your wallet first.');}
-                }catch(e){setErr('Check failed: '+(e.message||String(e)));}
-              }}
-              style={{width:'100%',padding:'11px',background:'var(--accent)',border:'none',
-                borderRadius:10,color:'#0a0c14',fontWeight:700,fontSize:14,cursor:'pointer'}}>
-              ✓ I've approved — connect now
-            </button>
             <button onClick={()=>{setWaitingApproval(false);resetWCProvider();}}
               style={{padding:'8px 18px',background:'transparent',border:'1px solid var(--border)',
                 borderRadius:8,color:'var(--muted)',fontSize:12,cursor:'pointer'}}>
