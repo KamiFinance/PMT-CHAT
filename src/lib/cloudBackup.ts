@@ -1,4 +1,16 @@
 // @ts-nocheck
+// Cloud backup — encrypt full account data
+
+/**
+ * Derive a deterministic backup password for Connect Wallet users.
+ * Uses wallet address + username so it's unique per user and reproducible
+ * on any device without requiring the user to enter anything.
+ * Security: backup is also behind server auth (passwordHash check).
+ */
+export function deriveWalletBackupKey(address: string, username: string): string {
+  return `pmt-wbk-v1:${address.toLowerCase()}:${username.toLowerCase().trim()}`;
+}
+
 // Cloud backup — encrypt full account data → store directly in Redis via /api/auth
 // No Pinata/IPFS needed. Zero-knowledge: password never leaves device.
 

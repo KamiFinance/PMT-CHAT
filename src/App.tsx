@@ -25,6 +25,7 @@ import { saveCloudBackup } from './lib/cloudBackup';
 import { ethers } from 'ethers';
 
 import { getWCProvider, resetWCProvider } from './lib/walletconnect';
+import { deriveWalletBackupKey } from './lib/cloudBackup';
 import { hashMessage, broadcastMessage } from './lib/pmtchain';
 import { useInboxPoll } from './hooks/useInboxPoll';
 import { AI_AGENT_ADDRESS, AI_AGENT_CONTACT } from './constants/ai';
@@ -1192,7 +1193,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
               } catch {}
 
               if (savedAcct || sessMatch) {
-                // Returning user — set wallet then show restore prompt for backup
+                // Returning user — auto-restore backup silently in background
                 try {
                   const acct = savedAcct ? JSON.parse(savedAcct) : null;
                   const username = acct?.username || addr.slice(0,8);
@@ -1202,8 +1203,18 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                   localStorage.setItem('pmt_session', JSON.stringify({ username, address: w.address }));
                   setScreen('chat');
                   if (window.innerWidth < 768) setMobileSidebarOpen(true);
-                  // Show restore prompt so user can load their backup
-                  setShowWalletRestore(true);
+                  // Auto-restore backup in background using wallet-derived key
+                  const backupKey = deriveWalletBackupKey(w.address, username);
+                  import('./lib/cloudBackup').then(({ loadCloudBackup }) =>
+                    loadCloudBackup(username, backupKey).then(backup => {
+                      if (!backup) return;
+                      sessionPasswordRef.current = backupKey;
+                      handleWallet({ ...fullWallet, sessionPassword: backupKey,
+                        restoredContacts: backup.contacts ?? [],
+                        restoredMessages: backup.messages ?? {},
+                        restoredProfile:  backup.profile  ?? {} });
+                    }).catch(() => {})
+                  );
                 } catch {
                   setWallet(w); walletRef.current = w; setScreen('metamask_setup');
                 }
@@ -1214,13 +1225,23 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                   .then(r => r.ok ? r.json() : null)
                   .then(data => {
                     if (data?.username) {
-                      // Existing account found on server — show restore prompt
+                      // Existing account found on server — auto-restore in background
                       const fw = { ...w, username: data.username };
                       setWallet(fw); walletRef.current = fw;
                       localStorage.setItem('pmt_session', JSON.stringify({ username: data.username, address: w.address }));
                       setScreen('chat');
                       if (window.innerWidth < 768) setMobileSidebarOpen(true);
-                      setShowWalletRestore(true);
+                      const backupKey2 = deriveWalletBackupKey(w.address, data.username);
+                      import('./lib/cloudBackup').then(({ loadCloudBackup }) =>
+                        loadCloudBackup(data.username, backupKey2).then(backup => {
+                          if (!backup) return;
+                          sessionPasswordRef.current = backupKey2;
+                          handleWallet({ ...fw, sessionPassword: backupKey2,
+                            restoredContacts: backup.contacts ?? [],
+                            restoredMessages: backup.messages ?? {},
+                            restoredProfile:  backup.profile  ?? {} });
+                        }).catch(() => {})
+                      );
                     } else {
                       // Truly new user
                       setScreen('metamask_setup');
@@ -1268,78 +1289,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       </div>
       {showProfile && <ProfileModal profile={{ ...profile, address: wallet?.address ?? null }} onClose={() => setShowProfile(false)} onSave={saveProfile} />}
 
-      {/* Wallet backup restore prompt — shown after wallet connect for returning users */}
-      {showWalletRestore && (
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999,padding:16}}>
-          <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360,display:'flex',flexDirection:'column',gap:16}}>
-            <div style={{fontSize:18,fontWeight:700,color:'var(--text)'}}>Restore your backup</div>
-            <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.5}}>
-              Enter your PMT-Chat password to restore your contacts and messages from backup.
-            </div>
-            <input
-              type="password"
-              placeholder="Your backup password"
-              value={walletRestorePwd}
-              autoFocus
-              onChange={e=>{setWalletRestorePwd(e.target.value);setWalletRestoreErr('');}}
-              onKeyDown={async e=>{
-                if(e.key==='Enter'&&walletRestorePwd) {
-                  setWalletRestoreLoading(true);setWalletRestoreErr('');
-                  try{
-                    const uname=(wallet?.username||'').toLowerCase();
-                    const {loadCloudBackup}=await import('./lib/cloudBackup');
-                    const backup=await loadCloudBackup(uname,walletRestorePwd);
-                    if(backup){
-                      sessionPasswordRef.current=walletRestorePwd;
-                      handleWallet({...wallet!,username:uname,sessionPassword:walletRestorePwd,
-                        restoredContacts:backup.contacts??[],
-                        restoredMessages:backup.messages??{},
-                        restoredProfile:backup.profile??{}});
-                    }
-                    setShowWalletRestore(false);setWalletRestorePwd('');
-                  }catch(err:any){
-                    setWalletRestoreErr(err.message==='WRONG_PASSWORD'?'Incorrect password. Please try again.':'Restore failed: '+(err.message||'unknown error'));
-                  }finally{setWalletRestoreLoading(false);}
-                }
-              }}
-              style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,
-                padding:'12px 14px',color:'var(--text)',fontSize:15,outline:'none',width:'100%'}}/>
-            {walletRestoreErr&&<div style={{fontSize:12,color:'var(--danger)',marginTop:-8}}>{walletRestoreErr}</div>}
-            <div style={{display:'flex',gap:10}}>
-              <button onClick={()=>{setShowWalletRestore(false);setWalletRestorePwd('');}}
-                style={{flex:1,padding:'11px',background:'var(--surface)',border:'1px solid var(--border)',
-                  borderRadius:10,color:'var(--text)',cursor:'pointer',fontSize:14}}>
-                Skip
-              </button>
-              <button
-                disabled={!walletRestorePwd||walletRestoreLoading}
-                onClick={async()=>{
-                  setWalletRestoreLoading(true);setWalletRestoreErr('');
-                  try{
-                    const uname=(wallet?.username||'').toLowerCase();
-                    const {loadCloudBackup}=await import('./lib/cloudBackup');
-                    const backup=await loadCloudBackup(uname,walletRestorePwd);
-                    if(backup){
-                      sessionPasswordRef.current=walletRestorePwd;
-                      handleWallet({...wallet!,username:uname,sessionPassword:walletRestorePwd,
-                        restoredContacts:backup.contacts??[],
-                        restoredMessages:backup.messages??{},
-                        restoredProfile:backup.profile??{}});
-                    }
-                    setShowWalletRestore(false);setWalletRestorePwd('');
-                  }catch(err:any){
-                    setWalletRestoreErr(err.message==='WRONG_PASSWORD'?'Incorrect password. Please try again.':'Restore failed: '+(err.message||'unknown error'));
-                  }finally{setWalletRestoreLoading(false);}
-                }}
-                style={{flex:2,padding:'11px',background:'var(--accent)',border:'none',
-                  borderRadius:10,color:'#0a0c14',fontWeight:700,cursor:'pointer',fontSize:14,
-                  opacity:(!walletRestorePwd||walletRestoreLoading)?0.5:1}}>
-                {walletRestoreLoading?'Restoring…':'Restore Backup'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Auto-restore runs silently in background — no modal needed */}
 
       {/* One-time backup password prompt — appears when session was restored but no cloud backup exists */}
       {showBackupPrompt && (

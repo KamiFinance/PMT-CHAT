@@ -3,11 +3,10 @@ import { now } from "../../lib/utils";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import Avatar from '../ui/Avatar';
-import { checkUsernameAvailable, saveCloudBackup } from '../../lib/cloudBackup';
+import { checkUsernameAvailable, saveCloudBackup, deriveWalletBackupKey } from '../../lib/cloudBackup';
 export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
   const [username,setUsername]=useState('');
-  const [pwd,setPwd]=useState('');
-  const [pwd2,setPwd2]=useState('');
+
   const [err,setErr]=useState('');
   const [saving,setSaving]=useState(false);
   const [checking,setChecking]=useState(false);
@@ -30,8 +29,6 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
   const save=async()=>{
     if(!username.trim()){setErr('Enter a username');return;}
     if(username.trim().length<3){setErr('Username must be at least 3 characters');return;}
-    if(pwd.length<6){setErr('Password must be at least 6 characters');return;}
-    if(pwd!==pwd2){setErr('Passwords do not match');return;}
     setSaving(true);
     try{
       // Check if username is already taken — but allow if it belongs to THIS wallet
@@ -68,7 +65,8 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
       // Save cloud backup using standard saveCloudBackup (same format as all other wallets)
       // For external wallets: privateKey is 'metamask' (handled by the wallet app)
       try {
-        await saveCloudBackup(username.trim(), pwd, {
+        const backupKey = deriveWalletBackupKey(wallet.address, username.trim());
+        await saveCloudBackup(username.trim(), backupKey, {
           wallet: { address: wallet.address, privateKey: 'metamask', username: username.trim() },
           contacts: [],
           messages: {},
@@ -76,7 +74,7 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
         });
       } catch { /* silent — local session still works, auto-backup will retry */ }
       // Pass password so App.tsx can run auto-backups (keeps contacts/messages synced)
-      onDone(username.trim(), pwd);
+      onDone(username.trim(), deriveWalletBackupKey(wallet.address, username.trim()));
     }catch(e){
       setErr('Failed to save: '+e.message);
     }
@@ -98,7 +96,7 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
             </span>
           </div>
           <div style={{fontSize:12,color:'var(--muted)',marginTop:8}}>
-            Create a username and password to enable encrypted messaging and account recovery.
+            Create a username to set up your PMT-Chat identity. Your account is secured by your wallet.
           </div>
         </div>
         <div>
@@ -109,25 +107,11 @@ export default function SetupMetaMaskFlow({wallet,onDone,onSkip}){
             </div>
           )}
           <input value={username} onChange={e=>{setUsername(e.target.value);setUsernameAvail(null);}}
-            placeholder="Choose a username" autoFocus
+            placeholder="Choose a username" autoFocus onKeyDown={e=>e.key==='Enter'&&save()}
             style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,
               padding:'10px 13px',color:'var(--text)',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
         </div>
-        <div>
-          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>PASSWORD</div>
-          <input type="password" value={pwd} onChange={e=>setPwd(e.target.value)}
-            placeholder="Create a password"
-            style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,
-              padding:'10px 13px',color:'var(--text)',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
-        </div>
-        <div>
-          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>CONFIRM PASSWORD</div>
-          <input type="password" value={pwd2} onChange={e=>setPwd2(e.target.value)}
-            placeholder="Confirm password"
-            onKeyDown={e=>e.key==='Enter'&&save()}
-            style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:9,
-              padding:'10px 13px',color:'var(--text)',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
-        </div>
+
         {err&&<div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',
           borderRadius:8,padding:'10px 14px',fontSize:13,color:'#f87171'}}>{err}</div>}
         <button onClick={save} disabled={saving}
