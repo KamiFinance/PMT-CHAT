@@ -152,11 +152,14 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   // ── YELLOW BUTTON: tap wallet → WC starts → wallet opens to approval ──────
   // Called when user taps a wallet icon — URI already ready from startMobileWC
   const connectViaWallet = (schemeTemplate) => {
-    if (mobileWcUri) {
-      setShowMobile(false);
-      setWaitingApproval(true);
-      window.location.href = schemeTemplate(mobileWcUri);
-    }
+    if (!mobileWcUri) return;
+    setShowMobile(false);
+    setWaitingApproval(true);
+    // Keep JS alive with a no-op interval so WebSocket stays connected
+    // when iOS puts Safari in background after opening MetaMask
+    const keepAlive = setInterval(() => {}, 500);
+    setTimeout(() => clearInterval(keepAlive), 60000);
+    window.location.href = schemeTemplate(mobileWcUri);
   };
 
   // Start WC session proactively when wallet grid opens
@@ -164,7 +167,9 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     setMobileWcUri(null);
     setErr(null);
     try {
-      resetWCProvider();
+      // Use pre-warmed provider — only reset if already has connected accounts
+      const existing = await getWCProvider().catch(()=>null);
+      if (existing?.accounts?.length) resetWCProvider();
       const provider = await getWCProvider();
 
       const finish = async () => {
@@ -198,7 +203,7 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
               width: 200, margin: 1, color: { dark: '#000000', light: '#ffffff' }
             }).catch(() => {});
           }
-        }, 100);
+        }, 50);
       });
 
       provider.connect()
