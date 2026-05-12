@@ -97,26 +97,43 @@ export default function LoginScreen({onLogin,onBack}){
         }
       }
 
-      // Step 2: ALWAYS load from cloud backup (source of truth)
+      // Step 2: Load from cloud backup (source of truth for contacts/messages/profile)
       setErr('Restoring your account…');
-      const bk=await loadCloudBackup(uname,password);
-      if(!bk) throw new Error('NO_BACKUP');
-
-      const{wallet:w,contacts,messages,profile}=bk;
-
-      // Use cloud backup wallet if local decrypt didn't work
-      if(!privateKey){
-        if(!w?.privateKey||w.privateKey==='metamask'){
-          // External wallet login (rare path — normally via Connect Wallet button)
-          const restoreData={address:w.address,privateKey:'metamask',balance:'0.0000',
-            network:'PMTchain',username:uname,sessionPassword:password,
-            restoredContacts:contacts??[],restoredMessages:messages??{},restoredProfile:profile??{}};
-          setPendingLogin(restoreData);setVerifyStep(true);
-          setLoading(false);return;
+      let contacts: any[]=[], messages: any={}, profile: any={};
+      let backupLoaded=false;
+      try {
+        const bk=await loadCloudBackup(uname,password);
+        if(bk){
+          // Use backup wallet if local decrypt didn't work
+          if(!privateKey){
+            if(!bk.wallet?.privateKey||bk.wallet.privateKey==='metamask'){
+              const restoreData={address:bk.wallet.address,privateKey:'metamask',balance:'0.0000',
+                network:'PMTchain',username:uname,sessionPassword:password,
+                restoredContacts:bk.contacts??[],restoredMessages:bk.messages??{},restoredProfile:bk.profile??{}};
+              setPendingLogin(restoreData);setVerifyStep(true);
+              setLoading(false);return;
+            }
+            privateKey=bk.wallet.privateKey??'';
+            address=bk.wallet.address;
+          }
+          contacts=bk.contacts??[];
+          messages=bk.messages??{};
+          profile=bk.profile??{};
+          backupLoaded=true;
+        } else if(!privateKey) {
+          // No backup and no local account — user truly not found
+          throw new Error('NO_BACKUP');
         }
-        privateKey=w.privateKey??'';
-        address=w.address;
+      } catch(bkErr: any) {
+        if(bkErr.message==='WRONG_PASSWORD') throw bkErr;
+        if(bkErr.message==='NO_BACKUP' && !privateKey) throw bkErr;
+        // NO_BACKUP but we have local wallet → login with local wallet, empty contacts
+        // (new account or backup not yet saved)
+        if(!privateKey) throw bkErr;
+        // else: continue with local wallet data, empty contacts
       }
+
+      if(!privateKey||!address) throw new Error('NO_BACKUP');
 
       // Save account locally for future fast-path verification
       const{hash:ph,salt:ps}=await PMTAuth.hashPassword(password);
@@ -128,18 +145,18 @@ export default function LoginScreen({onLogin,onBack}){
       sessionStorage.setItem('pmt_pk_'+address.toLowerCase(),privateKey);
       localStorage.setItem('pmt_pk_'+address.toLowerCase(),privateKey);
 
-      // Step 3: Login with ALL data restored from backup
+      // Step 3: Login with ALL data restored from backup (or empty if no backup yet)
       onLogin({address,privateKey,balance:'0.0000',network:'PMTchain',username:uname,
         sessionPassword:password,
-        restoredContacts:contacts??[],
-        restoredMessages:messages??{},
-        restoredProfile:profile??{}});
+        restoredContacts:contacts,
+        restoredMessages:messages,
+        restoredProfile:profile});
 
     }catch(e:any){
       if(e.message==='WRONG_PASSWORD'||e.message?.includes('decrypt')||e.name==='OperationError')
         setErr('Incorrect password. Please try again.');
       else if(e.message==='NO_BACKUP')
-        setErr('Account not found. Check your username, or create a new wallet.');
+        setErr('Account not found. Check your username or create a new wallet.');
       else setErr('Login failed: '+e.message);
     }finally{setLoading(false);}
   };

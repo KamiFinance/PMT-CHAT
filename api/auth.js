@@ -1,6 +1,5 @@
 // User registry: username → { passwordHash, salt, address, encryptedBackup }
 // Pure fetch REST — no ioredis, no TCP connections
-// encryptedBackup stored directly in Redis (no Pinata/IPFS needed)
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,14 +17,9 @@ async function redis(cmd, ...args) {
 
   if (!url || !token) throw new Error('No Redis REST credentials found');
 
-  // Use POST body instead of URL path — avoids 431 "URL too long" for large values
-  // Upstash REST API accepts: POST / with body [cmd, ...args]
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify([cmd, ...args]),
   });
   if (!res.ok) throw new Error(`Redis HTTP ${res.status}`);
@@ -38,12 +32,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
   try {
-    // GET /api/auth?username=xxx — fetch record (for login / username check)
+    // GET /api/auth?username=xxx — fetch record
     if (req.method === 'GET') {
       const urlObj = new URL(req.url, `http://${req.headers.host}`);
       const username = (urlObj.searchParams.get('username') || '').toLowerCase().trim();
       const address = (urlObj.searchParams.get('address') || '').toLowerCase().trim();
-      // Address lookup: find which account owns this wallet address
+
       if (address) {
         const uname = await redis('GET', `pmt:addr:${address}`);
         if (!uname) { res.status(404).json({ error: 'No account found for this address' }); return; }
@@ -62,7 +56,7 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       let body = '';
       await new Promise(resolve => { req.on('data', c => body += c); req.on('end', resolve); });
-      const { username, passwordHash, salt, address, encryptedBackup, cid } = JSON.parse(body);
+      const { username, passwordHash, salt, address, encryptedBackup, cid, oldPasswordHash } = JSON.parse(body);
       if (!username || !passwordHash || !salt || !address) {
         res.status(400).json({ error: 'Missing required fields' }); return;
       }
@@ -70,10 +64,18 @@ export default async function handler(req, res) {
       const existing = await redis('GET', key);
       if (existing) {
         const prev = JSON.parse(existing);
-        // Allow update only if passwordHash matches (owner verification)
-        // Salt is fixed per account so hash is stable
-        if (prev.passwordHash !== passwordHash) {
-          res.status(403).json({ error: 'Username already taken' }); return;
+        if (oldPasswordHash) {
+          // Migration re-key: verify old password, allow changing to new passwordHash
+          // This lets users migrate from user-set password to derived key
+          if (prev.passwordHash !== oldPasswordHash) {
+            res.status(403).json({ error: 'Old password verification failed' }); return;
+          }
+          // Allow the re-key — fall through to save
+        } else {
+          // Normal save: passwordHash must match existing
+          if (prev.passwordHash !== passwordHash) {
+            res.status(403).json({ error: 'Username already taken' }); return;
+          }
         }
       }
       const record = {
@@ -81,14 +83,11 @@ export default async function handler(req, res) {
         passwordHash,
         salt,
         address,
-        // Store encrypted backup inline (replaces IPFS CID approach)
         ...(encryptedBackup ? { encryptedBackup } : {}),
-        // Keep cid for backward compat if present
         ...(cid ? { cid } : {}),
         updated: Date.now(),
       };
       await redis('SET', key, JSON.stringify(record));
-      // Store address->username reverse lookup for wallet import detection
       if (address) await redis('SET', `pmt:addr:${address.toLowerCase()}`, username.toLowerCase().trim());
       return res.status(200).json({ ok: true });
     }

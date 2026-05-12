@@ -92,7 +92,8 @@ export async function compressAvatarForBackup(dataUrl: string): Promise<string |
 export async function saveCloudBackup(
   username: string,
   password: string,
-  data: BackupData
+  data: BackupData,
+  oldPassword?: string   // for one-time migration re-key only
 ): Promise<void> {
   const uname = username.toLowerCase().trim();
 
@@ -131,6 +132,17 @@ export async function saveCloudBackup(
   // Encrypt the full backup with this salt
   const encryptedBackup = await encryptBackup(data, password, salt);
 
+  // For migration: compute old password hash using old password + old salt from server
+  let oldPasswordHash: string | undefined;
+  if (oldPassword) {
+    const srvRes = await fetch(`/api/auth?username=${encodeURIComponent(uname)}`);
+    if (srvRes.ok) {
+      const srvRec = await srvRes.json();
+      const { hash: oldHash } = await PMTAuth.hashPassword(oldPassword, srvRec.salt);
+      oldPasswordHash = oldHash;
+    }
+  }
+
   const res = await fetch('/api/auth', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -140,6 +152,7 @@ export async function saveCloudBackup(
       salt,
       address: data.wallet.address,
       encryptedBackup,
+      ...(oldPasswordHash ? { oldPasswordHash } : {}),
     }),
   });
   if (!res.ok) {

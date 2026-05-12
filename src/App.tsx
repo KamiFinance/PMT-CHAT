@@ -1333,6 +1333,27 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                 setScreen('chat');
               }} />;
 
+  const doMigrate = async () => {
+    if (!walletRestoreMigrate || !walletRestorePwd) return;
+    setWalletRestoreLoading(true); setWalletRestoreErr('');
+    try {
+      const { loadCloudBackup, saveCloudBackup: scb } = await import('./lib/cloudBackup');
+      const backup = await loadCloudBackup(walletRestoreMigrate.username, walletRestorePwd);
+      if (!backup) { setWalletRestoreErr('Backup not found.'); setWalletRestoreLoading(false); return; }
+      // Re-save with derived key, passing old password so server accepts the re-key
+      await scb(walletRestoreMigrate.username, walletRestoreMigrate.backupKey, backup, walletRestorePwd);
+      sessionPasswordRef.current = walletRestoreMigrate.backupKey;
+      handleWallet({ ...wallet!, username: walletRestoreMigrate.username,
+        sessionPassword: walletRestoreMigrate.backupKey,
+        restoredContacts: backup.contacts ?? [],
+        restoredMessages: backup.messages ?? {},
+        restoredProfile:  backup.profile  ?? {} });
+      setShowWalletRestore(false); setWalletRestorePwd(''); setWalletRestoreMigrate(null);
+    } catch(e:any) {
+      setWalletRestoreErr(e.message === 'WRONG_PASSWORD' ? 'Incorrect password.' : 'Migration failed: '+(e.message||'error'));
+    } finally { setWalletRestoreLoading(false); }
+  };
+
   return (
     <AppContext.Provider value={{ wallet, profile, isDemo, darkMode, toggleTheme }}>
       <div className="app-grid">
