@@ -18,8 +18,15 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Vercel auto-parses JSON bodies — use req.body directly
-  const { address, subscription } = req.body || {};
+  // Parse body manually — Vercel does not auto-parse JSON in serverless functions
+  let body = {};
+  try {
+    let raw = '';
+    await new Promise(resolve => { req.on('data', c => raw += c); req.on('end', resolve); });
+    body = raw ? JSON.parse(raw) : {};
+  } catch {}
+
+  const { address, subscription } = body;
   if (!address) return res.status(400).json({ error: 'address required' });
 
   const key = `push:${address.toLowerCase()}`;
