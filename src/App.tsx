@@ -504,6 +504,22 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [contacts, msgs, profile, wallet?.address, wallet?.username, isDemo, runBackup]);
 
+  // On page load: restore sessionPassword so auto-backup works after page refresh
+  useEffect(() => {
+    if (!wallet?.address || sessionPasswordRef.current) return;
+    // Create/Import wallet: restore password from sessionStorage (set on login)
+    const stored = sessionStorage.getItem('pmt_bkpwd_' + wallet.address.toLowerCase());
+    if (stored) { sessionPasswordRef.current = stored; return; }
+    // Connect Wallet: derive key automatically — no user password needed
+    if ((wallet as any).isMetaMask && wallet.username && wallet.address) {
+      import('./lib/cloudBackup').then(({ deriveWalletBackupKey }) => {
+        if (!sessionPasswordRef.current) // still not set
+          sessionPasswordRef.current = deriveWalletBackupKey(wallet.address!, wallet.username!);
+      }).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet?.address]);
+
   // Startup restore: when app loads with existing Connect Wallet session,
   // try to restore from backup (runs once on mount when wallet.isMetaMask is set)
   useEffect(() => {
@@ -1142,7 +1158,13 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     setWallet(w);
     walletRef.current = w;
     // Keep password in memory for auto cloud backup (never stored to localStorage)
-    if (w.sessionPassword) sessionPasswordRef.current = w.sessionPassword;
+    if (w.sessionPassword) {
+      sessionPasswordRef.current = w.sessionPassword;
+      // Persist for page refreshes (sessionStorage clears on tab close, not on refresh)
+      if (w.address && !(w as any).isMetaMask) {
+        sessionStorage.setItem('pmt_bkpwd_' + w.address.toLowerCase(), w.sessionPassword);
+      }
+    }
     // Backup is source of truth — always apply restored data when provided
     if (w.restoredContacts !== undefined) {
       const hasAI = w.restoredContacts.some((c: any) => c.isAI);
@@ -1235,7 +1257,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
   const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMTchain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); }, []);
-  const handleLogout = useCallback(() => { if (walletRef.current?.address) { sessionStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase()); } storage.clearSession(); setWallet(null); walletRef.current = null; setIsDemo(false); setContacts([]); setMsgs({}); setActiveAndRef(null); setScreen('landing'); }, [setActiveAndRef]);
+  const handleLogout = useCallback(() => { if (walletRef.current?.address) { sessionStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase());
+        sessionStorage.removeItem('pmt_bkpwd_' + walletRef.current.address.toLowerCase()); } storage.clearSession(); setWallet(null); walletRef.current = null; setIsDemo(false); setContacts([]); setMsgs({}); setActiveAndRef(null); setScreen('landing'); }, [setActiveAndRef]);
 
   if (screen === 'landing') return <Landing onDemo={handleDemo} onCreateWallet={() => setScreen('create')} onImportWallet={() => setScreen('import')} onLogin={() => setScreen('login')} onMetaMask={(w: Wallet) => {
               // Check if this wallet address already has a saved account
