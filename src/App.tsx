@@ -253,8 +253,11 @@ export default function App() {
 
 
   // Listen for chain changes and update wallet.network in real time
+  // Only applies to Connect Wallet users (MetaMask/WC) — Create/Import users always use PMTchain
   useEffect(() => {
     if (!wallet?.address || isDemo) return;
+    // Create Wallet / Import Wallet users sign txns directly via PMTchain RPC — always PMTchain
+    if (wallet.privateKey !== 'metamask' && wallet.privateKey !== undefined && wallet.privateKey !== '') return;
     const netNames: Record<string,string> = {
       '0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism',
       '0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'
