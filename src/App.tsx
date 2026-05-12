@@ -168,6 +168,8 @@ export default function App() {
   const needsPasswordToSend = React.useMemo(() => {
     const w = wallet;
     if (!w?.username || isDemo) return false;
+    // Connect Wallet users (MetaMask/WalletConnect) never need password — they sign via wallet
+    if ((w as any).isMetaMask || w.privateKey === 'metamask') return false;
     // External wallet users: if any EIP-6963 wallet is available, never ask for password
     if (typeof window !== 'undefined' && (window as any).ethereum) return false;
     const accountRaw = localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`);
@@ -713,9 +715,13 @@ export default function App() {
           const tx = await signer.sendTransaction({ to: addr, value: BigInt(Math.floor(parseFloat(amount) * 1e18)), gasLimit: 21000 });
           txHash = tx.hash;
         } else {
-          // External wallet — use shared EIP-6963 utility (works with any wallet)
-          const eth = await getWalletProvider();
-          if (!eth) throw new Error('No crypto wallet found. On mobile, use the ↑PMT button and enter your wallet password to send PMT.');
+          // External wallet — try injected (desktop) then WalletConnect (mobile)
+          let eth = await getWalletProvider().catch(() => null) as any;
+          if (!eth) {
+            // Mobile: use WalletConnect provider
+            try { eth = await getWCProvider(); } catch {}
+          }
+          if (!eth) throw new Error('No wallet connected. Please connect your wallet first.');
           // Ensure on PMTchain (auto-add if needed)
           await ensurePMTchain(eth);
           const accounts = await eth.request({ method: 'eth_accounts' });
