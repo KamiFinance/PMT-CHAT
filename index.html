@@ -6,7 +6,7 @@
       (function(){
         var v='__GIT_HASH__';
         var s=localStorage.getItem('_pmt_v');
-        if(s && s!==v){ localStorage.setItem('_pmt_v',v); location.reload(true); return; }
+        if(s!==v){ localStorage.setItem('_pmt_v',v); location.reload(true); return; }
         localStorage.setItem('_pmt_v',v);
       })();
     </script>
