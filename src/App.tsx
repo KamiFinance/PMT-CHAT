@@ -472,25 +472,39 @@ export default function App() {
     });
   }, [isDemo]);
 
-  // Auto cloud backup — immediate when new contact added, debounced 1.5s for messages.
+  // Auto cloud backup — immediate for key events, 2s debounce otherwise.
   const prevContactCount = useRef(0);
+  const prevMsgCount     = useRef(0);
+  const prevProfileRef   = useRef<string>('');
   useEffect(() => {
     if (!wallet?.address || isDemo) return;
     const password = sessionPasswordRef.current;
-    if (!password) return; // no password in memory — skip
-    const realCount = contacts.filter((c: any) => !c.isAI).length;
-    if (realCount > prevContactCount.current) {
-      // New real contact added — back up immediately (critical for incognito)
-      prevContactCount.current = realCount;
+    if (!password) return;
+
+    const realContacts = contacts.filter((c: any) => !c.isAI);
+    const realCount    = realContacts.length;
+    const totalMsgs    = Object.values(msgs).reduce((n: number, arr: any) => n + arr.length, 0);
+    const profileSig   = JSON.stringify({ name: profile?.name, avatarUrl: profile?.avatarUrl });
+
+    const contactAdded = realCount > prevContactCount.current;
+    const msgSent      = totalMsgs > prevMsgCount.current;
+    const profileChanged = profileSig !== prevProfileRef.current && prevProfileRef.current !== '';
+
+    prevContactCount.current = realCount;
+    prevMsgCount.current     = totalMsgs;
+    prevProfileRef.current   = profileSig;
+
+    if (contactAdded || msgSent || profileChanged) {
+      // Immediate backup: new contact / message sent / profile updated / group create/join
       runBackup(password).catch(() => {});
       return;
     }
-    prevContactCount.current = realCount;
+    // Debounced for other changes
     const timer = setTimeout(() => {
-      runBackup(password).catch(() => { /* offline — silent */ });
-    }, 1500);
+      runBackup(password).catch(() => {});
+    }, 2000);
     return () => clearTimeout(timer);
-  }, [contacts, msgs, wallet?.address, wallet?.username, isDemo, runBackup]);
+  }, [contacts, msgs, profile, wallet?.address, wallet?.username, isDemo, runBackup]);
 
   // Flush backup when app goes to background or page is hidden/closed.
   // Critical for incognito tabs (no persistent localStorage) and iOS (kills tabs fast).
