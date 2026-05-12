@@ -306,8 +306,8 @@ Switch to the correct account.`);
         setRecoveryLoading(false); return;
       }
       // Re-save backup with private key included
-      const { saveCloudBackup } = await import('../lib/cloudBackup');
-      const { PMTAuth } = await import('../lib/auth');
+      const { saveCloudBackup } = await import('../../lib/cloudBackup');
+      const { PMTAuth } = await import('../../lib/auth');
       const { hash: ph, salt: ps } = await PMTAuth.hashPassword(pendingRecovery.password);
       const ew = await PMTAuth.encryptWallet({ address, privateKey }, pendingRecovery.password);
       const acctData = { username: pendingRecovery.username, address, passwordHash: ph, passwordSalt: ps, encryptedWallet: ew };
