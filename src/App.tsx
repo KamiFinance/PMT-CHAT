@@ -1028,12 +1028,25 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         } catch { /* ignore */ }
       }
     }
-    // Mark internal wallets (Create/Import) permanently — they never need the verify screen
+    // Internal wallets (Create/Import) — never need verify screen
     if (w.privateKey && w.privateKey !== 'metamask' && w.address) {
       localStorage.setItem(`pmt_wallet_internal_${w.address.toLowerCase()}`, '1');
+      setScreen('chat');
+      if (window.innerWidth < 768) setMobileSidebarOpen(true);
+    } else if (w.address) {
+      // External wallet (Connect Wallet) — verify every 24h immediately after login
+      const verifyTs = localStorage.getItem(`pmt_verify_${w.address.toLowerCase()}`);
+      const isValid = verifyTs && (Date.now() - parseInt(verifyTs)) < 86400000;
+      if (isValid) {
+        setScreen('chat');
+        if (window.innerWidth < 768) setMobileSidebarOpen(true);
+      } else {
+        setScreen('verify');
+      }
+    } else {
+      setScreen('chat');
+      if (window.innerWidth < 768) setMobileSidebarOpen(true);
     }
-    setScreen('chat');
-    if (window.innerWidth < 768) setMobileSidebarOpen(true);
   }, [setContacts, setMsgs]);
 
   // On mount: if session was restored from localStorage but no password in memory,
