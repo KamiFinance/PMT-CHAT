@@ -200,7 +200,7 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
         setTimeout(() => {
           if (mobileQrRef.current) {
             QRCode.toCanvas(mobileQrRef.current, uri, {
-              width: 200, margin: 1, color: { dark: '#000000', light: '#ffffff' }
+              width: 220, margin: 1, color: { dark: '#000000', light: '#ffffff' }
             }).catch(() => {});
           }
         }, 50);
@@ -351,46 +351,59 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
 
         {/* ── Mobile wallet grid (yellow button) ── */}
         {showMobile && mobile && (
-          <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:'14px'}}>
-            <div style={{fontSize:13,fontWeight:600,color:'var(--text)',marginBottom:4}}>Choose your wallet</div>
-            <p style={{fontSize:12,color:'var(--text2)',lineHeight:1.5,margin:'0 0 12px'}}>
-              Tap your wallet — it will show a connection confirmation. After approving, come back here.
-            </p>
-            {/* QR code for scanning with any wallet */}
+          <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:'16px 14px',display:'flex',flexDirection:'column',gap:12}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{fontSize:14,fontWeight:600,color:'var(--text)'}}>Connect your wallet</div>
+              <button onClick={()=>{setShowMobile(false);setMobileWcUri(null);resetWCProvider();}}
+                style={{background:'none',border:'none',color:'var(--muted)',fontSize:20,cursor:'pointer',lineHeight:1}}>×</button>
+            </div>
+
+            {/* QR code — primary connection method */}
             {mobileWcUri ? (
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,padding:'8px 0 4px'}}>
-                <div style={{background:'#fff',borderRadius:12,padding:8,display:'inline-block'}}>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+                <div style={{background:'#fff',borderRadius:12,padding:10,display:'inline-block',boxShadow:'0 2px 12px rgba(0,0,0,.3)'}}>
                   <canvas ref={mobileQrRef} style={{display:'block'}}/>
                 </div>
-                <p style={{fontSize:11,color:'var(--muted)',margin:0,textAlign:'center'}}>Scan with any wallet · or tap below</p>
+                <p style={{fontSize:12,color:'var(--text2)',margin:0,textAlign:'center',lineHeight:1.5}}>
+                  Open your wallet app → WalletConnect → Scan QR
+                </p>
+                <button onClick={()=>navigator.clipboard?.writeText(mobileWcUri).catch(()=>{})}
+                  style={{fontSize:11,color:'var(--accent)',background:'none',border:'1px solid var(--border)',
+                    borderRadius:6,padding:'4px 10px',cursor:'pointer',fontFamily:'var(--mono)'}}>
+                  Copy URI
+                </button>
               </div>
             ) : (
-              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'12px 0',color:'var(--muted)',fontSize:12}}>
-                <div style={{width:16,height:16,borderRadius:'50%',border:'2px solid var(--accent)',borderTopColor:'transparent',animation:'spin .8s linear infinite'}}/>
-                Preparing connection...
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'16px 0'}}>
+                <div style={{width:200,height:200,background:'var(--surface2)',borderRadius:12,
+                  display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:10}}>
+                  <div style={{width:28,height:28,borderRadius:'50%',border:'3px solid var(--accent)',
+                    borderTopColor:'transparent',animation:'spin .8s linear infinite'}}/>
+                  <div style={{fontSize:12,color:'var(--muted)'}}>Generating QR...</div>
+                </div>
               </div>
             )}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
-              {WALLETS.map(w=>(
-                <button key={w.id} onClick={()=>connectViaWallet(w.scheme)}
-                  disabled={!mobileWcUri}
-                  style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,
-                    padding:'12px 6px',background:'var(--surface2)',border:'1px solid var(--border)',
-                    borderRadius:12,cursor:'pointer',outline:'none',width:'100%',
-                    WebkitTapHighlightColor:'transparent'}}>
-                  <div style={{width:40,height:40,borderRadius:10,overflow:'hidden'}}
-                    dangerouslySetInnerHTML={{__html:WALLET_ICON[w.id]}}/>
-                  <span style={{fontSize:10,color:'var(--text2)',fontWeight:500,textAlign:'center'}}>{w.name}</span>
-                </button>
-              ))}
+
+            {/* Wallet shortcut buttons */}
+            <div>
+              <p style={{fontSize:11,color:'var(--muted)',margin:'0 0 8px',textAlign:'center'}}>
+                Or open directly:
+              </p>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
+                {WALLETS.map(w=>(
+                  <button key={w.id} onClick={()=>connectViaWallet(w.scheme)}
+                    disabled={!mobileWcUri}
+                    style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+                      padding:'8px 4px',background:'var(--surface2)',border:'1px solid var(--border)',
+                      borderRadius:10,cursor:mobileWcUri?'pointer':'default',outline:'none',
+                      opacity:mobileWcUri?1:0.4,WebkitTapHighlightColor:'transparent'}}>
+                    <div style={{width:32,height:32,borderRadius:8,overflow:'hidden'}}
+                      dangerouslySetInnerHTML={{__html:WALLET_ICON[w.id]}}/>
+                    <span style={{fontSize:9,color:'var(--text2)',fontWeight:500,textAlign:'center'}}>{w.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <p style={{fontSize:11,color:'var(--muted)',textAlign:'center',margin:'10px 0 4px',lineHeight:1.5}}>
-              After approving in your wallet, come back to this page.
-            </p>
-            <button onClick={()=>{setShowMobile(false);setMobileWcUri(null);resetWCProvider();}}
-              style={{width:'100%',padding:'9px',background:'transparent',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:12}}>
-              Cancel
-            </button>
           </div>
         )}
 
