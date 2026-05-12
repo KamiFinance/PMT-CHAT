@@ -1144,7 +1144,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     }
     // Internal wallets (Create/Import) — never need verify screen
     // Only show verify for explicit MetaMask/external wallets (privateKey === 'metamask')
-    const isExternalWallet = w.privateKey === 'metamask';
+    const isExternalWallet = w.privateKey === 'metamask' || (w as any).isMetaMask === true;
     if (!isExternalWallet && w.address) {
       // Mark as internal permanently so page reloads skip verify
       localStorage.setItem(`pmt_wallet_internal_${w.address.toLowerCase()}`, '1');
@@ -1220,9 +1220,13 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                 try {
                   const acct = savedAcct ? JSON.parse(savedAcct) : null;
                   const username = acct?.username || addr.slice(0,8);
-                  const fullWallet = { ...w, username };
+                  const fullWallet = { ...w, username, isMetaMask: true };
                   setWallet(fullWallet);
                   walletRef.current = fullWallet;
+                  // Save pmt_account_ with isMetaMask so session initializer restores it correctly
+                  const acctData = { username, address: w.address, isMetaMask: true };
+                  localStorage.setItem('pmt_account_' + addr, JSON.stringify(acctData));
+                  localStorage.setItem('pmt_account_' + username.toLowerCase(), JSON.stringify(acctData));
                   localStorage.setItem('pmt_session', JSON.stringify({ username, address: w.address }));
                   setScreen('chat');
                   if (window.innerWidth < 768) setMobileSidebarOpen(true);
@@ -1249,8 +1253,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                   .then(data => {
                     if (data?.username) {
                       // Existing account found on server — auto-restore in background
-                      const fw = { ...w, username: data.username };
+                      const fw = { ...w, username: data.username, isMetaMask: true };
                       setWallet(fw); walletRef.current = fw;
+                      const acctData2 = { username: data.username, address: w.address, isMetaMask: true };
+                      localStorage.setItem('pmt_account_' + addr, JSON.stringify(acctData2));
+                      localStorage.setItem('pmt_account_' + data.username.toLowerCase(), JSON.stringify(acctData2));
                       localStorage.setItem('pmt_session', JSON.stringify({ username: data.username, address: w.address }));
                       setScreen('chat');
                       if (window.innerWidth < 768) setMobileSidebarOpen(true);
