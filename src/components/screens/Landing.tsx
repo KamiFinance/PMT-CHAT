@@ -94,6 +94,11 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   useEffect(() => {
     const mob = isMobile();
     setMobile(mob);
+    // Pre-warm WalletConnect provider on mobile so it's ready when user taps
+    // This eliminates the 2-5 second delay when user selects a wallet
+    if (mob) {
+      getWCProvider().catch(() => {}); // silent background init
+    }
     // Detect any available wallet via EIP-6963
     getWalletProvider().then(eth => {
       if (!eth) return;
@@ -167,12 +172,47 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     try {
       resetWCProvider();
       const provider = await getWCProvider();
+
       provider.once('display_uri', (uri) => {
-        // Store pending state so we can recover if page reloads
         sessionStorage.setItem('pmt_wc_pending', '1');
-        // Open wallet app — use href which opens the wallet without full page reload on iOS
         window.location.href = schemeTemplate(uri);
+
+        // Auto-connect: poll every 800ms after deep-link navigation
+        let polls = 0;
+        const interval = setInterval(async () => {
+          polls++;
+          if (polls > 150) { clearInterval(interval); return; } // give up after 2min
+          try {
+            const accs = provider.accounts || await provider.request({method:'eth_accounts'}).catch(()=>[]);
+            if (accs && accs.length > 0) {
+              clearInterval(interval);
+              document.removeEventListener('visibilitychange', onVisible);
+              setWaitingApproval(false);
+              await handleWCConnected(provider);
+            }
+          } catch {}
+        }, 800);
+
+        // Also check immediately when user returns to the page from wallet app
+        const onVisible = async () => {
+          if (document.hidden) return;
+          document.removeEventListener('visibilitychange', onVisible);
+          // Small delay to let WC session fully establish
+          setTimeout(async () => {
+            try {
+              const accs = provider.accounts || await provider.request({method:'eth_accounts'}).catch(()=>[]);
+              if (accs && accs.length > 0) {
+                clearInterval(interval);
+                setWaitingApproval(false);
+                await handleWCConnected(provider);
+              }
+            } catch {}
+          }, 800);
+        };
+        document.addEventListener('visibilitychange', onVisible);
       });
+
+      // Also handle if connect() resolves automatically
       provider.connect()
         .then(async () => { setWaitingApproval(false); await handleWCConnected(provider); })
         .catch(e => {
