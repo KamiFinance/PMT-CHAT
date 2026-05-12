@@ -23,8 +23,13 @@ self.addEventListener('fetch', e => {
     e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
     return;
   }
-  // Network-first for HTML/JS/CSS — always get fresh code
-  // Fall back to cache if offline
+  // Never cache HTML — always serve fresh so version check always works
+  const isHTML = e.request.mode === 'navigate' || e.request.url.endsWith('/') || e.request.url.endsWith('.html');
+  if (isHTML) {
+    e.respondWith(fetch(e.request).catch(() => caches.match('/index.html')));
+    return;
+  }
+  // Network-first for JS/CSS/images — cache for offline fallback
   e.respondWith(
     fetch(e.request).then(res => {
       if (res.ok && e.request.method === 'GET') {

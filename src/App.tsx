@@ -709,7 +709,7 @@ export default function App() {
           // Internal wallet — sign & send directly, no MetaMask needed
           const provider = new ethers.JsonRpcProvider('https://node1-ipm.dweb3.wtf');
           const signer = new ethers.Wallet(usePk, provider);
-          const tx = await signer.sendTransaction({ to: addr, value: BigInt(Math.floor(parseFloat(amount) * 1e18)), gasLimit: 21000 });
+          const tx = await signer.sendTransaction({ to: addr, value: BigInt(Math.floor(parseFloat(amount) * 1e18)) });
           txHash = tx.hash;
         } else {
           // External wallet — try injected (desktop) then WalletConnect (mobile)
