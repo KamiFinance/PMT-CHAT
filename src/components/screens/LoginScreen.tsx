@@ -85,8 +85,13 @@ export default function LoginScreen({onLogin,onBack}){
             localStorage.removeItem('pmt_account_'+username.trim().toLowerCase());
             if(account.address) localStorage.removeItem('pmt_account_'+account.address.toLowerCase());
             setErr('Checking cloud backup…');
-            const bkFix=await loadCloudBackup(username.trim(),password).catch(()=>null);
-            if(!bkFix){setLoading(false);return setErr('Incorrect password. Please try again.');}
+            let bkFix=null, bkErr='';
+            try { bkFix=await loadCloudBackup(username.trim(),password); }
+            catch(e:any){ bkErr=e.message||''; }
+            if(!bkFix){
+              setLoading(false);
+              return setErr(bkErr==='WRONG_PASSWORD'?'Incorrect password. Please try again.':'Account found but backup could not be loaded. Check your password.');
+            }
             const{wallet:wFix,contacts:cFix,messages:mFix,profile:pFix}=bkFix;
             if(!wFix?.privateKey||wFix.privateKey==='metamask'){setLoading(false);return setErr('Incorrect password. Please try again.');}
             const{hash:phFix,salt:psFix}=await PMTAuth.hashPassword(password);
