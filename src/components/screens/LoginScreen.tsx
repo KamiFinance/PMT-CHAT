@@ -110,17 +110,28 @@ export default function LoginScreen({onLogin,onBack}){
         const loginData={address:walletData.address,privateKey:walletData.privateKey,
           balance:'0.0000',network:'PMTchain',username:account.username,sessionPassword:password};
 
-        // Always load backup and merge: backup may have newer data (other device, or
-        // contacts added after last local save). For internal wallets, this is safe
-        // because the user proved identity with the correct password.
-        const doLoginWithRestore = async () => {
+        // Check local contacts using the CORRECT storage key: pmt_contacts_user_${addr}
+        const { storage: stor } = await import('../../lib/storage');
+        const localKey = `user_${walletData.address.toLowerCase()}`;
+        const localCtx = stor.getContacts(localKey);
+        const hasRealContacts = localCtx.filter((c:any) => !c.isAI).length > 0;
+        const localProfile = localStorage.getItem(`pmt_profile_${walletData.address.toLowerCase()}`);
+        const hasProfile = localProfile && JSON.parse(localProfile||'{}').name;
+
+        const doLogin = async () => {
+          // If local has real data, use it — no need to hit Redis (fast)
+          if (hasRealContacts && hasProfile) { onLogin(loginData); return; }
+          // Otherwise load backup for missing pieces
           try {
             const bk = await loadCloudBackup(username.trim(), password);
-            if (bk && (bk.contacts?.length || bk.profile || bk.messages)) {
+            if (bk) {
+              const useContacts = hasRealContacts ? undefined : (bk.contacts ?? []);
+              const useMessages = bk.messages ?? {};
+              const useProfile  = hasProfile ? undefined : (bk.profile ?? {});
               onLogin({...loginData,
-                restoredContacts: bk.contacts ?? [],
-                restoredMessages: bk.messages ?? {},
-                restoredProfile: bk.profile ?? {}});
+                ...(useContacts !== undefined ? {restoredContacts: useContacts} : {}),
+                restoredMessages: useMessages,
+                ...(useProfile  !== undefined ? {restoredProfile:  useProfile}  : {})});
             } else {
               onLogin(loginData);
             }
@@ -132,9 +143,9 @@ export default function LoginScreen({onLogin,onBack}){
         if(walletData.privateKey && walletData.privateKey !== 'metamask'){
           Object.keys(sessionStorage).filter(k => k.startsWith('pmt_pk_')).forEach(k => sessionStorage.removeItem(k));
           sessionStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey);
-          await doLoginWithRestore();
+          await doLogin();
         } else if(!walletData.privateKey || walletData.privateKey === ''){
-          await doLoginWithRestore();
+          await doLogin();
         } else {
           // MetaMask account in local store — needs wallet signature
           setPendingLogin(loginData); setVerifyStep(true);
