@@ -165,6 +165,7 @@ export default function App() {
   const activeRef = useRef<Contact | null>(null);
   const walletRef = useRef<Wallet | null>(null);
   const contactsRef = useRef<Contact[]>([]);
+  const msgsRef = useRef<Record<string, any[]>>({});
   // True when user has an internal wallet but pk is missing/stale — SendModal shows password field
   const needsPasswordToSend = React.useMemo(() => {
     const w = wallet;
@@ -221,6 +222,7 @@ export default function App() {
   }, [wallet, profile]);
 
   useEffect(() => { contactsRef.current = contacts; }, [contacts]);
+  useEffect(() => { msgsRef.current = msgs; }, [msgs]);
 
   // Clean up stale pmt_pk_ entries in sessionStorage that don't belong to current wallet
   React.useEffect(() => {
@@ -432,7 +434,6 @@ export default function App() {
   const runBackup = useCallback(async (password: string) => {
     const username = walletRef.current?.username;
     const addr = walletRef.current?.address;
-    console.log('[backup] runBackup: addr=', addr?.slice(0,10), 'user=', username, 'isDemo=', isDemo, 'pwd=', password?.slice(0,15));
     if (!username || !addr || isDemo) return;
     // Snapshot current state via refs to avoid stale closure issues
     const currentMsgs = msgsRef.current ?? {};
@@ -507,7 +508,6 @@ export default function App() {
 
   // On page load: restore sessionPassword so auto-backup works after page refresh
   useEffect(() => {
-    console.log('[backup] mount effect: addr=', wallet?.address?.slice(0,10), 'hasRef=', !!sessionPasswordRef.current);
     if (!wallet?.address || sessionPasswordRef.current) return;
     // Create/Import wallet: restore from sessionStorage (set on login, clears on tab close)
     const stored = sessionStorage.getItem('pmt_bkpwd_' + wallet.address.toLowerCase());
@@ -515,11 +515,10 @@ export default function App() {
       || ((wallet as any).isMetaMask && wallet.username
           ? deriveWalletBackupKey(wallet.address, wallet.username)  // sync, no import needed
           : null);
-    console.log('[backup] mount effect: stored=', !!stored, 'key=', key?.slice(0,20));
     if (!key) return;
     sessionPasswordRef.current = key;
     // Auto-backup already ran with null password — kick it off now that we have the key
-    setTimeout(() => { console.log('[backup] timeout firing, calling runBackup'); runBackup(key).catch((e:any) => console.log('[backup] runBackup error:', e?.message)); }, 1000);
+    setTimeout(() => runBackup(key).catch(() => {}), 1000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
 
