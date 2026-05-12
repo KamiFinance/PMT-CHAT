@@ -1,6 +1,6 @@
 // PWA utilities: push notifications + install prompt
 
-const VAPID_PUBLIC_KEY = 'BHHE8YWwQ-uGFeJeNuq8xhP5CiXZiBetGobT94SMfM-HRITxBk0vlJB-8RbatAxdoBfic9A-APAb0ztiES8pw3w';
+const VAPID_PUBLIC_KEY = 'BMProviF9-1IpZKSxqU7E8sExoJ4WejH_jnh5qbXz5Twt0sxosLMnwC3AJ7VDPRlCM0rJ93nyrardhPEA9VKTQA';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -18,14 +18,13 @@ export async function requestPushPermission(address: string): Promise<boolean> {
     if (permission !== 'granted') return false;
     const reg = await navigator.serviceWorker.ready;
 
-    // Reuse existing subscription if it's still valid — only create new one if missing
-    let subscription = await reg.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
-    }
+    // Always create fresh subscription to ensure it uses the current VAPID key
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) await existing.unsubscribe();
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
 
     // Always save to server (may not have been saved previously due to API bug)
     const resp = await fetch('/api/push-subscribe', {
