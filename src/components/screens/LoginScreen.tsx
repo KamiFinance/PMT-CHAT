@@ -99,6 +99,8 @@ export default function LoginScreen({onLogin,onBack}){
             const fixed={username:username.trim().toLowerCase(),address:wFix.address,passwordHash:phFix,passwordSalt:psFix,encryptedWallet:ewFix};
             localStorage.setItem('pmt_account_'+username.trim().toLowerCase(),JSON.stringify(fixed));
             localStorage.setItem('pmt_account_'+wFix.address.toLowerCase(),JSON.stringify(fixed));
+            // Must set pmt_session so sendETH reads correct address after login
+            localStorage.setItem('pmt_session',JSON.stringify({username:username.trim().toLowerCase(),address:wFix.address}));
             sessionStorage.setItem('pmt_pk_'+wFix.address.toLowerCase(),wFix.privateKey??'');
             setLoading(false);
             onLogin({address:wFix.address,privateKey:wFix.privateKey??'',balance:'0.0000',network:'PMTchain',
