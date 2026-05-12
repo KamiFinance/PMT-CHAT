@@ -1234,10 +1234,18 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                   const fullWallet = { ...w, username, isMetaMask: true, walletName: (w as any).walletName || 'WalletConnect' };
                   setWallet(fullWallet);
                   walletRef.current = fullWallet;
-                  // Save pmt_account_ with isMetaMask so session initializer restores it correctly
-                  const acctData = { username, address: w.address, isMetaMask: true };
-                  localStorage.setItem('pmt_account_' + addr, JSON.stringify(acctData));
-                  localStorage.setItem('pmt_account_' + username.toLowerCase(), JSON.stringify(acctData));
+                  // Save pmt_account_ with isMetaMask — but NEVER overwrite an internal wallet
+                  const existingByAddr = localStorage.getItem('pmt_account_' + addr);
+                  const existingByUser = localStorage.getItem('pmt_account_' + username.toLowerCase());
+                  const hasInternal = (s: string|null) => { try { return !!JSON.parse(s||'').encryptedWallet; } catch { return false; } };
+                  if (!hasInternal(existingByAddr)) {
+                    const acctData = { username, address: w.address, isMetaMask: true };
+                    localStorage.setItem('pmt_account_' + addr, JSON.stringify(acctData));
+                  }
+                  if (!hasInternal(existingByUser)) {
+                    const acctData = { username, address: w.address, isMetaMask: true };
+                    localStorage.setItem('pmt_account_' + username.toLowerCase(), JSON.stringify(acctData));
+                  }
                   localStorage.setItem('pmt_session', JSON.stringify({ username, address: w.address }));
                   setScreen('chat');
                   if (window.innerWidth < 768) setMobileSidebarOpen(true);
@@ -1266,9 +1274,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                       // Existing account found on server — auto-restore in background
                       const fw = { ...w, username: data.username, isMetaMask: true, walletName: (w as any).walletName || 'WalletConnect' };
                       setWallet(fw); walletRef.current = fw;
-                      const acctData2 = { username: data.username, address: w.address, isMetaMask: true };
-                      localStorage.setItem('pmt_account_' + addr, JSON.stringify(acctData2));
-                      localStorage.setItem('pmt_account_' + data.username.toLowerCase(), JSON.stringify(acctData2));
+                      const existingByAddr2 = localStorage.getItem('pmt_account_' + addr);
+                      const existingByUser2 = localStorage.getItem('pmt_account_' + data.username.toLowerCase());
+                      const hasInt2 = (s: string|null) => { try { return !!JSON.parse(s||'').encryptedWallet; } catch { return false; } };
+                      if (!hasInt2(existingByAddr2)) localStorage.setItem('pmt_account_' + addr, JSON.stringify({ username: data.username, address: w.address, isMetaMask: true }));
+                      if (!hasInt2(existingByUser2)) localStorage.setItem('pmt_account_' + data.username.toLowerCase(), JSON.stringify({ username: data.username, address: w.address, isMetaMask: true }));
                       localStorage.setItem('pmt_session', JSON.stringify({ username: data.username, address: w.address }));
                       setScreen('chat');
                       if (window.innerWidth < 768) setMobileSidebarOpen(true);
