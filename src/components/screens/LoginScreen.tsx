@@ -80,8 +80,8 @@ export default function LoginScreen({onLogin,onBack}){
         const account=JSON.parse(stored);
         const ok=await PMTAuth.verifyPassword(password,account.passwordHash,account.passwordSalt);
         if(!ok){
-          if(!account.encryptedWallet){
-            // Corrupted by Connect Wallet overwrite — remove and try cloud restore
+          // Local verify failed — try cloud backup regardless (handles corrupted local accounts)
+          if(!account.isMetaMask){
             localStorage.removeItem('pmt_account_'+username.trim().toLowerCase());
             if(account.address) localStorage.removeItem('pmt_account_'+account.address.toLowerCase());
             setErr('Checking cloud backup…');
@@ -90,7 +90,7 @@ export default function LoginScreen({onLogin,onBack}){
             catch(e:any){ bkErr=e.message||''; }
             if(!bkFix){
               setLoading(false);
-              return setErr(bkErr==='WRONG_PASSWORD'?'Incorrect password. Please try again.':'Account found but backup could not be loaded. Check your password.');
+              return setErr(bkErr==='WRONG_PASSWORD'||bkErr===''?'Incorrect password. Please try again.':'Account found but backup could not be loaded. Check your password.');
             }
             const{wallet:wFix,contacts:cFix,messages:mFix,profile:pFix}=bkFix;
             if(!wFix?.privateKey||wFix.privateKey==='metamask'){setLoading(false);return setErr('Incorrect password. Please try again.');}
