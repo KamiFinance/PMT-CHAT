@@ -720,6 +720,7 @@ export default function App() {
         } else {
           // External wallet — try injected (desktop) then WalletConnect (mobile)
           let eth = await getWalletProvider().catch(() => null) as any;
+          const isWC = !eth;
           if (!eth) {
             // Mobile: use WalletConnect provider
             try { eth = await getWCProvider(); } catch {}
@@ -739,9 +740,19 @@ export default function App() {
             });
             const nonceData = await nonceRes.json();
             if (nonceData.result) nonceHex = nonceData.result;
-          } catch { /* use MetaMask nonce if fetch fails */ }
+          } catch { /* use wallet nonce if fetch fails */ }
           const txParams: any = { from: fromAddr, to: addr, value: weiHex };
           if (nonceHex) txParams.nonce = nonceHex;
+          // On mobile WalletConnect: open wallet app so user sees the approval popup
+          if (isWC && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
+            const walletName = (walletRef.current as any)?.walletName || '';
+            const schemeMap: Record<string,string> = {
+              'MetaMask': 'metamask://', 'SafePal': 'safepalwallet://',
+              'Trust': 'trust://', 'Rainbow': 'rainbow://',
+            };
+            const scheme = schemeMap[walletName] || 'metamask://';
+            setTimeout(() => { window.location.href = scheme; }, 300);
+          }
           txHash = await eth.request({
             method: 'eth_sendTransaction',
             params: [txParams],
@@ -1220,7 +1231,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                 try {
                   const acct = savedAcct ? JSON.parse(savedAcct) : null;
                   const username = acct?.username || addr.slice(0,8);
-                  const fullWallet = { ...w, username, isMetaMask: true };
+                  const fullWallet = { ...w, username, isMetaMask: true, walletName: (w as any).walletName || 'WalletConnect' };
                   setWallet(fullWallet);
                   walletRef.current = fullWallet;
                   // Save pmt_account_ with isMetaMask so session initializer restores it correctly
@@ -1253,7 +1264,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                   .then(data => {
                     if (data?.username) {
                       // Existing account found on server — auto-restore in background
-                      const fw = { ...w, username: data.username, isMetaMask: true };
+                      const fw = { ...w, username: data.username, isMetaMask: true, walletName: (w as any).walletName || 'WalletConnect' };
                       setWallet(fw); walletRef.current = fw;
                       const acctData2 = { username: data.username, address: w.address, isMetaMask: true };
                       localStorage.setItem('pmt_account_' + addr, JSON.stringify(acctData2));
