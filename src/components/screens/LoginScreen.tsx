@@ -80,8 +80,8 @@ export default function LoginScreen({onLogin,onBack}){
         const account=JSON.parse(stored);
         const ok=await PMTAuth.verifyPassword(password,account.passwordHash,account.passwordSalt);
         if(!ok){
-          // Local verify failed — try cloud backup regardless (handles corrupted local accounts)
-          if(!account.isMetaMask){
+          // Local verify failed — if no encryptedWallet the account is corrupted, try cloud backup
+          if(!account.encryptedWallet){
             localStorage.removeItem('pmt_account_'+username.trim().toLowerCase());
             if(account.address) localStorage.removeItem('pmt_account_'+account.address.toLowerCase());
             setErr('Checking cloud backup…');

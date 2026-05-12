@@ -666,9 +666,11 @@ export default function App() {
         // If no valid pk but user supplied their wallet password, decrypt it now
         if (!usePk && walletPassword) {
           const username = walletRef.current?.username ?? '';
-          const accountRaw = localStorage.getItem(`pmt_account_${username.toLowerCase()}`);
-          if (!accountRaw) throw new Error('Wallet not found on this device.');
+          const accountRaw = localStorage.getItem(`pmt_account_${username.toLowerCase()}`)
+            || localStorage.getItem(`pmt_account_${myAddr}`);
+          if (!accountRaw) throw new Error('Wallet not found. Please log out and log back in.');
           const account = JSON.parse(accountRaw);
+          if (!account.encryptedWallet) throw new Error('Wallet data missing. Please log out and log back in — your account will be restored automatically.');
           let walletData: any;
           try {
             walletData = await (await import('./lib/auth')).PMTAuth.decryptWallet(account.encryptedWallet, walletPassword);
