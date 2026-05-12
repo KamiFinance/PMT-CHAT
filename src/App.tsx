@@ -506,6 +506,38 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [contacts, msgs, profile, wallet?.address, wallet?.username, isDemo, runBackup]);
 
+  // Startup restore: when app loads with existing Connect Wallet session,
+  // try to restore from backup (runs once on mount when wallet.isMetaMask is set)
+  useEffect(() => {
+    const w = walletRef.current;
+    if (!w?.address || !(w as any).isMetaMask || isDemo) return;
+    const username = w.username || '';
+    if (!username) return;
+    // Check if contacts already loaded
+    const { storage: st } = require('./lib/storage') as any;
+    const ak = `user_${w.address.toLowerCase()}`;
+    const existingContacts = st.getContacts(ak).filter((c: any) => !c.isAI);
+    if (existingContacts.length > 0) return; // already have data
+    // Try derived key first
+    const backupKey = deriveWalletBackupKey(w.address, username);
+    import('./lib/cloudBackup').then(({ loadCloudBackup }) =>
+      loadCloudBackup(username, backupKey).then(backup => {
+        if (!backup) return;
+        sessionPasswordRef.current = backupKey;
+        handleWallet({ ...w, sessionPassword: backupKey,
+          restoredContacts: backup.contacts ?? [],
+          restoredMessages: backup.messages ?? {},
+          restoredProfile:  backup.profile  ?? {} });
+      }).catch(e => {
+        if (e?.message === 'WRONG_PASSWORD') {
+          setShowWalletRestore(true);
+          setWalletRestoreMigrate({ address: w.address, username, backupKey });
+        }
+      })
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);  // run once on mount only
+
   // Flush backup when app goes to background or page is hidden/closed.
   // Critical for incognito tabs (no persistent localStorage) and iOS (kills tabs fast).
   useEffect(() => {
