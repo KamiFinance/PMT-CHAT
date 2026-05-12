@@ -10,10 +10,16 @@ const gitHash = (() => {
 
 // https://vite.dev/config/
 export default defineConfig({
-  define: {
-    '__GIT_HASH__': JSON.stringify(gitHash),
-  },
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Inject git hash into index.html at build time (define doesn't work in HTML)
+    {
+      name: 'inject-git-hash',
+      transformIndexHtml(html) {
+        return html.replace('__GIT_HASH__', gitHash);
+      }
+    }
+  ],
   resolve: {
     alias: {
       // @walletconnect/modal is a peer dep of @walletconnect/ethereum-provider
