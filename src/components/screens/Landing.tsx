@@ -88,16 +88,12 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   const [wcUri,         setWcUri]         = useState(null);    // desktop WC QR modal (blue)
   const [wcConnecting,  setWcConnecting]  = useState(false);
   const [mobile,        setMobile]        = useState(false);
-  const [mobileWcUri,   setMobileWcUri]   = useState(null);
-  const mobileQrRef = useRef(null);
   const [inWalletBrowser, setInWalletBrowser] = useState(false);
   const [walletBrowserName, setWalletBrowserName] = useState('');
 
   useEffect(() => {
     const mob = isMobile();
     setMobile(mob);
-    // Pre-warm WalletConnect provider on mobile immediately on mount
-    if (mob) getWCProvider().catch(() => {});
     // Detect any available wallet via EIP-6963
     getWalletProvider().then(eth => {
       if (!eth) return;
@@ -150,105 +146,40 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   };
 
   // ── YELLOW BUTTON: tap wallet → WC starts → wallet opens to approval ──────
-  // Shared handler for when WC session is established
-  const handleWCConnected = async (provider, walletName='WalletConnect') => {
-    const accounts = provider.accounts || await provider.request({method:'eth_accounts'}).catch(()=>[]);
-    if (!accounts.length) { setErr('No accounts found.'); resetWCProvider(); return; }
-    const address = accounts[0];
-    const chainId = provider.chainId;
-    const chainHex = chainId ? '0x'+chainId.toString(16) : '0x1';
-    const netNames = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
-    let balEth = '0.0000';
-    try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h,16)/1e18).toFixed(4); } catch {}
-    sessionStorage.removeItem('pmt_wc_pending');
-    setMobileWcUri(null);
-    onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName});
-  };
-
   const connectViaWallet = async (schemeTemplate) => {
     setShowMobile(false);
     setWaitingApproval(true);
     setErr(null);
     try {
-      // Use pre-warmed provider if available (don't reset — we pre-warm for speed)
+      resetWCProvider();
       const provider = await getWCProvider();
-
       provider.once('display_uri', (uri) => {
-        sessionStorage.setItem('pmt_wc_pending', '1');
-        // Store URI for QR fallback
-        setMobileWcUri(uri);
-        setTimeout(() => {
-          if (mobileQrRef.current) {
-            QRCode.toCanvas(mobileQrRef.current, uri, { width: 180, margin: 1, color: { dark: '#000', light: '#fff' } }).catch(()=>{});
-          }
-        }, 100);
-        // Open wallet app via custom scheme (silent fail if not installed)
         window.location.href = schemeTemplate(uri);
-
-        // Auto-connect: poll every 800ms after deep-link navigation
-        let polls = 0;
-        const interval = setInterval(async () => {
-          polls++;
-          if (polls > 150) { clearInterval(interval); return; } // give up after 2min
-          try {
-            const accs = provider.accounts || await provider.request({method:'eth_accounts'}).catch(()=>[]);
-            if (accs && accs.length > 0) {
-              clearInterval(interval);
-              document.removeEventListener('visibilitychange', onVisible);
-              setWaitingApproval(false);
-              await handleWCConnected(provider);
-            }
-          } catch {}
-        }, 800);
-
-        // Also check immediately when user returns to the page from wallet app
-        const onVisible = async () => {
-          if (document.hidden) return;
-          document.removeEventListener('visibilitychange', onVisible);
-          // Small delay to let WC session fully establish
-          setTimeout(async () => {
-            try {
-              const accs = provider.accounts || await provider.request({method:'eth_accounts'}).catch(()=>[]);
-              if (accs && accs.length > 0) {
-                clearInterval(interval);
-                setWaitingApproval(false);
-                await handleWCConnected(provider);
-              }
-            } catch {}
-          }, 800);
-        };
-        document.addEventListener('visibilitychange', onVisible);
       });
-
-      // Also handle if connect() resolves automatically
-      provider.connect()
-        .then(async () => { setWaitingApproval(false); await handleWCConnected(provider); })
-        .catch(e => {
-          setWaitingApproval(false); resetWCProvider();
-          const msg = e.message||String(e);
-          if (!msg.includes('reset')&&!msg.includes('closed')) setErr('Connection failed: '+msg);
-        });
+      provider.connect().then(async () => {
+        setWaitingApproval(false);
+        const accounts = provider.accounts || [];
+        if (!accounts.length) { setErr('No accounts found.'); resetWCProvider(); return; }
+        const address  = accounts[0];
+        const chainId  = provider.chainId;
+        const chainHex = chainId ? '0x' + chainId.toString(16) : '0x1';
+        const netNames = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
+        let balEth = '0.0000';
+        try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h,16)/1e18).toFixed(4); } catch {}
+        onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
+      }).catch(e => {
+        setWaitingApproval(false);
+        resetWCProvider();
+        const msg = e.message||String(e);
+        if (!msg.includes('reset') && !msg.includes('closed')) setErr('Connection failed: '+msg);
+      });
     } catch(e) {
       setWaitingApproval(false); resetWCProvider();
       setErr('WalletConnect: '+(e.message||String(e)));
     }
   };
 
-  // Let user manually check if their wallet connected (handles iOS background/resume)
-  const checkWCConnection = async () => {
-    setErr(null);
-    try {
-      const provider = await getWCProvider();
-      if (provider.connected || (provider.accounts && provider.accounts.length > 0)) {
-        setWaitingApproval(false);
-        await handleWCConnected(provider);
-      } else {
-        setErr('Not connected yet. Make sure you approved in your wallet, then tap again.');
-      }
-    } catch(e) {
-      setErr('Check failed: '+(e.message||String(e)));
-    }
-  };
+
 
   // ── BLUE BUTTON: WC with QR (desktop) or "Open My Wallet" (mobile) ────────
   const handleWalletConnect = async () => {
@@ -298,9 +229,8 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
           else setShowMobile(true); // fallback: show wallet grid
         });
       } else {
-        // Regular mobile browser — show wallet grid and pre-warm WC
+        // Regular mobile browser — show wallet grid
         setShowMobile(true);
-        getWCProvider().catch(() => {}); // ensure provider is ready
       }
       return;
     }
@@ -398,17 +328,8 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
               ))}
             </div>
             <p style={{fontSize:11,color:'var(--muted)',textAlign:'center',margin:'10px 0 4px',lineHeight:1.5}}>
-              Don't have the app? Use the QR code below with any wallet.
+              After approving in your wallet, come back to this page.
             </p>
-            {mobileWcUri && (
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'8px 0'}}>
-                <canvas ref={mobileQrRef} style={{borderRadius:10,display:'block'}}/>
-                <button onClick={()=>{navigator.clipboard?.writeText(mobileWcUri);}}
-                  style={{fontSize:11,color:'var(--accent)',background:'none',border:'none',cursor:'pointer',fontFamily:'var(--mono)'}}>
-                  Copy WC URI
-                </button>
-              </div>
-            )}
             <button onClick={()=>setShowMobile(false)}
               style={{width:'100%',padding:'9px',background:'transparent',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:12}}>
               Cancel
@@ -425,15 +346,10 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
             <div style={{textAlign:'center'}}>
               <p style={{fontSize:14,fontWeight:600,margin:'0 0 6px',color:'var(--text)'}}>Waiting for approval...</p>
               <p style={{fontSize:12,color:'var(--text2)',margin:0,lineHeight:1.5}}>
-                Approve the connection in your wallet app, then tap the button below.
+                Approve the connection in your wallet, then come back here.
               </p>
             </div>
-            <button onClick={checkWCConnection}
-              style={{width:'100%',padding:'12px',background:'var(--accent)',border:'none',
-                borderRadius:10,color:'#0a0c14',fontWeight:700,fontSize:14,cursor:'pointer'}}>
-              ✓ I've approved — connect now
-            </button>
-            <button onClick={()=>{setWaitingApproval(false);resetWCProvider();sessionStorage.removeItem('pmt_wc_pending');}}
+            <button onClick={()=>{setWaitingApproval(false);resetWCProvider();}}
               style={{padding:'8px 18px',background:'transparent',border:'1px solid var(--border)',
                 borderRadius:8,color:'var(--muted)',fontSize:12,cursor:'pointer'}}>
               ← Cancel
