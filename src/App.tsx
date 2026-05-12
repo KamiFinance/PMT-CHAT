@@ -507,16 +507,16 @@ export default function App() {
   // On page load: restore sessionPassword so auto-backup works after page refresh
   useEffect(() => {
     if (!wallet?.address || sessionPasswordRef.current) return;
-    // Create/Import wallet: restore password from sessionStorage (set on login)
+    // Create/Import wallet: restore from sessionStorage (set on login, clears on tab close)
     const stored = sessionStorage.getItem('pmt_bkpwd_' + wallet.address.toLowerCase());
-    if (stored) { sessionPasswordRef.current = stored; return; }
-    // Connect Wallet: derive key automatically — no user password needed
-    if ((wallet as any).isMetaMask && wallet.username && wallet.address) {
-      import('./lib/cloudBackup').then(({ deriveWalletBackupKey }) => {
-        if (!sessionPasswordRef.current) // still not set
-          sessionPasswordRef.current = deriveWalletBackupKey(wallet.address!, wallet.username!);
-      }).catch(() => {});
-    }
+    const key = stored
+      || ((wallet as any).isMetaMask && wallet.username
+          ? deriveWalletBackupKey(wallet.address, wallet.username)  // sync, no import needed
+          : null);
+    if (!key) return;
+    sessionPasswordRef.current = key;
+    // Auto-backup already ran with null password — kick it off now that we have the key
+    setTimeout(() => runBackup(key).catch(() => {}), 1000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
 
@@ -1161,7 +1161,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     if (w.sessionPassword) {
       sessionPasswordRef.current = w.sessionPassword;
       // Persist for page refreshes (sessionStorage clears on tab close, not on refresh)
-      if (w.address && !(w as any).isMetaMask) {
+      if (w.address) {
         sessionStorage.setItem('pmt_bkpwd_' + w.address.toLowerCase(), w.sessionPassword);
       }
     }
