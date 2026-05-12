@@ -97,21 +97,32 @@ export async function saveCloudBackup(
 ): Promise<void> {
   const uname = username.toLowerCase().trim();
 
-  // Reuse existing salt so passwordHash stays consistent (lets server verify ownership).
-  // Account may be stored under username key OR address key — check both.
-  const byUsername = localStorage.getItem(`pmt_account_${uname}`);
-  const byAddress = data.wallet.address
-    ? localStorage.getItem(`pmt_account_${data.wallet.address.toLowerCase()}`)
-    : null;
-  const accountData = byUsername ? JSON.parse(byUsername) : byAddress ? JSON.parse(byAddress) : null;
-  // Enforce string — old accounts may have stored salt as a Uint8Array-like object
-  const rawSalt = accountData?.passwordSalt ?? accountData?.salt ?? null;
-  const existingSalt = typeof rawSalt === 'string' ? rawSalt : null;
+  // Use server salt as ground truth — local pmt_account_ regenerates a new random salt on
+  // every login, so using it would produce a different passwordHash each time → 403.
+  // Priority: server salt (existing record) → local salt → deterministic fallback.
+  let finalSalt: string | null = null;
 
-  // If no salt stored locally (Connect Wallet users have no passwordSalt in pmt_account_),
-  // derive a deterministic salt from the password so passwordHash is always the same.
-  // Random salt caused 403 on every backup update since server checks passwordHash consistency.
-  let finalSalt = existingSalt;
+  // 1. Check server for existing record — its salt is the canonical one
+  try {
+    const srvRes = await fetch(`/api/auth?username=${encodeURIComponent(uname)}`);
+    if (srvRes.ok) {
+      const srvRec = await srvRes.json();
+      if (typeof srvRec.salt === 'string') finalSalt = srvRec.salt;
+    }
+  } catch { /* offline — fall through to local */ }
+
+  // 2. Fall back to local pmt_account_ salt (first-time saves, no server record yet)
+  if (!finalSalt) {
+    const byUsername = localStorage.getItem(`pmt_account_${uname}`);
+    const byAddress = data.wallet.address
+      ? localStorage.getItem(`pmt_account_${data.wallet.address.toLowerCase()}`)
+      : null;
+    const accountData = byUsername ? JSON.parse(byUsername) : byAddress ? JSON.parse(byAddress) : null;
+    const rawSalt = accountData?.passwordSalt ?? accountData?.salt ?? null;
+    finalSalt = typeof rawSalt === 'string' ? rawSalt : null;
+  }
+
+  // 3. Last resort: deterministic salt from password (Connect Wallet users, offline first-save)
   if (!finalSalt) {
     const hashBuf = await crypto.subtle.digest('SHA-256',
       new TextEncoder().encode('pmt-backup-salt-v1:' + password));
@@ -119,15 +130,6 @@ export async function saveCloudBackup(
   }
 
   const { hash: passwordHash, salt } = await PMTAuth.hashPassword(password, finalSalt);
-
-  // Save salt back to localStorage so we never need to re-derive
-  if (accountData && !existingSalt) {
-    const updated = { ...accountData, passwordSalt: finalSalt };
-    localStorage.setItem(`pmt_account_${uname}`, JSON.stringify(updated));
-    if (data.wallet.address) {
-      localStorage.setItem(`pmt_account_${data.wallet.address.toLowerCase()}`, JSON.stringify(updated));
-    }
-  }
 
   // Encrypt the full backup with this salt
   const encryptedBackup = await encryptBackup(data, password, salt);
