@@ -243,6 +243,40 @@ export default function App() {
 
 
 
+  // Listen for chain changes and update wallet.network in real time
+  useEffect(() => {
+    if (!wallet?.address || isDemo) return;
+    const netNames: Record<string,string> = {
+      '0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism',
+      '0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'
+    };
+    const updateChain = (chainId: string) => {
+      const hex = chainId.startsWith('0x') ? chainId : '0x'+parseInt(chainId).toString(16);
+      const name = netNames[hex.toLowerCase()] || ('Chain '+parseInt(hex,16));
+      setWallet(prev => prev ? { ...prev, network: name, chainId: hex } : prev);
+    };
+    // Injected wallet (desktop / wallet browser)
+    const win = (window as any).ethereum;
+    if (win?.on) win.on('chainChanged', updateChain);
+    // WalletConnect provider
+    getWCProvider().then(wc => {
+      if (wc?.on) {
+        wc.on('chainChanged', updateChain);
+        // Also set current chain from WC provider
+        if (wc.chainId) {
+          const hex = '0x'+Number(wc.chainId).toString(16);
+          updateChain(hex);
+        }
+      }
+    }).catch(() => {});
+    return () => {
+      if (win?.removeListener) win.removeListener('chainChanged', updateChain);
+      getWCProvider().then(wc => {
+        if (wc?.removeListener) wc.removeListener('chainChanged', updateChain);
+      }).catch(() => {});
+    };
+  }, [wallet?.address, isDemo]);
+
   // Fetch balance directly from PMTchain RPC — works for all wallet types
   useEffect(() => {
     if (!wallet?.address || isDemo || wallet.address === 'demo') return;
