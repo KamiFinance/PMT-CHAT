@@ -124,7 +124,7 @@ export default function App() {
         const { username, address } = JSON.parse(sess);
         if (address) {
           // Restore privateKey from sessionStorage (set on login, survives page refresh)
-          const pk = sessionStorage.getItem('pmt_pk_' + address.toLowerCase()) || '';
+          const pk = localStorage.getItem('pmt_pk_' + address.toLowerCase()) || sessionStorage.getItem('pmt_pk_' + address.toLowerCase()) || '';
           // Load full wallet data if saved
           const saved = localStorage.getItem(`pmt_account_${address.toLowerCase()}`);
           if (saved) {
@@ -683,7 +683,7 @@ export default function App() {
           if (derivedAddr === myAddr) {
             // Key matches — cache it and use direct ethers.js path
             usePk = walletData.privateKey;
-            sessionStorage.setItem('pmt_pk_' + myAddr, usePk);
+            localStorage.setItem('pmt_pk_' + myAddr, usePk); sessionStorage.setItem('pmt_pk_' + myAddr, usePk);
             walletRef.current = { ...walletRef.current, privateKey: usePk };
           } else {
             // Account data is corrupted — stored key is for a different address.
@@ -1206,7 +1206,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
   const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMTchain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); }, []);
-  const handleLogout = useCallback(() => { if (walletRef.current?.address) sessionStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase()); storage.clearSession(); setWallet(null); walletRef.current = null; setIsDemo(false); setContacts([]); setMsgs({}); setActiveAndRef(null); setScreen('landing'); }, [setActiveAndRef]);
+  const handleLogout = useCallback(() => { if (walletRef.current?.address) { sessionStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase()); localStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase()); } storage.clearSession(); setWallet(null); walletRef.current = null; setIsDemo(false); setContacts([]); setMsgs({}); setActiveAndRef(null); setScreen('landing'); }, [setActiveAndRef]);
 
   if (screen === 'landing') return <Landing onDemo={handleDemo} onCreateWallet={() => setScreen('create')} onImportWallet={() => setScreen('import')} onLogin={() => setScreen('login')} onMetaMask={(w: Wallet) => {
               // Check if this wallet address already has a saved account

@@ -101,7 +101,7 @@ export default function LoginScreen({onLogin,onBack}){
             localStorage.setItem('pmt_account_'+wFix.address.toLowerCase(),JSON.stringify(fixed));
             // Must set pmt_session so sendETH reads correct address after login
             localStorage.setItem('pmt_session',JSON.stringify({username:username.trim().toLowerCase(),address:wFix.address}));
-            sessionStorage.setItem('pmt_pk_'+wFix.address.toLowerCase(),wFix.privateKey??'');
+            sessionStorage.setItem('pmt_pk_'+wFix.address.toLowerCase(),wFix.privateKey??''); localStorage.setItem('pmt_pk_'+wFix.address.toLowerCase(),wFix.privateKey??'');
             setLoading(false);
             onLogin({address:wFix.address,privateKey:wFix.privateKey??'',balance:'0.0000',network:'PMTchain',
               username:username.trim().toLowerCase(),sessionPassword:password,
@@ -126,7 +126,7 @@ export default function LoginScreen({onLogin,onBack}){
                 restoredContacts:backup2.contacts??[],
                 restoredMessages:backup2.messages??{},
                 restoredProfile:backup2.profile??{}};
-              sessionStorage.setItem('pmt_pk_'+backup2.wallet.address.toLowerCase(), backup2.wallet.privateKey);
+              sessionStorage.setItem('pmt_pk_'+backup2.wallet.address.toLowerCase(), backup2.wallet.privateKey); localStorage.setItem('pmt_pk_'+backup2.wallet.address.toLowerCase(), backup2.wallet.privateKey);
               onLogin(rd2);
             } else {
               setErr('Account found but wallet data is incomplete. Please use "Create Wallet" to set up a new account.');
@@ -172,7 +172,7 @@ export default function LoginScreen({onLogin,onBack}){
 
         if(walletData.privateKey && walletData.privateKey !== 'metamask'){
           Object.keys(sessionStorage).filter(k => k.startsWith('pmt_pk_')).forEach(k => sessionStorage.removeItem(k));
-          sessionStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey);
+          sessionStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey); localStorage.setItem('pmt_pk_'+walletData.address.toLowerCase(), walletData.privateKey);
           await doLogin();
         } else if(!walletData.privateKey || walletData.privateKey === ''){
           await doLogin();
