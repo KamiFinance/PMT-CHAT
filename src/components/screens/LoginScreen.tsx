@@ -80,27 +80,27 @@ export default function LoginScreen({onLogin,onBack}){
         const account=JSON.parse(stored);
         const ok=await PMTAuth.verifyPassword(password,account.passwordHash,account.passwordSalt);
         if(!ok){
-          // Local account may be corrupted (Connect Wallet session overwrote it).
-          // Always try cloud backup — if it decrypts with this password, self-heal the local data.
-          setErr('Checking…');
-          try {
-            const backup3=await loadCloudBackup(username.trim(),password);
-            if(backup3?.wallet?.privateKey && backup3.wallet.privateKey!=='metamask'){
-              const{hash:ph,salt:ps}=await PMTAuth.hashPassword(password);
-              const ew=await PMTAuth.encryptWallet({address:backup3.wallet.address,privateKey:backup3.wallet.privateKey??''},password);
-              const fixed={username:username.trim().toLowerCase(),address:backup3.wallet.address,passwordHash:ph,passwordSalt:ps,encryptedWallet:ew};
-              localStorage.setItem('pmt_account_'+username.trim().toLowerCase(),JSON.stringify(fixed));
-              localStorage.setItem('pmt_account_'+backup3.wallet.address.toLowerCase(),JSON.stringify(fixed));
-              const rd3={address:backup3.wallet.address,privateKey:backup3.wallet.privateKey??'',
-                balance:'0.0000',network:'PMTchain',username:username.trim().toLowerCase(),
-                sessionPassword:password,
-                restoredContacts:backup3.contacts??[],
-                restoredMessages:backup3.messages??{},
-                restoredProfile:backup3.profile??{}};
-              sessionStorage.setItem('pmt_pk_'+backup3.wallet.address.toLowerCase(),backup3.wallet.privateKey??'');
-              setLoading(false);onLogin(rd3);return;
-            }
-          } catch {}
+          if(!account.encryptedWallet){
+            // Corrupted by Connect Wallet overwrite — remove and try cloud restore
+            localStorage.removeItem('pmt_account_'+username.trim().toLowerCase());
+            if(account.address) localStorage.removeItem('pmt_account_'+account.address.toLowerCase());
+            setErr('Checking cloud backup…');
+            const bkFix=await loadCloudBackup(username.trim(),password).catch(()=>null);
+            if(!bkFix){setLoading(false);return setErr('Incorrect password. Please try again.');}
+            const{wallet:wFix,contacts:cFix,messages:mFix,profile:pFix}=bkFix;
+            if(!wFix?.privateKey||wFix.privateKey==='metamask'){setLoading(false);return setErr('Incorrect password. Please try again.');}
+            const{hash:phFix,salt:psFix}=await PMTAuth.hashPassword(password);
+            const ewFix=await PMTAuth.encryptWallet({address:wFix.address,privateKey:wFix.privateKey??''},password);
+            const fixed={username:username.trim().toLowerCase(),address:wFix.address,passwordHash:phFix,passwordSalt:psFix,encryptedWallet:ewFix};
+            localStorage.setItem('pmt_account_'+username.trim().toLowerCase(),JSON.stringify(fixed));
+            localStorage.setItem('pmt_account_'+wFix.address.toLowerCase(),JSON.stringify(fixed));
+            sessionStorage.setItem('pmt_pk_'+wFix.address.toLowerCase(),wFix.privateKey??'');
+            setLoading(false);
+            onLogin({address:wFix.address,privateKey:wFix.privateKey??'',balance:'0.0000',network:'PMTchain',
+              username:username.trim().toLowerCase(),sessionPassword:password,
+              restoredContacts:cFix??[],restoredMessages:mFix??{},restoredProfile:pFix??{}});
+            return;
+          }
           setLoading(false);return setErr('Incorrect password. Please try again.');
         }
         // Check if this account has wallet data we can decrypt
