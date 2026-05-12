@@ -80,14 +80,12 @@ export default function LoginScreen({onLogin,onBack}){
         const account=JSON.parse(stored);
         const ok=await PMTAuth.verifyPassword(password,account.passwordHash,account.passwordSalt);
         if(!ok){
-          // Local account might be corrupted (e.g. overwritten by Connect Wallet session).
-          // Try cloud backup as fallback — if it decrypts with this password, self-heal.
-          if(!account.isMetaMask && !account.encryptedWallet){
-            // Clearly corrupted — try cloud restore immediately
-            setErr('Checking cloud backup…');
-            const backup3=await loadCloudBackup(username.trim(),password).catch(()=>null);
+          // Local account may be corrupted (Connect Wallet session overwrote it).
+          // Always try cloud backup — if it decrypts with this password, self-heal the local data.
+          setErr('Checking…');
+          try {
+            const backup3=await loadCloudBackup(username.trim(),password);
             if(backup3?.wallet?.privateKey && backup3.wallet.privateKey!=='metamask'){
-              // Cloud backup valid — restore and fix local account
               const{hash:ph,salt:ps}=await PMTAuth.hashPassword(password);
               const ew=await PMTAuth.encryptWallet({address:backup3.wallet.address,privateKey:backup3.wallet.privateKey??''},password);
               const fixed={username:username.trim().toLowerCase(),address:backup3.wallet.address,passwordHash:ph,passwordSalt:ps,encryptedWallet:ew};
@@ -102,7 +100,7 @@ export default function LoginScreen({onLogin,onBack}){
               sessionStorage.setItem('pmt_pk_'+backup3.wallet.address.toLowerCase(),backup3.wallet.privateKey??'');
               setLoading(false);onLogin(rd3);return;
             }
-          }
+          } catch {}
           setLoading(false);return setErr('Incorrect password. Please try again.');
         }
         // Check if this account has wallet data we can decrypt
