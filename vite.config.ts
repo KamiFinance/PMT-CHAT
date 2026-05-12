@@ -29,6 +29,11 @@ export default defineConfig({
       }
     }
   ],
+  build: {
+    // Target Safari 14 (iOS 14+) to ensure WalletConnect dynamic chunk
+    // doesn't use syntax that fails with "importing a module script failed"
+    target: ['es2018', 'chrome87', 'firefox78', 'safari14'],
+  },
   resolve: {
     alias: {
       // @walletconnect/modal is a peer dep of @walletconnect/ethereum-provider
