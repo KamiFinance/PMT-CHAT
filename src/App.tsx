@@ -142,6 +142,7 @@ export default function App() {
   const [backupPromptPassword, setBackupPromptPassword] = useState('');
   const [showBackupPrompt, setShowBackupPrompt] = useState(false);
   const [showWalletRestore, setShowWalletRestore] = useState(false);
+  const [walletRestoreMigrate, setWalletRestoreMigrate] = useState<{address:string,username:string,backupKey:string}|null>(null);
   const [walletRestoreErr, setWalletRestoreErr] = useState('');
   const [walletRestorePwd, setWalletRestorePwd] = useState('');
   const [walletRestoreLoading, setWalletRestoreLoading] = useState(false);
@@ -1245,9 +1246,9 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                   localStorage.setItem('pmt_session', JSON.stringify({ username, address: w.address }));
                   setScreen('chat');
                   if (window.innerWidth < 768) setMobileSidebarOpen(true);
-                  // Auto-restore backup in background using wallet-derived key
+                  // Auto-restore backup — try derived key first, fall back to migration modal
                   const backupKey = deriveWalletBackupKey(w.address, username);
-                  import('./lib/cloudBackup').then(({ loadCloudBackup }) =>
+                  import('./lib/cloudBackup').then(({ loadCloudBackup, saveCloudBackup }) =>
                     loadCloudBackup(username, backupKey).then(backup => {
                       if (!backup) return;
                       sessionPasswordRef.current = backupKey;
@@ -1255,7 +1256,13 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                         restoredContacts: backup.contacts ?? [],
                         restoredMessages: backup.messages ?? {},
                         restoredProfile:  backup.profile  ?? {} });
-                    }).catch(() => {})
+                    }).catch((e) => {
+                      // WRONG_PASSWORD = old backup saved with user-set password → show migration modal
+                      if (e?.message === 'WRONG_PASSWORD') {
+                        setShowWalletRestore(true);
+                        setWalletRestoreMigrate({ address: w.address, username, backupKey });
+                      }
+                    })
                   );
                 } catch {
                   setWallet(w); walletRef.current = w; setScreen('metamask_setup');
@@ -1287,7 +1294,12 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                             restoredContacts: backup.contacts ?? [],
                             restoredMessages: backup.messages ?? {},
                             restoredProfile:  backup.profile  ?? {} });
-                        }).catch(() => {})
+                        }).catch((e) => {
+                          if (e?.message === 'WRONG_PASSWORD') {
+                            setShowWalletRestore(true);
+                            setWalletRestoreMigrate({ address: w.address, username: data.username, backupKey: backupKey2 });
+                          }
+                        })
                       );
                     } else {
                       // Truly new user
@@ -1336,7 +1348,30 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       </div>
       {showProfile && <ProfileModal profile={{ ...profile, address: wallet?.address ?? null }} onClose={() => setShowProfile(false)} onSave={saveProfile} />}
 
-      {/* Auto-restore runs silently in background — no modal needed */}
+      {/* One-time migration modal: shown when old backup uses user-set password, not derived key */}
+      {showWalletRestore && walletRestoreMigrate && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999,padding:16}}>
+          <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360,display:'flex',flexDirection:'column',gap:16}}>
+            <div style={{fontSize:18,fontWeight:700,color:'var(--text)'}}>One-time backup migration</div>
+            <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.5}}>
+              Your backup was saved with a password. Enter it once to migrate to automatic backup — you'll never need to do this again.
+            </div>
+            <input type="password" placeholder="Your backup password" value={walletRestorePwd} autoFocus
+              onChange={e=>{setWalletRestorePwd(e.target.value);setWalletRestoreErr('');}}
+              onKeyDown={async e=>{ if(e.key==='Enter'&&walletRestorePwd) { await doMigrate(); } }}
+              style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'12px 14px',color:'var(--text)',fontSize:15,outline:'none',width:'100%'}}/>
+            {walletRestoreErr&&<div style={{fontSize:12,color:'var(--danger)'}}>{walletRestoreErr}</div>}
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={()=>{setShowWalletRestore(false);setWalletRestorePwd('');setWalletRestoreMigrate(null);}}
+                style={{flex:1,padding:'11px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,color:'var(--text)',cursor:'pointer',fontSize:14}}>Skip</button>
+              <button disabled={!walletRestorePwd||walletRestoreLoading} onClick={doMigrate}
+                style={{flex:2,padding:'11px',background:'var(--accent)',border:'none',borderRadius:10,color:'#0a0c14',fontWeight:700,cursor:'pointer',fontSize:14,opacity:(!walletRestorePwd||walletRestoreLoading)?0.5:1}}>
+                {walletRestoreLoading?'Migrating…':'Migrate Backup'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* One-time backup password prompt — appears when session was restored but no cloud backup exists */}
       {showBackupPrompt && (
