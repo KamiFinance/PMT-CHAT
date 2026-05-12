@@ -31,11 +31,15 @@ async function getActiveProvider() {
   return null;
 }
 
-async function doSwitch(provider: any) {
+const isMobileDevice = () => /iPhone|iPad|Android/i.test(navigator.userAgent);
+
+async function doSwitch(provider: any, onNeedApproval?: () => void) {
   try {
     await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x46df2' }] });
   } catch (sw: any) {
     if (sw.code === 4902 || sw.code === -32603 || sw.message?.includes('wallet_addEthereumChain')) {
+      // On mobile with WC: notify user to open their wallet app
+      if (isMobileDevice() && onNeedApproval) onNeedApproval();
       await provider.request({ method: 'wallet_addEthereumChain', params: [PMT_CHAIN] });
     } else if (sw.code !== 4001) throw sw;
   }
@@ -47,6 +51,7 @@ function SwitchNetworkButton() {
   const [switching, setSwitching] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [copied, setCopied] = React.useState('');
+  const [pendingApproval, setPendingApproval] = React.useState(false);
   const providerRef = React.useRef<any>(null);
 
   React.useEffect(() => {
@@ -81,7 +86,7 @@ function SwitchNetworkButton() {
         eth = result.provider;
         providerRef.current = eth;
       }
-      await doSwitch(eth);
+      await doSwitch(eth, () => setPendingApproval(true));
       // Re-read chain after switch
       try {
         const wc = providerRef.current;
@@ -105,8 +110,39 @@ function SwitchNetworkButton() {
     { label: 'Block Explorer', value: 'https://pmtscan.com' },
   ];
 
-  if (!hasProvider) return (
-    <div style={{ margin: '0 10px 6px', flexShrink: 0 }}>
+  // Popup for mobile WalletConnect users who need to approve in their wallet app
+  const WalletApprovalPopup = pendingApproval ? (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',display:'flex',
+      alignItems:'center',justifyContent:'center',zIndex:9999,padding:20}}>
+      <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:20,
+        padding:'28px 24px',width:'100%',maxWidth:340,display:'flex',flexDirection:'column',
+        gap:16,alignItems:'center',textAlign:'center'}}>
+        <div style={{fontSize:36}}>📱</div>
+        <div style={{fontSize:16,fontWeight:700,color:'var(--text)'}}>Open your wallet app</div>
+        <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.6}}>
+          A request to add <strong>PMTchain</strong> has been sent to your wallet.<br/>
+          Open your wallet app and confirm the new network.
+        </div>
+        <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,
+          padding:'12px 16px',width:'100%'}}>
+          <div style={{fontSize:11,color:'var(--muted)',marginBottom:6}}>Network details</div>
+          <div style={{fontSize:12,color:'var(--text)',fontFamily:'var(--mono)'}}>PMTchain · Chain ID 290290</div>
+          <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>node1-ipm.dweb3.wtf</div>
+        </div>
+        <button onClick={() => setPendingApproval(false)}
+          style={{width:'100%',padding:'12px',background:'var(--accent)',border:'none',
+            borderRadius:10,color:'#0a0c14',fontWeight:700,fontSize:14,cursor:'pointer'}}>
+          ✓ I've confirmed in my wallet
+        </button>
+        <button onClick={() => setPendingApproval(false)}
+          style={{background:'none',border:'none',color:'var(--muted)',fontSize:12,cursor:'pointer'}}>
+          Dismiss
+        </button>
+      </div>
+    </div>
+  ) : null;
+
+  if (!hasProvider) return (<>{WalletApprovalPopup}<div style={{ margin: '0 10px 6px', flexShrink: 0 }}>
       <button onClick={() => setOpen(v => !v)}
         style={{ width: '100%', padding: '9px 12px', background: 'var(--surface)',
           border: '1px solid var(--border)', borderRadius: 9,
@@ -132,10 +168,9 @@ function SwitchNetworkButton() {
         </div>
       )}
     </div>
-  );
+  </>);
 
-  return (
-    <div style={{ margin: '0 10px 6px', flexShrink: 0 }}>
+  return (<>{WalletApprovalPopup}<div style={{ margin: '0 10px 6px', flexShrink: 0 }}>
       <button onClick={switchNetwork} disabled={onPMT || switching}
         style={{ width: '100%', padding: '9px 12px',
           background: onPMT ? 'rgba(48,209,88,.1)' : 'rgba(255,69,58,.1)',
@@ -174,8 +209,7 @@ function SwitchNetworkButton() {
           ))}
         </div>
       )}
-    </div>
-  );
+    </div></> );
 }
 
 /** Compact version for mobile topbar */
