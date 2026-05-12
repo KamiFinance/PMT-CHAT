@@ -464,6 +464,25 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [contacts, msgs, wallet?.address, wallet?.username, isDemo, runBackup]);
 
+  // On mobile: back up immediately when app goes to background or page is hidden.
+  // iOS kills Safari tabs quickly — the 5s debounce above may never fire.
+  useEffect(() => {
+    const flush = () => {
+      const password = sessionPasswordRef.current;
+      if (!password || !wallet?.address || isDemo) return;
+      runBackup(password).catch(() => {});
+    };
+    // visibilitychange fires when user switches apps on iOS
+    const onHide = () => { if (document.hidden) flush(); };
+    // pagehide fires when iOS kills the tab
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, [wallet?.address, isDemo, runBackup]);
+
   const pushNotif = useCallback((contact: Contact, text: string) => {
     const id = uid();
     const n: Notif = { id, contact, text, ts: Date.now() };
@@ -1075,10 +1094,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     // Only show verify for explicit MetaMask/external wallets (privateKey === 'metamask')
     const isExternalWallet = w.privateKey === 'metamask';
     if (!isExternalWallet && w.address) {
-      // Internal: real key OR empty key (password auth proved ownership)
-      if (w.privateKey && w.privateKey !== 'metamask') {
-        localStorage.setItem(`pmt_wallet_internal_${w.address.toLowerCase()}`, '1');
-      }
+      // Mark as internal permanently so page reloads skip verify
+      localStorage.setItem(`pmt_wallet_internal_${w.address.toLowerCase()}`, '1');
       setScreen('chat');
       if (window.innerWidth < 768) setMobileSidebarOpen(true);
     } else if (w.address) {
@@ -1125,7 +1142,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     const password = sessionPasswordRef.current;
     const timer = setTimeout(() => {
       runBackup(password).catch(() => { /* silent */ });
-    }, 3000);
+    }, 1000);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
