@@ -1,54 +1,71 @@
 // @ts-nocheck
 import React from 'react';
 import { getWalletProvider } from '../../lib/wallet';
+import { getWCProvider } from '../../lib/walletconnect';
+
+const PMT_CHAIN = {
+  chainId: '0x46df2', chainName: 'PMTchain',
+  nativeCurrency: { name: 'PM', symbol: 'PMT', decimals: 18 },
+  rpcUrls: ['https://node1-ipm.dweb3.wtf'],
+  blockExplorerUrls: ['https://pmtscan.com'],
+};
+
+/** Get active provider: injected wallet first, then WalletConnect */
+async function getActiveProvider() {
+  // Try injected (desktop MetaMask / mobile wallet browser)
+  const found: any[] = [];
+  const h = (e: any) => found.push(e.detail);
+  window.addEventListener('eip6963:announceProvider', h);
+  window.dispatchEvent(new Event('eip6963:requestProvider'));
+  await new Promise(r => setTimeout(r, 350));
+  window.removeEventListener('eip6963:announceProvider', h);
+  const mm = found.find((p: any) => p.info?.rdns === 'io.metamask');
+  const injected = mm?.provider ?? found[0]?.provider ?? (window as any).ethereum ?? null;
+  if (injected) return { provider: injected, type: 'injected' };
+
+  // Try WalletConnect (mobile Safari with connected wallet)
+  try {
+    const wc = await getWCProvider();
+    if (wc?.accounts?.length) return { provider: wc, type: 'wc' };
+  } catch {}
+  return null;
+}
+
+async function doSwitch(provider: any) {
+  try {
+    await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x46df2' }] });
+  } catch (sw: any) {
+    if (sw.code === 4902 || sw.code === -32603 || sw.message?.includes('wallet_addEthereumChain')) {
+      await provider.request({ method: 'wallet_addEthereumChain', params: [PMT_CHAIN] });
+    } else if (sw.code !== 4001) throw sw;
+  }
+}
 
 function SwitchNetworkButton() {
   const [chain, setChain] = React.useState<string>('');
-  const [hasMM, setHasMM] = React.useState(false);
+  const [hasProvider, setHasProvider] = React.useState(false);
   const [switching, setSwitching] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [copied, setCopied] = React.useState('');
   const providerRef = React.useRef<any>(null);
 
-  const PMT_CHAIN = {
-    chainId: '0x46df2', chainName: 'PMTchain',
-    nativeCurrency: { name: 'PM', symbol: 'PMT', decimals: 18 },
-    rpcUrls: ['https://node1-ipm.dweb3.wtf'],
-    blockExplorerUrls: ['https://pmtscan.com'],
-  };
-
-  // Discover any EIP-6963 wallet (MetaMask, Coinbase, Rainbow, Trust, etc.)
-  // Falls back to window.ethereum for older wallets
-  const getProvider = () => new Promise<any>((resolve) => {
-    const found: any[] = [];
-    const h = (e: any) => found.push(e.detail);
-    window.addEventListener('eip6963:announceProvider', h);
-    window.dispatchEvent(new Event('eip6963:requestProvider'));
-    setTimeout(() => {
-      window.removeEventListener('eip6963:announceProvider', h);
-      // Prefer MetaMask if available, then any other EIP-6963 wallet, then window.ethereum
-      const mm = found.find((p: any) => p.info?.rdns === 'io.metamask');
-      const any6963 = found[0]; // first announced provider
-      resolve(mm?.provider ?? any6963?.provider ?? (window as any).ethereum ?? null);
-    }, 400);
-  });
-
   React.useEffect(() => {
-    getProvider().then(eth => {
-      if (!eth) return;
-      setHasMM(true);
-      providerRef.current = eth;
-      eth.request({ method: 'eth_chainId' }).then(setChain).catch(() => {});
-      // Listen for chain changes on this provider
-      const onChange = (id: string) => setChain(id);
-      eth.on?.('chainChanged', onChange);
-      // Also listen via window.ethereum in case it's a different provider
-      const winEth = (window as any).ethereum;
-      if (winEth && winEth !== eth) {
-        winEth.on?.('chainChanged', onChange);
+    getActiveProvider().then(result => {
+      if (!result) return;
+      setHasProvider(true);
+      providerRef.current = result.provider;
+      const eth = result.provider;
+      // Get current chain
+      if (result.type === 'wc') {
+        const cid = eth.chainId;
+        if (cid) setChain('0x' + Number(cid).toString(16));
+      } else {
+        eth.request({ method: 'eth_chainId' }).then(setChain).catch(() => {});
+        eth.on?.('chainChanged', setChain);
+        const win = (window as any).ethereum;
+        if (win && win !== eth) win.on?.('chainChanged', setChain);
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onPMT = chain === '0x46df2';
@@ -58,22 +75,23 @@ function SwitchNetworkButton() {
     setSwitching(true);
     try {
       let eth = providerRef.current;
-      if (!eth) eth = await getProvider();
-      if (!eth) { setOpen(true); setSwitching(false); return; }
-      // Try switch first, add if chain not found (4902)
-      try {
-        await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x46df2' }] });
-      } catch (sw: any) {
-        if (sw.code === 4902 || sw.code === -32603) {
-          await eth.request({ method: 'wallet_addEthereumChain', params: [PMT_CHAIN] });
-        } else if (sw.code !== 4001) {
-          throw sw;
-        }
+      if (!eth) {
+        const result = await getActiveProvider();
+        if (!result) { setOpen(true); setSwitching(false); return; }
+        eth = result.provider;
+        providerRef.current = eth;
       }
-      const newChain = await eth.request({ method: 'eth_chainId' });
-      setChain(newChain);
+      await doSwitch(eth);
+      // Re-read chain after switch
+      try {
+        const wc = providerRef.current;
+        const newChain = wc.chainId
+          ? '0x' + Number(wc.chainId).toString(16)
+          : await wc.request({ method: 'eth_chainId' });
+        setChain(newChain);
+      } catch {}
     } catch {
-      setOpen(true); // show manual fallback
+      setOpen(true);
     } finally {
       setSwitching(false);
     }
@@ -87,7 +105,7 @@ function SwitchNetworkButton() {
     { label: 'Block Explorer', value: 'https://pmtscan.com' },
   ];
 
-  if (!hasMM) return (
+  if (!hasProvider) return (
     <div style={{ margin: '0 10px 6px', flexShrink: 0 }}>
       <button onClick={() => setOpen(v => !v)}
         style={{ width: '100%', padding: '9px 12px', background: 'var(--surface)',
@@ -122,8 +140,7 @@ function SwitchNetworkButton() {
         style={{ width: '100%', padding: '9px 12px',
           background: onPMT ? 'rgba(48,209,88,.1)' : 'rgba(255,69,58,.1)',
           border: `1px solid ${onPMT ? 'rgba(74,222,128,.3)' : 'rgba(248,113,113,.4)'}`,
-          borderRadius: 9,
-          color: onPMT ? '#30d158' : '#ff453a',
+          borderRadius: 9, color: onPMT ? '#30d158' : '#ff453a',
           fontSize: 12, fontWeight: 600,
           cursor: onPMT ? 'default' : switching ? 'wait' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -143,7 +160,7 @@ function SwitchNetworkButton() {
       {open && !onPMT && (
         <div style={{ marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)',
           borderRadius: 9, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 2 }}>MetaMask → Add Network → Add manually:</div>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 2 }}>Add in your wallet app:</div>
           {details.map(({ label, value }) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 10, color: 'var(--muted)', width: 88, flexShrink: 0 }}>{label}</span>
@@ -161,36 +178,32 @@ function SwitchNetworkButton() {
   );
 }
 
-/**
- * Compact version for mobile topbar — just the button, no manual panel
- */
+/** Compact version for mobile topbar */
 export function SwitchNetworkCompact() {
   const [chain, setChain] = React.useState('');
-  const [hasMM, setHasMM] = React.useState(false);
+  const [hasProvider, setHasProvider] = React.useState(false);
   const [switching, setSwitching] = React.useState(false);
   const providerRef = React.useRef(null);
 
-  const PMT_CHAIN = {
-    chainId: '0x46df2', chainName: 'PMTchain',
-    nativeCurrency: { name: 'PM', symbol: 'PMT', decimals: 18 },
-    rpcUrls: ['https://node1-ipm.dweb3.wtf'],
-    blockExplorerUrls: ['https://pmtscan.com'],
-  };
-
   React.useEffect(() => {
-    getWalletProvider().then(eth => {
-      if (!eth) return;
-      setHasMM(true);
-      providerRef.current = eth;
-      eth.request({ method: 'eth_chainId' }).then(setChain).catch(() => {});
-      const onChange = (id) => setChain(id);
-      eth.on?.('chainChanged', onChange);
-      const winEth = window.ethereum;
-      if (winEth && winEth !== eth) winEth.on?.('chainChanged', onChange);
+    getActiveProvider().then(result => {
+      if (!result) return;
+      setHasProvider(true);
+      providerRef.current = result.provider;
+      const eth = result.provider;
+      if (result.type === 'wc') {
+        const cid = eth.chainId;
+        if (cid) setChain('0x' + Number(cid).toString(16));
+      } else {
+        eth.request({ method: 'eth_chainId' }).then(setChain).catch(() => {});
+        eth.on?.('chainChanged', setChain);
+        const win = (window as any).ethereum;
+        if (win && win !== eth) win.on?.('chainChanged', setChain);
+      }
     });
   }, []);
 
-  if (!hasMM) return null; // no wallet — don't show anything
+  if (!hasProvider) return null;
 
   const onPMT = chain === '0x46df2';
 
@@ -198,45 +211,31 @@ export function SwitchNetworkCompact() {
     if (onPMT || switching) return;
     setSwitching(true);
     try {
-      let eth = providerRef.current || await getWalletProvider();
+      const eth = providerRef.current || (await getActiveProvider())?.provider;
       if (!eth) return;
-      try {
-        await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x46df2' }] });
-      } catch (sw) {
-        if (sw.code === 4902 || sw.code === -32603) {
-          await eth.request({ method: 'wallet_addEthereumChain', params: [PMT_CHAIN] });
-        } else if (sw.code !== 4001) throw sw;
-      }
-      const newChain = await eth.request({ method: 'eth_chainId' });
+      await doSwitch(eth);
+      const cid = eth.chainId;
+      const newChain = cid ? '0x' + Number(cid).toString(16) : await eth.request({ method: 'eth_chainId' }).catch(() => '');
       setChain(newChain);
-    } catch {} finally {
-      setSwitching(false);
-    }
+    } catch {} finally { setSwitching(false); }
   };
 
   return (
     <button onClick={switchNetwork} disabled={onPMT || switching}
       title={onPMT ? 'On PMTchain' : 'Wrong network — tap to switch'}
-      style={{
-        padding: '4px 9px',
+      style={{ padding: '4px 9px',
         background: onPMT ? 'rgba(74,222,128,.1)' : 'rgba(248,113,113,.1)',
         border: `1px solid ${onPMT ? 'rgba(74,222,128,.35)' : 'rgba(248,113,113,.45)'}`,
-        borderRadius: 7,
-        color: onPMT ? '#30d158' : '#ff453a',
-        fontSize: 10, fontWeight: 700,
-        cursor: onPMT ? 'default' : 'pointer',
-        flexShrink: 0,
-        display: 'flex', alignItems: 'center', gap: 4,
-        WebkitTapHighlightColor: 'transparent',
-        whiteSpace: 'nowrap',
-      }}>
+        borderRadius: 7, color: onPMT ? '#30d158' : '#ff453a',
+        fontSize: 10, fontWeight: 700, cursor: onPMT ? 'default' : 'pointer',
+        flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4,
+        WebkitTapHighlightColor: 'transparent', whiteSpace: 'nowrap' }}>
       {switching
         ? <span style={{ width: 8, height: 8, border: '1.5px solid rgba(248,113,113,.3)',
             borderTopColor: '#f87171', borderRadius: '50%',
             animation: 'spin .7s linear infinite', display: 'inline-block' }}/>
         : <span style={{ width: 6, height: 6, borderRadius: '50%',
-            background: onPMT ? 'var(--accent3)' : '#f87171',
-            display: 'inline-block' }}/>
+            background: onPMT ? 'var(--accent3)' : '#f87171', display: 'inline-block' }}/>
       }
       {onPMT ? 'PMTchain' : switching ? 'Switching…' : 'Wrong Network'}
     </button>
