@@ -129,7 +129,7 @@ export default function App() {
           const saved = localStorage.getItem(`pmt_account_${address.toLowerCase()}`);
           if (saved) {
             const acc = JSON.parse(saved);
-            return { address, privateKey: pk, balance: '0.000', network: 'PMTchain', username: acc.username || username };
+            return { address, privateKey: acc.isMetaMask ? 'metamask' : pk, balance: '0.000', network: 'PMTchain', username: acc.username || username, ...(acc.isMetaMask ? { isMetaMask: true } : {}) };
           }
           return { address, privateKey: pk, balance: '0.000', network: 'PMTchain', username };
         }
@@ -172,7 +172,9 @@ export default function App() {
     if ((w as any).isMetaMask || w.privateKey === 'metamask') return false;
     // External wallet users: if any EIP-6963 wallet is available, never ask for password
     if (typeof window !== 'undefined' && (window as any).ethereum) return false;
-    const accountRaw = localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`);
+    // Look up account by username OR address (Connect Wallet stores by address only)
+    const accountRaw = localStorage.getItem(`pmt_account_${w.username.toLowerCase()}`)
+      || localStorage.getItem(`pmt_account_${w.address?.toLowerCase()}`);
     if (!accountRaw) {
       // On mobile (no MetaMask), user with address+username likely has a created wallet
       return !!w.address;
@@ -180,6 +182,7 @@ export default function App() {
     try {
       const account = JSON.parse(accountRaw);
       if (account.address?.toLowerCase() !== w.address?.toLowerCase()) return false;
+      if (account.isMetaMask) return false; // Connect Wallet — never needs password
       if (!account.encryptedWallet || account.needsReimport) return false;
     } catch { return false; }
     const pk = w.privateKey || '';
