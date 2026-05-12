@@ -15,7 +15,7 @@ export async function getWCProvider() {
   wcProvider = await EthereumProvider.init({
     projectId: effectiveId,
     chains: [1],
-    optionalChains: [137, 10, 42161, 56, 43114],
+    optionalChains: [137, 10, 42161, 56, 43114, 288478],
     showQrModal: false,   // we render our own QR
     metadata: {
       name: 'PMT-Chat',

@@ -20,13 +20,13 @@ const WALLET_ICON = {
 
 // 8 wallets with native WC app schemes (open approval screen, not website)
 const WALLETS = [
-  { id:'metamask', name:'MetaMask', scheme: u => `metamask://wc?uri=${encodeURIComponent(u)}` },
-  { id:'trust',    name:'Trust',    scheme: u => `trust://wc?uri=${encodeURIComponent(u)}` },
+  { id:'metamask', name:'MetaMask', scheme: u => `https://metamask.app.link/wc?uri=${encodeURIComponent(u)}` },
+  { id:'trust',    name:'Trust',    scheme: u => `https://link.trustwallet.com/wc?uri=${encodeURIComponent(u)}` },
   { id:'coinbase', name:'Coinbase', scheme: u => `cbwallet://wc?uri=${encodeURIComponent(u)}` },
   { id:'rainbow',  name:'Rainbow',  scheme: u => `rainbow://wc?uri=${encodeURIComponent(u)}` },
   { id:'phantom',  name:'Phantom',  scheme: u => `phantom://wc?uri=${encodeURIComponent(u)}` },
   { id:'imtoken',  name:'imToken',  scheme: u => `imtokenv2://wc?uri=${encodeURIComponent(u)}` },
-  { id:'safepal',  name:'SafePal',  scheme: u => `safepalwallet://wc?uri=${encodeURIComponent(u)}` },
+  { id:'safepal',  name:'SafePal',  scheme: u => `https://safepal.com/wc?uri=${encodeURIComponent(u)}` },
   { id:'tangem',   name:'Tangem',   scheme: u => `tangem://wc?uri=${encodeURIComponent(u)}` },
 ];
 
@@ -94,11 +94,8 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   useEffect(() => {
     const mob = isMobile();
     setMobile(mob);
-    // Pre-warm WalletConnect provider on mobile so it's ready when user taps
-    // This eliminates the 2-5 second delay when user selects a wallet
-    if (mob) {
-      getWCProvider().catch(() => {}); // silent background init
-    }
+    // Pre-warm WalletConnect provider on mobile immediately on mount
+    if (mob) getWCProvider().catch(() => {});
     // Detect any available wallet via EIP-6963
     getWalletProvider().then(eth => {
       if (!eth) return;
@@ -170,7 +167,7 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     setWaitingApproval(true);
     setErr(null);
     try {
-      resetWCProvider();
+      // Use pre-warmed provider if available (don't reset — we pre-warm for speed)
       const provider = await getWCProvider();
 
       provider.once('display_uri', (uri) => {
@@ -290,8 +287,9 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
           else setShowMobile(true); // fallback: show wallet grid
         });
       } else {
-        // Regular mobile browser — show wallet grid (WalletConnect etc.)
+        // Regular mobile browser — show wallet grid and pre-warm WC
         setShowMobile(true);
+        getWCProvider().catch(() => {}); // ensure provider is ready
       }
       return;
     }
