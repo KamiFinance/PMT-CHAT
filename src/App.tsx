@@ -98,6 +98,15 @@ export default function App() {
           // External wallets (Connect Wallet) require 24h verification token
           const isInternal = !!localStorage.getItem(`pmt_wallet_internal_${address.toLowerCase()}`);
           if (isInternal) return 'chat';
+          // Also check if the account has an encryptedWallet (internal) vs isMetaMask (external)
+          try {
+            const acctKey = `pmt_account_${username.toLowerCase()}`;
+            const acct = localStorage.getItem(acctKey);
+            if (acct) {
+              const parsed = JSON.parse(acct);
+              if (!parsed.isMetaMask && parsed.encryptedWallet) return 'chat';
+            }
+          } catch {}
           const verifyTs = localStorage.getItem(`pmt_verify_${address.toLowerCase()}`);
           const isValid  = verifyTs && (Date.now() - parseInt(verifyTs)) < 86400000; // 24h
           return isValid ? 'chat' : 'verify';
@@ -1063,8 +1072,13 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       }
     }
     // Internal wallets (Create/Import) — never need verify screen
-    if (w.privateKey && w.privateKey !== 'metamask' && w.address) {
-      localStorage.setItem(`pmt_wallet_internal_${w.address.toLowerCase()}`, '1');
+    // Only show verify for explicit MetaMask/external wallets (privateKey === 'metamask')
+    const isExternalWallet = w.privateKey === 'metamask';
+    if (!isExternalWallet && w.address) {
+      // Internal: real key OR empty key (password auth proved ownership)
+      if (w.privateKey && w.privateKey !== 'metamask') {
+        localStorage.setItem(`pmt_wallet_internal_${w.address.toLowerCase()}`, '1');
+      }
       setScreen('chat');
       if (window.innerWidth < 768) setMobileSidebarOpen(true);
     } else if (w.address) {
