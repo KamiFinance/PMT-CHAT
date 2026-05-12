@@ -1,4 +1,4 @@
-const CACHE = 'pmt-chat-v5';
+const CACHE = 'pmt-chat-v6';
 const SHELL = ['/', '/index.html', '/pmt-logo.png', '/icon-192.png', '/icon-512.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
