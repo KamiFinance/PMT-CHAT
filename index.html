@@ -42,11 +42,22 @@
     <script>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js', { scope: '/' })
-          .then(reg => console.log('SW v5 registered'))
-          .catch(err => console.warn('SW failed:', err));
-        // Reload when SW updates so users always get fresh bundle
+          .then(reg => {
+            // Force check for SW update on every page load (critical for PWA home screen)
+            reg.update();
+            // Check again when app becomes visible (user returns to app)
+            document.addEventListener('visibilitychange', () => {
+              if (!document.hidden) reg.update();
+            });
+          })
+          .catch(() => {});
+        // Reload when SW activates with new version
         navigator.serviceWorker.addEventListener('message', e => {
           if (e.data && e.data.type === 'SW_UPDATED') window.location.reload();
+        });
+        // Also reload if a new SW takes control mid-session
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
         });
       }
     </script>

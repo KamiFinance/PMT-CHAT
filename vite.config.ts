@@ -12,11 +12,20 @@ const gitHash = (() => {
 export default defineConfig({
   plugins: [
     react(),
-    // Inject git hash into index.html at build time (define doesn't work in HTML)
+    // Inject git hash into index.html and sw.js at build time
     {
       name: 'inject-git-hash',
       transformIndexHtml(html) {
         return html.replace('__GIT_HASH__', gitHash);
+      },
+      // Also patch sw.js in the output
+      writeBundle() {
+        const fs = require('fs');
+        const swPath = 'dist/sw.js';
+        if (fs.existsSync(swPath)) {
+          const sw = fs.readFileSync(swPath, 'utf8');
+          fs.writeFileSync(swPath, sw.replace('__SW_VERSION__', gitHash));
+        }
       }
     }
   ],
