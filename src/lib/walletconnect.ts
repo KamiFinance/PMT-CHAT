@@ -20,8 +20,8 @@ export async function getWCProvider() {
     metadata: {
       name: 'PMT-Chat',
       description: 'Decentralized encrypted messenger on PMT Chain',
-      url: 'https://pmt-chat3.vercel.app',
-      icons: ['https://pmt-chat3.vercel.app/pmt-logo.png'],
+      url: 'https://pmt-chat.vercel.app',
+      icons: ['https://pmt-chat.vercel.app/pmt-logo.png'],
     },
   });
   return wcProvider;

@@ -146,6 +146,20 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   };
 
   // ── YELLOW BUTTON: tap wallet → WC starts → wallet opens to approval ──────
+  // Shared handler for when WC session is established
+  const handleWCConnected = async (provider, walletName='WalletConnect') => {
+    const accounts = provider.accounts || await provider.request({method:'eth_accounts'}).catch(()=>[]);
+    if (!accounts.length) { setErr('No accounts found.'); resetWCProvider(); return; }
+    const address = accounts[0];
+    const chainId = provider.chainId;
+    const chainHex = chainId ? '0x'+chainId.toString(16) : '0x1';
+    const netNames = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
+    let balEth = '0.0000';
+    try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h,16)/1e18).toFixed(4); } catch {}
+    sessionStorage.removeItem('pmt_wc_pending');
+    onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName});
+  };
+
   const connectViaWallet = async (schemeTemplate) => {
     setShowMobile(false);
     setWaitingApproval(true);
@@ -153,31 +167,38 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     try {
       resetWCProvider();
       const provider = await getWCProvider();
-      // display_uri fires once WC URI is ready — immediately open the wallet app
       provider.once('display_uri', (uri) => {
+        // Store pending state so we can recover if page reloads
+        sessionStorage.setItem('pmt_wc_pending', '1');
+        // Open wallet app — use href which opens the wallet without full page reload on iOS
         window.location.href = schemeTemplate(uri);
       });
-      provider.connect().then(async () => {
-        setWaitingApproval(false);
-        const accounts = provider.accounts || [];
-        if (!accounts.length) { setErr('No accounts found.'); resetWCProvider(); return; }
-        const address  = accounts[0];
-        const chainId  = provider.chainId;
-        const chainHex = chainId ? '0x' + chainId.toString(16) : '0x1';
-        const netNames = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
-        let balEth = '0.0000';
-        try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h,16)/1e18).toFixed(4); } catch {}
-        onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
-      }).catch(e => {
-        setWaitingApproval(false);
-        resetWCProvider();
-        const msg = e.message||String(e);
-        if (!msg.includes('reset') && !msg.includes('closed')) setErr('Connection failed: '+msg);
-      });
+      provider.connect()
+        .then(async () => { setWaitingApproval(false); await handleWCConnected(provider); })
+        .catch(e => {
+          setWaitingApproval(false); resetWCProvider();
+          const msg = e.message||String(e);
+          if (!msg.includes('reset')&&!msg.includes('closed')) setErr('Connection failed: '+msg);
+        });
     } catch(e) {
-      setWaitingApproval(false);
-      resetWCProvider();
+      setWaitingApproval(false); resetWCProvider();
       setErr('WalletConnect: '+(e.message||String(e)));
+    }
+  };
+
+  // Let user manually check if their wallet connected (handles iOS background/resume)
+  const checkWCConnection = async () => {
+    setErr(null);
+    try {
+      const provider = await getWCProvider();
+      if (provider.connected || (provider.accounts && provider.accounts.length > 0)) {
+        setWaitingApproval(false);
+        await handleWCConnected(provider);
+      } else {
+        setErr('Not connected yet. Make sure you approved in your wallet, then tap again.');
+      }
+    } catch(e) {
+      setErr('Check failed: '+(e.message||String(e)));
     }
   };
 
@@ -346,10 +367,15 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
             <div style={{textAlign:'center'}}>
               <p style={{fontSize:14,fontWeight:600,margin:'0 0 6px',color:'var(--text)'}}>Waiting for approval...</p>
               <p style={{fontSize:12,color:'var(--text2)',margin:0,lineHeight:1.5}}>
-                Approve the connection in your wallet, then come back to this page.
+                Approve the connection in your wallet app, then tap the button below.
               </p>
             </div>
-            <button onClick={()=>{setWaitingApproval(false);resetWCProvider();}}
+            <button onClick={checkWCConnection}
+              style={{width:'100%',padding:'12px',background:'var(--accent)',border:'none',
+                borderRadius:10,color:'#0a0c14',fontWeight:700,fontSize:14,cursor:'pointer'}}>
+              ✓ I've approved — connect now
+            </button>
+            <button onClick={()=>{setWaitingApproval(false);resetWCProvider();sessionStorage.removeItem('pmt_wc_pending');}}
               style={{padding:'8px 18px',background:'transparent',border:'1px solid var(--border)',
                 borderRadius:8,color:'var(--muted)',fontSize:12,cursor:'pointer'}}>
               ← Cancel
