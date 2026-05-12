@@ -107,7 +107,26 @@ export async function saveCloudBackup(
   const rawSalt = accountData?.passwordSalt ?? accountData?.salt ?? null;
   const existingSalt = typeof rawSalt === 'string' ? rawSalt : null;
 
-  const { hash: passwordHash, salt } = await PMTAuth.hashPassword(password, existingSalt ?? undefined);
+  // If no salt stored locally (Connect Wallet users have no passwordSalt in pmt_account_),
+  // derive a deterministic salt from the password so passwordHash is always the same.
+  // Random salt caused 403 on every backup update since server checks passwordHash consistency.
+  let finalSalt = existingSalt;
+  if (!finalSalt) {
+    const hashBuf = await crypto.subtle.digest('SHA-256',
+      new TextEncoder().encode('pmt-backup-salt-v1:' + password));
+    finalSalt = Array.from(new Uint8Array(hashBuf)).map(x => x.toString(16).padStart(2,'0')).join('');
+  }
+
+  const { hash: passwordHash, salt } = await PMTAuth.hashPassword(password, finalSalt);
+
+  // Save salt back to localStorage so we never need to re-derive
+  if (accountData && !existingSalt) {
+    const updated = { ...accountData, passwordSalt: finalSalt };
+    localStorage.setItem(`pmt_account_${uname}`, JSON.stringify(updated));
+    if (data.wallet.address) {
+      localStorage.setItem(`pmt_account_${data.wallet.address.toLowerCase()}`, JSON.stringify(updated));
+    }
+  }
 
   // Encrypt the full backup with this salt
   const encryptedBackup = await encryptBackup(data, password, salt);
@@ -143,7 +162,14 @@ export async function loadCloudBackup(
   const record = await res.json();
 
   // Verify password before decrypting
-  const ok = await PMTAuth.verifyPassword(password, record.passwordHash, record.salt);
+  let ok = await PMTAuth.verifyPassword(password, record.passwordHash, record.salt);
+  if (!ok) {
+    // Fallback: try deterministic salt (for accounts saved with old random-salt code)
+    const hashBuf = await crypto.subtle.digest('SHA-256',
+      new TextEncoder().encode('pmt-backup-salt-v1:' + password));
+    const detSalt = Array.from(new Uint8Array(hashBuf)).map((x:number) => x.toString(16).padStart(2,'0')).join('');
+    ok = await PMTAuth.verifyPassword(password, record.passwordHash, detSalt);
+  }
   if (!ok) throw new Error('WRONG_PASSWORD');
 
   if (!record.encryptedBackup) {
