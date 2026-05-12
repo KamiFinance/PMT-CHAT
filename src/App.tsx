@@ -264,9 +264,23 @@ export default function App() {
       const name = netNames[hex.toLowerCase()] || ('Chain '+parseInt(hex,16));
       setWallet(prev => prev ? { ...prev, network: name, chainId: hex } : prev);
     };
-    // Injected wallet (desktop / wallet browser)
+    // Injected wallet (desktop / wallet browser) — listen + read current chain
     const win = (window as any).ethereum;
     if (win?.on) win.on('chainChanged', updateChain);
+    // Read initial chain from injected wallet immediately
+    if (win?.request) {
+      win.request({ method: 'eth_chainId' }).then(updateChain).catch(() => {});
+    }
+    // Also try EIP-6963 providers (more reliable for multi-wallet setups)
+    const announceHandler = (e: any) => {
+      const provider = e?.detail?.provider;
+      if (provider?.request) {
+        provider.request({ method: 'eth_chainId' }).then(updateChain).catch(() => {});
+        provider.on?.('chainChanged', updateChain);
+      }
+    };
+    window.addEventListener('eip6963:announceProvider', announceHandler);
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
     // WalletConnect provider
     getWCProvider().then(wc => {
       if (wc?.on) {
@@ -280,6 +294,7 @@ export default function App() {
     }).catch(() => {});
     return () => {
       if (win?.removeListener) win.removeListener('chainChanged', updateChain);
+      window.removeEventListener('eip6963:announceProvider', announceHandler);
       getWCProvider().then(wc => {
         if (wc?.removeListener) wc.removeListener('chainChanged', updateChain);
       }).catch(() => {});
