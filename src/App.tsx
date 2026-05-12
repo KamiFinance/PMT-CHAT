@@ -1208,8 +1208,10 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     const uname = wallet.username.toLowerCase();
     fetch(`/api/auth?username=${encodeURIComponent(uname)}`)
       .then(r => r.json())
-      .then(() => {
-        // Show backup prompt once per 24h on session restore so auto-backup stays active
+      .then(record => {
+        // Only prompt if no backup exists yet — if a backup already exists (e.g. with
+        // old password), the migration modal handles it; don't show this and confuse the user.
+        if (record?.encryptedBackup) return;
         const promptKey = `pmt_backup_prompted_${wallet?.address?.toLowerCase()}`;
         const lastPrompt = localStorage.getItem(promptKey);
         if (!lastPrompt || Date.now() - parseInt(lastPrompt) > 86400000) {
@@ -1452,7 +1454,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                       })() : {}
                     });
                     setShowBackupPrompt(false);setBackupPromptPassword('');
-                  }catch(err:any){setBackupPromptErr(err.message||'Failed — check password');}
+                  }catch(err:any){setBackupPromptErr(err.message==='Username already taken'?'This account already has a backup with a different password. Try logging out and back in.':err.message||'Failed — check password');}
                   finally{setBackupPromptSaving(false);}
                 }
               }}
@@ -1486,7 +1488,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                       })() : {}
                     });
                     setShowBackupPrompt(false);setBackupPromptPassword('');
-                  }catch(err:any){setBackupPromptErr(err.message||'Failed — check password');}
+                  }catch(err:any){setBackupPromptErr(err.message==='Username already taken'?'This account already has a backup with a different password. Try logging out and back in.':err.message||'Failed — check password');}
                   finally{setBackupPromptSaving(false);}
                 }}
                 style={{flex:2,padding:'10px',background:'var(--accent)',border:'none',borderRadius:9,
