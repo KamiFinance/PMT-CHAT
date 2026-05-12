@@ -94,10 +94,9 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   const [walletBrowserName, setWalletBrowserName] = useState('');
 
   useEffect(() => {
+    getWCProvider().catch(() => {}); // pre-warm immediately, before anything else
     const mob = isMobile();
     setMobile(mob);
-    // Pre-warm WC provider on mount so blue button is instant
-    if (mob) getWCProvider().catch(() => {});
     // Detect any available wallet via EIP-6963
     getWalletProvider().then(eth => {
       if (!eth) return;
@@ -155,11 +154,10 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
     if (!mobileWcUri) return;
     setShowMobile(false);
     setWaitingApproval(true);
-    // Keep JS alive with a no-op interval so WebSocket stays connected
-    // when iOS puts Safari in background after opening MetaMask
-    const keepAlive = setInterval(() => {}, 500);
-    setTimeout(() => clearInterval(keepAlive), 60000);
-    window.location.href = schemeTemplate(mobileWcUri);
+    // Delay 600ms so session proposal reaches relay before MetaMask opens
+    setTimeout(() => {
+      window.location.href = schemeTemplate(mobileWcUri);
+    }, 600);
   };
 
   // Start WC session proactively when wallet grid opens
