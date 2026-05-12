@@ -79,7 +79,32 @@ export default function LoginScreen({onLogin,onBack}){
         // Fast path: local account exists
         const account=JSON.parse(stored);
         const ok=await PMTAuth.verifyPassword(password,account.passwordHash,account.passwordSalt);
-        if(!ok)return setErr('Incorrect password. Please try again.');
+        if(!ok){
+          // Local account might be corrupted (e.g. overwritten by Connect Wallet session).
+          // Try cloud backup as fallback — if it decrypts with this password, self-heal.
+          if(!account.isMetaMask && !account.encryptedWallet){
+            // Clearly corrupted — try cloud restore immediately
+            setErr('Checking cloud backup…');
+            const backup3=await loadCloudBackup(username.trim(),password).catch(()=>null);
+            if(backup3?.wallet?.privateKey && backup3.wallet.privateKey!=='metamask'){
+              // Cloud backup valid — restore and fix local account
+              const{hash:ph,salt:ps}=await PMTAuth.hashPassword(password);
+              const ew=await PMTAuth.encryptWallet({address:backup3.wallet.address,privateKey:backup3.wallet.privateKey??''},password);
+              const fixed={username:username.trim().toLowerCase(),address:backup3.wallet.address,passwordHash:ph,passwordSalt:ps,encryptedWallet:ew};
+              localStorage.setItem('pmt_account_'+username.trim().toLowerCase(),JSON.stringify(fixed));
+              localStorage.setItem('pmt_account_'+backup3.wallet.address.toLowerCase(),JSON.stringify(fixed));
+              const rd3={address:backup3.wallet.address,privateKey:backup3.wallet.privateKey??'',
+                balance:'0.0000',network:'PMTchain',username:username.trim().toLowerCase(),
+                sessionPassword:password,
+                restoredContacts:backup3.contacts??[],
+                restoredMessages:backup3.messages??{},
+                restoredProfile:backup3.profile??{}};
+              sessionStorage.setItem('pmt_pk_'+backup3.wallet.address.toLowerCase(),backup3.wallet.privateKey??'');
+              setLoading(false);onLogin(rd3);return;
+            }
+          }
+          setLoading(false);return setErr('Incorrect password. Please try again.');
+        }
         // Check if this account has wallet data we can decrypt
         if(!account.encryptedWallet){
           if(account.isMetaMask){
