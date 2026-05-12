@@ -150,6 +150,30 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
   };
 
   // ── YELLOW BUTTON: tap wallet → WC starts → wallet opens to approval ──────
+  // Ensure wallet is on PMTchain — add+switch if needed (works for WC + injected)
+  const PMT_CHAIN = {
+    chainId: '0x46df2',
+    chainName: 'PMTchain',
+    nativeCurrency: { name: 'PM', symbol: 'PMT', decimals: 18 },
+    rpcUrls: ['https://node1-ipm.dweb3.wtf'],
+    blockExplorerUrls: ['https://pmtscan.com'],
+  };
+  const ensureNetwork = async (provider: any) => {
+    try {
+      const cur = provider.chainId
+        ? ('0x'+Number(provider.chainId).toString(16))
+        : await provider.request({method:'eth_chainId'});
+      if (cur === '0x46df2') return; // already on PMTchain
+      try {
+        await provider.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x46df2'}]});
+      } catch(sw: any) {
+        if (sw.code === 4902 || sw.code === -32603 || sw.message?.includes('wallet_addEthereumChain')) {
+          await provider.request({method:'wallet_addEthereumChain',params:[PMT_CHAIN]});
+        }
+      }
+    } catch {} // non-fatal — proceed even if network switch fails
+  };
+
   const connectViaWallet = (schemeTemplate: (u:string)=>string) => {
     if (!mobileWcUri) return;
     setShowMobile(false);
@@ -185,8 +209,10 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
           const nets: Record<string,string> = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
           let bal = '0.0000';
           try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); bal=(parseInt(h as string,16)/1e18).toFixed(4); } catch {}
+          await ensureNetwork(provider);
+          const finalHex = provider.chainId ? '0x'+Number(provider.chainId).toString(16) : chainHex;
           setWaitingApproval(false); setMobileWcUri(null);
-          onMetaMask({address, balance:bal, network:nets[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
+          onMetaMask({address, balance:bal, network:nets[finalHex]||('Chain '+provider.chainId), chainId:finalHex, isMetaMask:true, walletName:'WalletConnect'});
         }, 800);
       };
       document.addEventListener('visibilitychange', onVisible);
@@ -200,8 +226,13 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
           const nets: Record<string,string> = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
           let bal = '0.0000';
           try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); bal=(parseInt(h as string,16)/1e18).toFixed(4); } catch {}
+          await ensureNetwork(provider);
+          // Re-read chainId after potential switch
+          const newChainId = provider.chainId;
+          const newHex = newChainId ? '0x'+newChainId.toString(16) : chainHex;
+          const newNet = nets[newHex] || ('Chain '+newChainId);
           setWaitingApproval(false); setShowMobile(false); setMobileWcUri(null);
-          onMetaMask({address, balance:bal, network:nets[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
+          onMetaMask({address, balance:bal, network:newNet, chainId:newHex, isMetaMask:true, walletName:'WalletConnect'});
         })
         .catch(e => {
           document.removeEventListener('visibilitychange', onVisible);
@@ -236,7 +267,20 @@ export default function Landing({onDemo,onMetaMask,onCreateWallet,onImportWallet
         const netNames = {'0x1':'Ethereum','0x89':'Polygon','0xa':'Optimism','0xa4b1':'Arbitrum','0xaa36a7':'Sepolia','0x46df2':'PMTchain'};
         let balEth = '0.0000';
         try { const h = await provider.request({method:'eth_getBalance',params:[address,'latest']}); balEth=(parseInt(h,16)/1e18).toFixed(4); } catch {}
-        onMetaMask({address, balance:balEth, network:netNames[chainHex]||('Chain '+chainId), chainId:chainHex, isMetaMask:true, walletName:'WalletConnect'});
+        // Auto-switch to PMTchain if needed
+        try {
+          const cur = chainHex;
+          if (cur !== '0x46df2') {
+            try { await provider.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x46df2'}]}); }
+            catch(sw: any) {
+              if (sw.code === 4902 || sw.code === -32603) {
+                await provider.request({method:'wallet_addEthereumChain',params:[{chainId:'0x46df2',chainName:'PMTchain',nativeCurrency:{name:'PM',symbol:'PMT',decimals:18},rpcUrls:['https://node1-ipm.dweb3.wtf'],blockExplorerUrls:['https://pmtscan.com']}]});
+              }
+            }
+          }
+        } catch {}
+        const finalChain = provider.chainId ? '0x'+Number(provider.chainId).toString(16) : chainHex;
+        onMetaMask({address, balance:balEth, network:netNames[finalChain]||netNames[chainHex]||('Chain '+chainId), chainId:finalChain, isMetaMask:true, walletName:'WalletConnect'});
       }).catch(e => {
         setWcUri(null);
         setWcConnecting(false);
