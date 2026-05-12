@@ -100,6 +100,8 @@ export default function CreateWalletFlow({onWallet,onBack}){
       // Small delay to show "saved" status before navigating
       await new Promise(r=>setTimeout(r, cloudStatus==='saved'?800:0));
       sessionStorage.setItem('pmt_pk_'+wallet.address.toLowerCase(), wallet.privateKey);
+      // Mark as internal wallet permanently — never needs verify screen
+      localStorage.setItem(`pmt_wallet_internal_${wallet.address.toLowerCase()}`, '1');
       onWallet({address:wallet.address,privateKey:wallet.privateKey,balance:'0.0000',network:'PMTchain',chainId:'0x46df2',isCreated:true,username:username.trim(),sessionPassword:password});
     }catch(e){
       setPwdErr('Failed to secure wallet: '+e.message);

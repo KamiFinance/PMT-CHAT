@@ -107,6 +107,8 @@ export default function ImportWalletFlow({onWallet,onBack}){
           }
         }catch(e){ /* backup restore failed, continue without */ }
       }
+      // Mark as internal wallet permanently — never needs verify screen
+      localStorage.setItem(`pmt_wallet_internal_${wallet.address.toLowerCase()}`, '1');
       onWallet({address:importedWallet.address,privateKey:importedWallet.privateKey,balance:'0.0000',network:'PMTchain',
         chainId:'0x46df2',username:useUsername,sessionPassword:password,
         ...(restoredContacts.length?{restoredContacts}:{}),

@@ -94,12 +94,10 @@ export default function App() {
       if (sess) {
         const { username, address } = JSON.parse(sess);
         if (address && username) {
-          // Check if this is an internal wallet (created/imported in-app).
-          // Internal wallets store an encrypted wallet in pmt_account_{username} — no external verify needed.
-          const accountKey = `pmt_account_${username.toLowerCase()}`;
-          const account = localStorage.getItem(accountKey);
-          if (account) return 'chat'; // has local account = internal wallet = skip verify
-          // External wallets (MetaMask login with username) require 24h verify token
+          // Internal wallets (Create/Import) set pmt_wallet_internal_<addr> permanently
+          // External wallets (Connect Wallet) require 24h verification token
+          const isInternal = !!localStorage.getItem(`pmt_wallet_internal_${address.toLowerCase()}`);
+          if (isInternal) return 'chat';
           const verifyTs = localStorage.getItem(`pmt_verify_${address.toLowerCase()}`);
           const isValid  = verifyTs && (Date.now() - parseInt(verifyTs)) < 86400000; // 24h
           return isValid ? 'chat' : 'verify';
@@ -1030,7 +1028,12 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         } catch { /* ignore */ }
       }
     }
+    // Mark internal wallets (Create/Import) permanently — they never need the verify screen
+    if (w.privateKey && w.privateKey !== 'metamask' && w.address) {
+      localStorage.setItem(`pmt_wallet_internal_${w.address.toLowerCase()}`, '1');
+    }
     setScreen('chat');
+    if (window.innerWidth < 768) setMobileSidebarOpen(true);
   }, [setContacts, setMsgs]);
 
   // On mount: if session was restored from localStorage but no password in memory,
@@ -1126,8 +1129,12 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   if (screen === 'verify') return <VerifyWalletScreen
     address={wallet?.address ?? ''}
     onVerified={() => {
-      if (wallet?.address) localStorage.setItem(`pmt_verify_${wallet.address.toLowerCase()}`, String(Date.now()));
+      if (wallet?.address) {
+        // Set 24h verification timestamp for external (Connect Wallet) users
+        localStorage.setItem(`pmt_verify_${wallet.address.toLowerCase()}`, String(Date.now()));
+      }
       setScreen('chat');
+      if (window.innerWidth < 768) setMobileSidebarOpen(true);
     }}
     onLogout={() => { storage.clearSession(); setWallet(null); walletRef.current = null; setScreen('landing'); }}
   />;
