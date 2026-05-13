@@ -1060,6 +1060,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
             body: JSON.stringify(inboxMsg),
           }).catch(() => {});
         });
+        // Store in server-side group history so new members see it
+        fetch('/api/groups?action=storeMessage', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ groupId, message: inboxMsg }),
+        }).catch(() => {});
       } catch {
         // Fallback to local member list
         const members: string[] = (grp.members ?? []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
@@ -1079,10 +1084,71 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     if (!c || !c.address) return;
     setActiveAndRef(c);
     const addr = normalizeAddress(c.address);
-    setMsgs(p => p[addr] ? p : { ...p, [addr]: [] });
+    setMsgs(p => {
+      // For groups with no messages, will trigger history fetch below
+      return p[addr] ? p : { ...p, [addr]: [] };
+    });
     setContacts(p => p.map(x => x.id === c.id ? { ...x, unread: 0 } : x));
     setMobileSidebarOpen(false);
-  }, [setActiveAndRef]);
+
+    if (!isDemo && walletRef.current?.address) {
+      const myAddr = walletRef.current.address;
+      if (c.isGroup) {
+        const groupId = c.groupId || c.id?.replace(/^group_/,'');
+        // Fetch group data: pinned messages + history for new members
+        fetch(`/api/groups?id=${groupId}`).then(r=>r.json()).then(grpData => {
+          // Update pinned messages from server
+          if (grpData.pinnedMsgs?.length) {
+            setPinnedMsgs(prev => {
+              const existing = prev[addr] || [];
+              // Use server state if it has more pins (server is source of truth)
+              if (existing.length < grpData.pinnedMsgs.length) {
+                return { ...prev, [addr]: grpData.pinnedMsgs };
+              }
+              return prev;
+            });
+          }
+        }).catch(()=>{});
+
+        // Fetch group message history for members with no messages yet
+        setMsgs(current => {
+          const existing = current[addr] || [];
+          if (existing.length === 0) {
+            fetch('/api/groups?action=getHistory', {
+              method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ groupId })
+            }).then(r=>r.json()).then(d => {
+              if (d.messages?.length) {
+                setMsgs(prev => {
+                  const cur = prev[addr] || [];
+                  if (cur.length > 0) return prev; // already have messages, skip
+                  // Mark all history messages as read and not-out
+                  const history = d.messages.map((m: any) => ({
+                    ...m, out: m.from?.toLowerCase() === myAddr?.toLowerCase(), read: true
+                  }));
+                  return { ...prev, [addr]: history };
+                });
+              }
+            }).catch(()=>{});
+          }
+          return current;
+        });
+      } else if (!c.isAI) {
+        // 1-on-1: fetch pins from shared Redis key
+        fetch(`/api/pins?addr1=${myAddr}&addr2=${addr}`).then(r=>r.json()).then(d => {
+          if (d.pins?.length) {
+            setPinnedMsgs(prev => {
+              const existing = prev[addr] || [];
+              if (existing.length < d.pins.length) {
+                return { ...prev, [addr]: d.pins };
+              }
+              return prev;
+            });
+          }
+        }).catch(()=>{});
+      }
+    }
+  }, [setActiveAndRef, isDemo]);
 
   // Join group by invite link — defined after selectContact to avoid TDZ
   const handleJoinGroup = useCallback((joinId: string) => {
@@ -1144,6 +1210,33 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       ...prev,
       [addr]: (prev[addr] || []).map(m => m.id === msg.id ? { ...m, pinned: !alreadyPinned } : m)
     }));
+
+    // Persist pin to server so all users/devices always see it
+    if (!isDemo && walletRef.current?.address) {
+      const myAddr = walletRef.current.address;
+      if (grp.isGroup) {
+        const groupId = grp.groupId || grp.id;
+        if (alreadyPinned) {
+          fetch('/api/groups?action=unpinMsg', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId, pinId: msg.id, requestedBy: myAddr }) }).catch(()=>{});
+        } else {
+          const pin = newPins.find(p => p.id === msg.id);
+          if (pin) fetch('/api/groups?action=pinMsg', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId, pin, requestedBy: myAddr }) }).catch(()=>{});
+        }
+      } else {
+        // 1-on-1: store in shared Redis key
+        const contactAddr = normalizeAddress(grp.address);
+        if (alreadyPinned) {
+          fetch('/api/pins', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ addr1: myAddr, addr2: contactAddr, unpinId: msg.id }) }).catch(()=>{});
+        } else {
+          const pin = newPins.find(p => p.id === msg.id);
+          if (pin) fetch('/api/pins', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ addr1: myAddr, addr2: contactAddr, pin }) }).catch(()=>{});
+        }
+      }
+    }
 
     if (!pin || isDemo || !walletRef.current?.address) return;
 

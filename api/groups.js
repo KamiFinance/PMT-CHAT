@@ -31,7 +31,9 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && id) {
     const data = await redis('GET', `pmt:group:${id}`);
     if (!data) return res.status(404).json({ error: 'Group not found' });
-    return res.json(JSON.parse(data));
+    const grp = JSON.parse(data);
+    // Ensure pinnedMsgs is always returned
+    return res.json({ ...grp, pinnedMsgs: grp.pinnedMsgs || [] });
   }
 
   // GET invite link info
@@ -203,6 +205,54 @@ export default async function handler(req, res) {
         return ld ? JSON.parse(ld) : null;
       }));
       return res.json({ links: links.filter(Boolean) });
+    }
+
+    // Store a group message in server-side history (fire-and-forget from client)
+    if (action === 'storeMessage') {
+      const { groupId, message } = body;
+      if (!groupId || !message) return res.status(400).json({ error: 'groupId and message required' });
+      // Strip heavy fields to keep Redis lean (images, audio stored in IPFS)
+      const { b64Data, audioUrl, audioB64, fileData, imgData, uploading, _toAddr, ...lean } = message;
+      const key = `pmt:group:history:${groupId}`;
+      await redis('RPUSH', key, JSON.stringify(lean));
+      await redis('LTRIM', key, -200, -1); // keep last 200 messages
+      await redis('EXPIRE', key, String(60*60*24*30)); // 30 days
+      return res.json({ ok: true });
+    }
+
+    // Fetch group message history (for new members)
+    if (action === 'getHistory') {
+      const { groupId } = body;
+      const key = `pmt:group:history:${groupId}`;
+      const raw = await redis('LRANGE', key, 0, -1);
+      const messages = (raw || []).map(m => { try { return JSON.parse(m); } catch { return null; } }).filter(Boolean);
+      return res.json({ ok: true, messages });
+    }
+
+    // Pin a message in a group (server-side, so all members see it)
+    if (action === 'pinMsg') {
+      const { groupId, pin, requestedBy } = body; // pin: { id, text, pinnedAt, pinnedBy, msgTs }
+      const data = await redis('GET', `pmt:group:${groupId}`);
+      if (!data) return res.status(404).json({ error: 'Group not found' });
+      const grp = JSON.parse(data);
+      const current = grp.pinnedMsgs || [];
+      const exists = current.some(p => p.id === pin.id);
+      if (!exists) {
+        grp.pinnedMsgs = [...current, pin].sort((a, b) => (a.msgTs || 0) - (b.msgTs || 0));
+        await redis('SET', `pmt:group:${groupId}`, JSON.stringify(grp));
+      }
+      return res.json({ ok: true, pinnedMsgs: grp.pinnedMsgs });
+    }
+
+    // Unpin a message in a group
+    if (action === 'unpinMsg') {
+      const { groupId, pinId, requestedBy } = body;
+      const data = await redis('GET', `pmt:group:${groupId}`);
+      if (!data) return res.status(404).json({ error: 'Group not found' });
+      const grp = JSON.parse(data);
+      grp.pinnedMsgs = (grp.pinnedMsgs || []).filter(p => p.id !== pinId);
+      await redis('SET', `pmt:group:${groupId}`, JSON.stringify(grp));
+      return res.json({ ok: true, pinnedMsgs: grp.pinnedMsgs });
     }
   }
 
