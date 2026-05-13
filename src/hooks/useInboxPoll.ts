@@ -163,6 +163,33 @@ export function useInboxPoll({
           return;
         }
 
+        // ── Early exit for system-only messages (never shown in chat) ──────
+        if ((inboxMsg as any).type === 'pin') {
+          const pinAddr = (inboxMsg as any).groupId
+            ? normalizeAddress('group_' + (inboxMsg as any).groupId)
+            : normalizeAddress(inboxMsg.from ?? '');
+          const pinMsgId = (inboxMsg as any).pinMsgId;
+          const pinAction = (inboxMsg as any).pinAction; // 'pin' | 'unpin'
+          const pinText = (inboxMsg as any).pinMsgText || '';
+          const pinnedBy = (inboxMsg as any).pinnedBy || normalizeAddress(inboxMsg.from ?? '');
+          setPinnedMsgs(prev => {
+            const current: any[] = prev[pinAddr] || [];
+            const updated = pinAction === 'unpin'
+              ? current.filter(p => p.id !== pinMsgId)
+              : current.some(p => p.id === pinMsgId) ? current
+                : [...current, { id: pinMsgId, text: pinText, time: Date.now(), pinnedBy }];
+            return { ...prev, [pinAddr]: updated };
+          });
+          setMsgs(prev => ({
+            ...prev,
+            [pinAddr]: (prev[pinAddr] || []).map(m => m.id === pinMsgId
+              ? { ...m, pinned: pinAction !== 'unpin' }
+              : m
+            )
+          }));
+          return; // never show pin system messages as chat bubbles
+        }
+
         // ── Build new message ──────────────────────────────────────────────
         // Try to read sender's saved profile from localStorage
         let senderAvatarUrl: string | null = inboxMsg.fromAvatarUrl ?? null;
@@ -225,34 +252,6 @@ export function useInboxPoll({
 
         const newMsg: Message = { ...base, ...extra };
 
-        // ── Pin/unpin notification ──────────────────────────────────────
-        if ((inboxMsg as any).type === 'pin') {
-          const pinAddr = (inboxMsg as any).groupId
-            ? normalizeAddress('group_' + (inboxMsg as any).groupId)
-            : senderAddr;
-          const pinMsgId = (inboxMsg as any).pinMsgId;
-          const pinAction = (inboxMsg as any).pinAction; // 'pin' | 'unpin'
-          const pinText = (inboxMsg as any).pinMsgText || '';
-          // Update pinned state in localStorage
-          // Update pinned state via React (stored in cloud backup, not localStorage)
-          setPinnedMsgs(prev => {
-            const current: any[] = prev[pinAddr] || [];
-            const updated = pinAction === 'unpin'
-              ? current.filter(p => p.id !== pinMsgId)
-              : current.some(p => p.id === pinMsgId) ? current
-                : [...current, { id: pinMsgId, text: pinText, time: Date.now() }];
-            return { ...prev, [pinAddr]: updated };
-          });
-          // Update pinned flag on the message
-          setMsgs(prev => ({
-            ...prev,
-            [pinAddr]: (prev[pinAddr] || []).map(m => m.id === pinMsgId
-              ? { ...m, pinned: pinAction !== 'unpin' }
-              : { ...m, pinned: false }
-            )
-          }));
-          return;
-        }
 
         // ── Group message routing ──────────────────────────────────────────
         if (inboxMsg.groupId) {

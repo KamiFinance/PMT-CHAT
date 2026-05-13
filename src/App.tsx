@@ -1116,46 +1116,71 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       .catch(() => alert('Could not fetch invite link info.'));
   }, [wallet?.address, setContacts, selectContact]);
 
-  // Pin/unpin a message in the active conversation (supports multiple pinned messages)
-  const handlePin = useCallback((msg: any) => {
+  // Pin/unpin with choice: 'just_me' | 'for_both'
+  // forBoth defaults to true for groups, optional for 1-on-1
+  const handlePin = useCallback(async (msg: any, forBoth?: boolean) => {
     if (!activeRef.current) return;
-    const addr = normalizeAddress(activeRef.current.address);
+    const grp = activeRef.current;
+    const addr = normalizeAddress(grp.address);
     const currentPins: any[] = pinnedMsgs[addr] || [];
     const alreadyPinned = currentPins.some(p => p.id === msg.id);
+    const myAddr = walletRef.current?.address?.toLowerCase() || '';
+    const pin = grp.isGroup ? true : (forBoth ?? true); // groups always pin for all
+
+    // Store pinnedBy so only pinner can unpin
     const newPins = alreadyPinned
       ? currentPins.filter(p => p.id !== msg.id)
-      : [...currentPins, { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time }];
+      : [...currentPins, { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time, pinnedBy: myAddr }];
 
-    // Update pinned state (stored in backup, not localStorage)
     setPinnedMsgs(prev => ({ ...prev, [addr]: newPins }));
-
-    // Update pinned flag on the message itself
     setMsgs(prev => ({
       ...prev,
       [addr]: (prev[addr] || []).map(m => m.id === msg.id ? { ...m, pinned: !alreadyPinned } : m)
     }));
 
-    // Notify the other user via system message
-    if (!isDemo && walletRef.current?.address) {
-      const myAddr = walletRef.current.address;
-      const systemMsg = {
-        id: uid(), type: 'pin', pinMsgId: msg.id, pinMsgText: msg.text || '',
-        pinAction: alreadyPinned ? 'unpin' : 'pin',
-        from: myAddr, ts: Date.now(),
-      };
-      if (!activeRef.current.isGroup) {
-        fetch('/api/inbox?address=' + addr, {
+    if (!pin || isDemo || !walletRef.current?.address) return;
+
+    const pinnerName = profileRef.current?.name || walletRef.current?.username || myAddr.slice(0,8);
+    const systemMsg = {
+      id: uid(), type: 'pin', pinMsgId: msg.id, pinMsgText: msg.text || '',
+      pinAction: alreadyPinned ? 'unpin' : 'pin',
+      pinnedBy: myAddr,
+      from: walletRef.current.address, ts: Date.now(),
+    };
+
+    if (!grp.isGroup) {
+      // 1-on-1: silent pin sync to contact
+      fetch('/api/inbox?address=' + addr, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(systemMsg),
+      }).catch(() => {});
+    } else {
+      // Group: send pin sync + visible system notification to all members
+      const groupId = grp.groupId || grp.id;
+      const members: string[] = (grp.members || []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
+      members.filter(m => m !== normalizeAddress(walletRef.current!.address)).forEach(m => {
+        fetch('/api/inbox?address=' + m, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(systemMsg),
+          body: JSON.stringify({ ...systemMsg, groupId }),
         }).catch(() => {});
-      } else {
-        const grp = activeRef.current;
-        const groupId = grp.groupId || grp.id;
-        const members: string[] = (grp.members || []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
-        members.filter(m => m !== normalizeAddress(myAddr)).forEach(m => {
+      });
+
+      if (!alreadyPinned) {
+        // Visible system message in group chat: "📌 [Name] pinned a message"
+        const notifMsg = {
+          id: uid(), type: 'system', out: true,
+          text: `📌 ${pinnerName} pinned: "${(msg.text||'').slice(0,60)}${(msg.text||'').length>60?'…':''}"`,
+          time: now(), block: 0, confirms: 0, hash: rndHash(), pending: false,
+          groupId, groupName: grp.name,
+          from: walletRef.current.address,
+        };
+        // Add locally
+        setMsgs(prev => ({ ...prev, [addr]: [...(prev[addr] || []), { ...notifMsg, out: true }] }));
+        // Relay to all members
+        members.filter(m => m !== normalizeAddress(walletRef.current!.address)).forEach(m => {
           fetch('/api/inbox?address=' + m, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...systemMsg, groupId }),
+            body: JSON.stringify({ ...notifMsg, out: false }),
           }).catch(() => {});
         });
       }

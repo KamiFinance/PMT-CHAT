@@ -75,9 +75,10 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,searchQuery,onJoinGroup}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,searchQuery,onJoinGroup}:{[k:string]:any}){
   const [showPicker,setShowPicker]=useState(false);
   const [showSenderProfile,setShowSenderProfile]=useState(false);
+  const [showPinChoice,setShowPinChoice]=useState(false);
   const reactions=msg.reactions||{};
   // Support both formats: {emoji: {addr: 1}} (new) and {emoji: count} (old)
   const getRxnCount=(v)=>typeof v==='object'&&v!==null?Object.values(v).filter((x)=>Number(x)>0).length:Number(v)>0?Number(v):0;
@@ -395,16 +396,48 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           </button>
         )}
         {onPin&&(
-          <button onClick={(e)=>{e.stopPropagation();onPin(msg);}}
-            title={msg.pinned?'Unpin message':'Pin message'}
-            style={{alignSelf:'center',background:'var(--surface)',border:'1px solid var(--border)',
-              borderRadius:'50%',width:26,height:26,display:'flex',alignItems:'center',
-              justifyContent:'center',cursor:'pointer',fontSize:13,flexShrink:0,
-              color:msg.pinned?'var(--accent)':'var(--muted)',
-              opacity:showReplyBtn||msg.pinned?1:0,transition:'opacity .15s',
-              WebkitTapHighlightColor:'transparent'}}>
-            📌
-          </button>
+          <div style={{position:'relative',alignSelf:'center',flexShrink:0}}>
+            <button onClick={(e)=>{
+              e.stopPropagation();
+              if(msg.pinned){onPin(msg);return;} // unpin directly
+              if(contact?.isGroup){onPin(msg,true);return;} // groups always for all
+              setShowPinChoice(v=>!v); // 1-on-1: show choice
+            }}
+              title={msg.pinned?'Unpin message':'Pin message'}
+              style={{background:'var(--surface)',border:'1px solid var(--border)',
+                borderRadius:'50%',width:26,height:26,display:'flex',alignItems:'center',
+                justifyContent:'center',cursor:'pointer',fontSize:13,
+                color:msg.pinned?'var(--accent)':'var(--muted)',
+                opacity:showReplyBtn||msg.pinned?1:0,transition:'opacity .15s',
+                WebkitTapHighlightColor:'transparent'}}>
+              📌
+            </button>
+            {showPinChoice&&!contact?.isGroup&&(
+              <div style={{position:'absolute',bottom:30,right:0,background:'var(--panel)',
+                border:'1px solid var(--border)',borderRadius:10,padding:'6px 0',
+                boxShadow:'0 8px 24px rgba(0,0,0,.4)',zIndex:100,minWidth:160}}
+                onMouseLeave={()=>setShowPinChoice(false)}>
+                <div style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)',
+                  padding:'2px 12px 6px',letterSpacing:'1px'}}>PIN MESSAGE</div>
+                <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);setShowPinChoice(false);}}
+                  style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
+                    display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
+                    fontSize:13,textAlign:'left'}}
+                  onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                  onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                  <span>📌</span> Pin for both
+                </button>
+                <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);setShowPinChoice(false);}}
+                  style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
+                    display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
+                    fontSize:13,textAlign:'left'}}
+                  onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                  onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                  <span>🔒</span> Pin just for me
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
       {reactionsBar}
