@@ -47,11 +47,26 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   const [bannedMembers, setBannedMembers] = useState<string[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [banningAddr, setBanningAddr] = useState('');
+  const [memberProfiles, setMemberProfiles] = useState<Record<string,{name:string,avatarUrl:string|null,color:string,bg:string}>>({});
   const [isAnnouncement, setIsAnnouncement] = useState(existingGroup?.isAnnouncement || false);
 
   const fileRef = useRef(null);
 
   // Auto-load links when managing existing group
+  const getProfile = (addr: string) => {
+    // Priority: contacts list > localStorage profile > truncated address
+    const ct = (contacts || []).find((c: any) => c.address?.toLowerCase() === addr.toLowerCase());
+    if (ct?.name) return { name: ct.name, avatarUrl: ct.avatarUrl || null, color: ct.color || 'var(--accent)', bg: ct.bg || '#1e2438' };
+    try {
+      const stored = localStorage.getItem('pmt_profile_' + addr.toLowerCase());
+      if (stored) {
+        const p = JSON.parse(stored);
+        if (p?.name) return { name: p.name, avatarUrl: p.avatarUrl || null, color: ct?.color || 'var(--accent2)', bg: ct?.bg || '#1e1b30' };
+      }
+    } catch {}
+    return { name: addr.slice(0,8)+'...'+addr.slice(-4), avatarUrl: null, color: 'var(--accent2)', bg: '#1e1b30' };
+  };
+
   const loadMembers = async (gId: string) => {
     setLoadingMembers(true);
     try {
@@ -61,7 +76,14 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
         body: JSON.stringify({ groupId: gId, requestedBy: myAddress }),
       });
       const d = await r.json();
-      if (d.ok) { setMembers(d.members || []); setBannedMembers(d.bannedMembers || []); }
+      if (d.ok) {
+        const allAddrs = [...(d.members || []), ...(d.bannedMembers || [])];
+        const profiles: Record<string,any> = {};
+        allAddrs.forEach((addr: string) => { profiles[addr.toLowerCase()] = getProfile(addr); });
+        setMemberProfiles(profiles);
+        setMembers(d.members || []);
+        setBannedMembers(d.bannedMembers || []);
+      }
     } catch {} finally { setLoadingMembers(false); }
   };
 
@@ -396,20 +418,19 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                   <div style={label}>MEMBERS ({members.length})</div>
                   {members.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 0' }}>No members yet.</div>}
                   {members.map(addr => {
-                    const ct = contacts?.find(c => c.address?.toLowerCase() === addr.toLowerCase());
-                    const nm = ct?.name || (addr.slice(0,8)+'...'+addr.slice(-4));
+                    const p = memberProfiles[addr.toLowerCase()] || getProfile(addr);
                     const isOwner = addr.toLowerCase() === (group.createdBy||'').toLowerCase();
                     const isMe = addr.toLowerCase() === myAddress?.toLowerCase();
                     return (
                       <div key={addr} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--border)' }}>
-                        <div style={{ width:34, height:34, borderRadius:'50%', flexShrink:0, background:ct?.bg||'#1e2438',
+                        <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:p.bg,
                           display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:600,
-                          color:ct?.color||'var(--accent)', overflow:'hidden' }}>
-                          {ct?.avatarUrl ? <img src={ct.avatarUrl} style={{width:'100%',height:'100%',objectFit:'cover'}}/> : (ct?.avatar||nm.slice(0,2)).toUpperCase()}
+                          color:p.color, overflow:'hidden', border:'1px solid var(--border)' }}>
+                          {p.avatarUrl ? <img src={p.avatarUrl} style={{width:'100%',height:'100%',objectFit:'cover'}}/> : p.name.slice(0,2).toUpperCase()}
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                            {nm}{isOwner&&<span style={{fontSize:10,color:'var(--accent)',fontFamily:'var(--mono)',marginLeft:6}}>OWNER</span>}
+                            {p.name}{isOwner&&<span style={{fontSize:10,color:'var(--accent)',fontFamily:'var(--mono)',marginLeft:6}}>OWNER</span>}
                             {isMe&&!isOwner&&<span style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)',marginLeft:6}}>YOU</span>}
                           </div>
                           <div style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--muted)' }}>{addr.slice(0,10)}...{addr.slice(-4)}</div>
@@ -442,14 +463,16 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                   {bannedMembers.length===0
                     ? <div style={{fontSize:12,color:'var(--muted)',padding:'8px 0'}}>No banned users.</div>
                     : bannedMembers.map(addr => {
-                        const ct = contacts?.find(c => c.address?.toLowerCase()===addr.toLowerCase());
-                        const nm = ct?.name||(addr.slice(0,8)+'...'+addr.slice(-4));
+                        const bp = memberProfiles[addr.toLowerCase()] || getProfile(addr);
                         return (
                           <div key={addr} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--border)',opacity:0.8}}>
-                            <div style={{width:34,height:34,borderRadius:'50%',flexShrink:0,background:'#2a1414',
-                              display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🚫</div>
+                            <div style={{width:36,height:36,borderRadius:'50%',flexShrink:0,background:bp.bg,
+                              display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,
+                              color:bp.color,overflow:'hidden',border:'2px solid rgba(248,113,113,.4)',filter:'grayscale(40%)'}}>
+                              {bp.avatarUrl ? <img src={bp.avatarUrl} style={{width:'100%',height:'100%',objectFit:'cover'}}/> : bp.name.slice(0,2).toUpperCase()}
+                            </div>
                             <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontSize:13,fontWeight:600,color:'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nm}</div>
+                              <div style={{fontSize:13,fontWeight:600,color:'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{bp.name}</div>
                               <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--danger)',opacity:0.7}}>BANNED · {addr.slice(0,10)}...{addr.slice(-4)}</div>
                             </div>
                             <button disabled={banningAddr===addr}
