@@ -183,9 +183,10 @@
   }
 }
 
-/* Mobile in-chat search bar */
+/* Mobile chat header: topbar + search bar as a column unit */
+.mobile-chat-header { display: none; }
 @media (max-width: 640px) {
-  .mobile-search-bar { display: flex !important; }
+  .mobile-chat-header { display: flex; flex-direction: column; }
 }
 
 /* Mobile: hide desktop search bar, reset messages paddingTop */

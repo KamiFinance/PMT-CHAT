@@ -6,56 +6,64 @@ import { SwitchNetworkCompact } from './SwitchNetworkButton';
 
 export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact,onSendETH,needsPasswordToSend,searchActive,onSearchToggle,searchBar}){
   const [showSend,setShowSend]=useState(false);
+  // Connect Wallet (MetaMask/WalletConnect) users: needsPasswordToSend=false
+  // Create/Import Wallet users: needsPasswordToSend=true
+  const isConnectWallet = !needsPasswordToSend;
+
   if(contact){
     return(
       <>
-      <div className="mobile-topbar" style={{display:'none',alignItems:'center',gap:10,
-        padding:'10px 14px',
-        background:'var(--panel)',borderBottom:'1px solid var(--border)',
-        flexShrink:0,minHeight:54,zIndex:10}}>
-        <button onClick={onBack}
-          style={{background:'none',border:'none',color:'var(--accent)',fontSize:26,
-            cursor:'pointer',padding:'2px 10px 2px 0',lineHeight:1,flexShrink:0,fontWeight:300}}>
-          ‹
-        </button>
-        <div onClick={onViewContact&&!contact.isGroup?()=>onViewContact(contact):undefined}
-          style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0,
-            cursor:onViewContact&&!contact.isGroup?'pointer':'default',
-            WebkitTapHighlightColor:'transparent'}}>
-          <ProfilePic initials={contact.isGroup?'#':(contact.avatar||contact.name?.slice(0,2).toUpperCase()||'?')} avatarUrl={contact.avatarUrl||null}
-            color={contact.isGroup?'var(--accent2)':(contact.color||'var(--accent2)')}
-            bg={contact.isGroup?'#1e1b30':(contact.bg||'#1e1b30')} online={contact.online||false} size={34} fs={12}/>
-          <div style={{minWidth:0}}>
-            <div style={{fontSize:14,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{contact.name}</div>
-            <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',opacity:.8}}>
-              {contact.isGroup?`${contact.members?.length||0} members`:contact.online?'● online':'PMTchain'}
+      {/* Wrapper keeps topbar + search bar together as one flex column unit */}
+      <div className="mobile-chat-header">
+        <div style={{display:'flex',alignItems:'center',gap:10,
+          padding:'10px 14px',
+          background:'var(--panel)',borderBottom:'1px solid var(--border)',
+          flexShrink:0,minHeight:54,zIndex:10}}>
+          <button onClick={onBack}
+            style={{background:'none',border:'none',color:'var(--accent)',fontSize:26,
+              cursor:'pointer',padding:'2px 10px 2px 0',lineHeight:1,flexShrink:0,fontWeight:300}}>
+            ‹
+          </button>
+          <div onClick={onViewContact&&!contact.isGroup?()=>onViewContact(contact):undefined}
+            style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0,
+              cursor:onViewContact&&!contact.isGroup?'pointer':'default',
+              WebkitTapHighlightColor:'transparent'}}>
+            <ProfilePic initials={contact.isGroup?'#':(contact.avatar||contact.name?.slice(0,2).toUpperCase()||'?')} avatarUrl={contact.avatarUrl||null}
+              color={contact.isGroup?'var(--accent2)':(contact.color||'var(--accent2)')}
+              bg={contact.isGroup?'#1e1b30':(contact.bg||'#1e1b30')} online={contact.online||false} size={34} fs={12}/>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{contact.name}</div>
+              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',opacity:.8}}>
+                {contact.isGroup?`${contact.members?.length||0} members`:contact.online?'● online':'PMTchain'}
+              </div>
             </div>
           </div>
+          {/* Show network switcher only for Connect Wallet users */}
+          {isConnectWallet&&<SwitchNetworkCompact/>}
+          {!contact.isGroup&&!contact.isAI&&onSendETH&&(
+            <button onClick={()=>setShowSend(true)}
+              style={{background:'var(--surface)',border:'1px solid var(--border)',
+                borderRadius:8,color:'var(--accent2)',fontSize:11,fontWeight:600,
+                cursor:'pointer',padding:'5px 9px',flexShrink:0,
+                WebkitTapHighlightColor:'transparent'}}>
+              ↑ PMT
+            </button>
+          )}
+          {onSearchToggle&&(
+            <button onClick={onSearchToggle}
+              title="Search in chat"
+              style={{background:'none',border:'none',
+                width:30,height:30,display:'flex',alignItems:'center',
+                justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:18,
+                color:searchActive?'var(--accent)':'var(--muted)',
+                WebkitTapHighlightColor:'transparent',padding:0}}>
+              🔍
+            </button>
+          )}
         </div>
-        {/* Network indicator + ↑PMT button */}
-        {/* Network indicator removed from chat header — always PMTchain */}
-        {!contact.isGroup&&!contact.isAI&&onSendETH&&(
-          <button onClick={()=>setShowSend(true)}
-            style={{background:'var(--surface)',border:'1px solid var(--border)',
-              borderRadius:8,color:'var(--accent2)',fontSize:11,fontWeight:600,
-              cursor:'pointer',padding:'5px 9px',flexShrink:0,
-              WebkitTapHighlightColor:'transparent'}}>
-            ↑ PMT
-          </button>
-        )}
-        {onSearchToggle&&(
-          <button onClick={onSearchToggle}
-            title="Search in chat"
-            style={{background:'none',border:'none',
-              width:30,height:30,display:'flex',alignItems:'center',
-              justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:18,
-              color:searchActive?'var(--accent)':'var(--muted)',
-              WebkitTapHighlightColor:'transparent',padding:0}}>
-            🔍
-          </button>
-        )}
+        {/* Search bar sits directly under topbar — no gap */}
+        {searchActive&&searchBar}
       </div>
-      {searchBar}
       {showSend&&onSendETH&&(
         <SendModal contact={contact} onClose={()=>setShowSend(false)}
           onSend={(amt,pwd)=>onSendETH(contact,amt,pwd)} isDemo={isDemo}
@@ -75,7 +83,7 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
           lineHeight:1,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
         ☰
       </button>
-      <img src={'/pmt-logo.png'} style={{width:30,height:30,borderRadius:8,objectFit:'cover'}} alt="PM"/>
+      <img src={'/pmt-logo.png'} style={{width:30,height:30,borderRadius:8,objectFit:'cover'}} alt="PMT"/>
       <div style={{flex:1}}>
         <div style={{fontSize:14,fontWeight:600}}>PMT-Chat</div>
         <div style={{fontFamily:'var(--mono)',fontSize:9,color:isDemo?'var(--muted)':'var(--accent)'}}>

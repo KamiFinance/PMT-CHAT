@@ -495,9 +495,9 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact} onSendETH={onSendETH} isDemo={isDemo} needsPasswordToSend={needsPasswordToSend}
         searchActive={searchActive}
         onSearchToggle={()=>{setSearchActive(s=>{const next=!s;if(!next){setLocalSearch('');setSearchIdx(0);}return next;});setTimeout(()=>searchInputRef.current?.focus(),80);}}
-        searchBar={searchActive?(
-          <div className="mobile-search-bar" style={{display:'none',alignItems:'center',gap:8,
-            padding:'8px 12px',background:'var(--panel)',borderBottom:'1px solid var(--border)'}}>
+        searchBar={(
+          <div style={{padding:'8px 12px',background:'var(--panel)',borderBottom:'1px solid var(--border)',
+            display:'flex',alignItems:'center',gap:8}}>
             <input ref={searchInputRef}
               value={localSearch}
               onChange={e=>{setLocalSearch(e.target.value);setSearchIdx(0);}}
@@ -526,7 +526,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
               style={{background:'none',border:'none',color:'var(--muted)',fontSize:20,cursor:'pointer',
                 flexShrink:0,lineHeight:1,padding:'0 2px'}}>×</button>
           </div>
-        ):null}
+        )}
       />
 
       {/* Outer wrapper — fills the chat-panel flex slot */}
