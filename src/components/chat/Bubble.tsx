@@ -168,8 +168,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
   // Quoted message preview (shown when msg.replyTo is set)
   const replyPreview=msg.replyTo&&(
     <div onClick={(e)=>{e.stopPropagation();jumpToReply();}} style={{
-      borderLeft:'3px solid rgba(0,0,0,0.3)',
-      background:'rgba(0,0,0,.12)',
+      borderLeft:`3px solid ${isOut?'rgba(0,0,0,0.3)':'rgba(255,255,255,0.4)'}`,
+      background:isOut?'rgba(0,0,0,.12)':'rgba(255,255,255,.08)',
       borderRadius:'0 8px 8px 0',
       padding:'5px 8px',
       marginBottom:6,
@@ -178,10 +178,12 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
       overflow:'hidden',
       WebkitTapHighlightColor:'transparent',
     }}>
-      <div style={{fontFamily:'var(--sans)',fontSize:11,color:'rgba(0,0,0,0.7)',fontWeight:600,marginBottom:2}}>
+      <div style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:600,marginBottom:2,
+        color:isOut?'rgba(0,0,0,0.7)':'rgba(255,255,255,0.9)'}}>
         ↩ {msg.replyTo.senderName}
       </div>
-      <div style={{fontSize:12,color:'rgba(0,0,0,0.5)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+      <div style={{fontSize:12,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',
+        color:isOut?'rgba(0,0,0,0.5)':'rgba(255,255,255,0.65)'}}>
         {msg.replyTo.type==='voice'?'🎵 Voice message':msg.replyTo.type==='image'?'🖼 Image':msg.replyTo.type==='file'?'📎 File':msg.replyTo.text}
       </div>
     </div>
