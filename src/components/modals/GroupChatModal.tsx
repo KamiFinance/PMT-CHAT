@@ -43,11 +43,28 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   const [newMinPMT, setNewMinPMT] = useState(0);
   const [creatingLink, setCreatingLink] = useState(false);
   const [copied, setCopied] = useState('');
+  const [members, setMembers] = useState<string[]>([]);
+  const [bannedMembers, setBannedMembers] = useState<string[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [banningAddr, setBanningAddr] = useState('');
   const [isAnnouncement, setIsAnnouncement] = useState(existingGroup?.isAnnouncement || false);
 
   const fileRef = useRef(null);
 
   // Auto-load links when managing existing group
+  const loadMembers = async (gId: string) => {
+    setLoadingMembers(true);
+    try {
+      const r = await fetch('/api/groups?action=getMembers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId: gId, requestedBy: myAddress }),
+      });
+      const d = await r.json();
+      if (d.ok) { setMembers(d.members || []); setBannedMembers(d.bannedMembers || []); }
+    } catch {} finally { setLoadingMembers(false); }
+  };
+
   React.useEffect(() => {
     if (existingGroup) {
       const gid = existingGroup.groupId || existingGroup.id;
@@ -185,10 +202,10 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
         {/* Tabs (only after group created) */}
         {group && (
           <div style={{ display: 'flex', gap: 6 }}>
-            {['info', 'links'].map(t => (
-              <button key={t} onClick={() => setTab(t)}
+            {['info', 'links', 'members'].map(t => (
+              <button key={t} onClick={() => { setTab(t); if (t === 'members' && group) loadMembers(group.id || group.groupId); }}
                 style={{ flex: 1, padding: '7px', background: tab === t ? 'var(--accent)' : 'var(--surface)', border: `1px solid ${tab === t ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 8, color: tab === t ? '#0a0c14' : 'var(--text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize' }}>
-                {t === 'links' ? '🔗 Invite Links' : '📋 Group Info'}
+                {t === 'links' ? '🔗 Invite Links' : t === 'members' ? '👥 Members' : '📋 Group Info'}
               </button>
             ))}
           </div>
@@ -367,6 +384,96 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                 Done
               </button>
             </>
+          )}
+
+          {/* ── Members tab ── */}
+          {tab === 'members' && group && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {loadingMembers ? (
+                <div style={{ textAlign: 'center', color: 'var(--muted)', padding: 20, fontSize: 13 }}>Loading...</div>
+              ) : (<>
+                <div>
+                  <div style={label}>MEMBERS ({members.length})</div>
+                  {members.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 0' }}>No members yet.</div>}
+                  {members.map(addr => {
+                    const ct = contacts?.find(c => c.address?.toLowerCase() === addr.toLowerCase());
+                    const nm = ct?.name || (addr.slice(0,8)+'...'+addr.slice(-4));
+                    const isOwner = addr.toLowerCase() === (group.createdBy||'').toLowerCase();
+                    const isMe = addr.toLowerCase() === myAddress?.toLowerCase();
+                    return (
+                      <div key={addr} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--border)' }}>
+                        <div style={{ width:34, height:34, borderRadius:'50%', flexShrink:0, background:ct?.bg||'#1e2438',
+                          display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:600,
+                          color:ct?.color||'var(--accent)', overflow:'hidden' }}>
+                          {ct?.avatarUrl ? <img src={ct.avatarUrl} style={{width:'100%',height:'100%',objectFit:'cover'}}/> : (ct?.avatar||nm.slice(0,2)).toUpperCase()}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {nm}{isOwner&&<span style={{fontSize:10,color:'var(--accent)',fontFamily:'var(--mono)',marginLeft:6}}>OWNER</span>}
+                            {isMe&&!isOwner&&<span style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)',marginLeft:6}}>YOU</span>}
+                          </div>
+                          <div style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--muted)' }}>{addr.slice(0,10)}...{addr.slice(-4)}</div>
+                        </div>
+                        {!isOwner&&!isMe&&(
+                          <button disabled={banningAddr===addr}
+                            onClick={async()=>{
+                              if(!window.confirm(`Ban ${nm} from this group?`)) return;
+                              setBanningAddr(addr);
+                              try {
+                                const r = await fetch('/api/groups?action=banMember',{method:'POST',headers:{'Content-Type':'application/json'},
+                                  body:JSON.stringify({groupId:group.id||group.groupId,address:addr,requestedBy:myAddress})});
+                                const d = await r.json();
+                                if(d.ok){setMembers(d.members);setBannedMembers(d.bannedMembers);}else alert(d.error);
+                              }catch(e:any){alert(e.message);}finally{setBanningAddr('');}
+                            }}
+                            style={{ padding:'5px 10px', background:'rgba(248,113,113,.1)', border:'1px solid rgba(248,113,113,.3)',
+                              borderRadius:6, color:'var(--danger)', fontSize:11, cursor:'pointer', flexShrink:0,
+                              fontWeight:600, opacity:banningAddr===addr?0.5:1 }}>
+                            🚫 Ban
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div>
+                  <div style={label}>BANNED ({bannedMembers.length})</div>
+                  {bannedMembers.length===0
+                    ? <div style={{fontSize:12,color:'var(--muted)',padding:'8px 0'}}>No banned users.</div>
+                    : bannedMembers.map(addr => {
+                        const ct = contacts?.find(c => c.address?.toLowerCase()===addr.toLowerCase());
+                        const nm = ct?.name||(addr.slice(0,8)+'...'+addr.slice(-4));
+                        return (
+                          <div key={addr} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--border)',opacity:0.8}}>
+                            <div style={{width:34,height:34,borderRadius:'50%',flexShrink:0,background:'#2a1414',
+                              display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🚫</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:13,fontWeight:600,color:'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nm}</div>
+                              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--danger)',opacity:0.7}}>BANNED · {addr.slice(0,10)}...{addr.slice(-4)}</div>
+                            </div>
+                            <button disabled={banningAddr===addr}
+                              onClick={async()=>{
+                                setBanningAddr(addr);
+                                try {
+                                  const r = await fetch('/api/groups?action=unbanMember',{method:'POST',headers:{'Content-Type':'application/json'},
+                                    body:JSON.stringify({groupId:group.id||group.groupId,address:addr,requestedBy:myAddress})});
+                                  const d = await r.json();
+                                  if(d.ok)setBannedMembers(d.bannedMembers);else alert(d.error);
+                                }catch(e:any){alert(e.message);}finally{setBanningAddr('');}
+                              }}
+                              style={{padding:'5px 10px',background:'rgba(74,222,128,.1)',border:'1px solid rgba(74,222,128,.3)',
+                                borderRadius:6,color:'var(--accent3)',fontSize:11,cursor:'pointer',flexShrink:0,
+                                fontWeight:600,opacity:banningAddr===addr?0.5:1}}>
+                              ✓ Unban
+                            </button>
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              </>)}
+            </div>
           )}
         </div>
       </div>

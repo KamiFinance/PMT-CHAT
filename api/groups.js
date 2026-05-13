@@ -101,6 +101,7 @@ export default async function handler(req, res) {
       if (!grpData) return res.status(404).json({ error: 'Group no longer exists' });
       const grp = JSON.parse(grpData);
       if (grp.members.includes(address)) return res.json({ ok: true, group: grp, alreadyMember: true });
+      if ((grp.bannedMembers || []).includes(address)) return res.status(403).json({ error: 'You have been banned from this group' });
       if (inv.maxMembers > 0 && grp.members.length >= inv.maxMembers) return res.status(403).json({ error: `This group is full (max ${inv.maxMembers} members)` });
       // Check PMT balance requirement
       if (inv.minPMT > 0) {
@@ -124,6 +125,42 @@ export default async function handler(req, res) {
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
       await redis('SET', `pmt:invite:${linkId}`, JSON.stringify(inv));
       return res.json({ ok: true, group: grp });
+    }
+
+    // Ban a member
+    if (action === 'banMember') {
+      const { groupId, address, requestedBy } = body;
+      const data = await redis('GET', `pmt:group:${groupId}`);
+      if (!data) return res.status(404).json({ error: 'Group not found' });
+      const grp = JSON.parse(data);
+      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can ban members' });
+      if (address === grp.createdBy) return res.status(400).json({ error: 'Cannot ban the group creator' });
+      grp.bannedMembers = [...new Set([...(grp.bannedMembers || []), address])];
+      grp.members = (grp.members || []).filter(m => m !== address);
+      await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
+      return res.json({ ok: true, bannedMembers: grp.bannedMembers, members: grp.members });
+    }
+
+    // Unban a member
+    if (action === 'unbanMember') {
+      const { groupId, address, requestedBy } = body;
+      const data = await redis('GET', `pmt:group:${groupId}`);
+      if (!data) return res.status(404).json({ error: 'Group not found' });
+      const grp = JSON.parse(data);
+      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can unban members' });
+      grp.bannedMembers = (grp.bannedMembers || []).filter(m => m !== address);
+      await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
+      return res.json({ ok: true, bannedMembers: grp.bannedMembers });
+    }
+
+    // Get members + banned list
+    if (action === 'getMembers') {
+      const { groupId, requestedBy } = body;
+      const data = await redis('GET', `pmt:group:${groupId}`);
+      if (!data) return res.status(404).json({ error: 'Group not found' });
+      const grp = JSON.parse(data);
+      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can view member details' });
+      return res.json({ ok: true, members: grp.members || [], bannedMembers: grp.bannedMembers || [], createdBy: grp.createdBy });
     }
 
     // Update group
