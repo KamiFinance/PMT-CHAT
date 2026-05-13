@@ -58,33 +58,34 @@ export default async function handler(req, res) {
       // Send push notification to recipient (fire-and-forget)
       // Skip push for silent system messages (pin sync, reactions, etc.)
       const skipPushTypes = ['pin', 'reaction'];
-      if (!skipPushTypes.includes(msg.type)) try {
-        const addrKey = address.toLowerCase();
-        const sub = await redis('GET', `push:${addrKey}`);
-        console.log('[push] addr:', addrKey.slice(0,14), 'sub_type:', typeof sub, 'has_sub:', !!sub, 'vapid_pub:', !!process.env.VAPID_PUBLIC_KEY, 'vapid_priv:', !!process.env.VAPID_PRIVATE_KEY);
-        if (sub && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-          const webpush = await import('web-push').then(m => m.default || m);
-          webpush.setVapidDetails('mailto:noreply@pmtchat.app',
-            process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
-          const subscription = typeof sub === 'string' ? JSON.parse(sub) : sub;
-          console.log('[push] endpoint:', subscription?.endpoint?.slice(0,40));
-          const senderName = msg.fromName || msg.senderName || (msg.from || '').slice(0,8) || 'PMT-Chat';
-          const body = msg.type === 'voice' ? '🎵 Voice message'
-            : msg.type === 'image' ? '🖼 Image'
-            : msg.type === 'video' ? '🎬 Video'
-            : msg.type === 'file' ? '📎 File'
-            : (msg.text || 'New message').slice(0, 80);
-          await webpush.sendNotification(subscription,
-            JSON.stringify({ title: senderName, body, icon: '/icon-192.png', url: '/' })
-          ).then(() => console.log('[push] sent OK'))
-           .catch(async (e) => {
-            console.warn('[push] FAILED:', e.statusCode, e.message?.slice(0,100));
-            if (e.statusCode === 410 || e.statusCode === 404)
-              await redis('DEL', `push:${addrKey}`);
-          });
-        }
-      } catch (pushErr) { console.warn('[push] catch:', pushErr?.message?.slice(0,100)); }
-      } // end skipPushTypes check
+      if (!skipPushTypes.includes(msg.type)) {
+        try {
+          const addrKey = address.toLowerCase();
+          const sub = await redis('GET', `push:${addrKey}`);
+          console.log('[push] addr:', addrKey.slice(0,14), 'sub_type:', typeof sub, 'has_sub:', !!sub, 'vapid_pub:', !!process.env.VAPID_PUBLIC_KEY, 'vapid_priv:', !!process.env.VAPID_PRIVATE_KEY);
+          if (sub && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+            const webpush = await import('web-push').then(m => m.default || m);
+            webpush.setVapidDetails('mailto:noreply@pmtchat.app',
+              process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+            const subscription = typeof sub === 'string' ? JSON.parse(sub) : sub;
+            console.log('[push] endpoint:', subscription?.endpoint?.slice(0,40));
+            const senderName = msg.fromName || msg.senderName || (msg.from || '').slice(0,8) || 'PMT-Chat';
+            const body = msg.type === 'voice' ? '🎵 Voice message'
+              : msg.type === 'image' ? '🖼 Image'
+              : msg.type === 'video' ? '🎬 Video'
+              : msg.type === 'file' ? '📎 File'
+              : (msg.text || 'New message').slice(0, 80);
+            await webpush.sendNotification(subscription,
+              JSON.stringify({ title: senderName, body, icon: '/icon-192.png', url: '/' })
+            ).then(() => console.log('[push] sent OK'))
+             .catch(async (e) => {
+              console.warn('[push] FAILED:', e.statusCode, e.message?.slice(0,100));
+              if (e.statusCode === 410 || e.statusCode === 404)
+                await redis('DEL', `push:${addrKey}`);
+            });
+          }
+        } catch (pushErr) { console.warn('[push] catch:', pushErr?.message?.slice(0,100)); }
+      }
 
       return res.status(200).json({ ok: true });
 
