@@ -710,7 +710,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
             }
           };
           return (
-          <div style={{position:'absolute',top:62,left:0,right:0,zIndex:8,
+          <div className="desktop-search-bar" style={{position:'absolute',top:62,left:0,right:0,zIndex:8,
             background:'var(--panel)',borderBottom:'1px solid var(--border)',
             borderLeft:'3px solid var(--accent)',
             display:'flex',alignItems:'center',gap:8,padding:'6px 14px',cursor:'pointer'}}
