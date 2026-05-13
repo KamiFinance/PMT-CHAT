@@ -167,6 +167,9 @@ export default async function handler(req, res) {
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
       return res.json({ ok: true, roles: grp.roles });
     }
+
+    // Get members + banned list
+    if (action === 'getMembers') {
       const { groupId, requestedBy } = body;
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
