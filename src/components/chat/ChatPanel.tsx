@@ -628,7 +628,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         {searchActive&&(
           <div className="desktop-search-bar" style={{position:'absolute',top:58,left:0,right:0,zIndex:9,
             background:'var(--panel)',borderBottom:'1px solid var(--border)',
-            padding:'8px 14px',display:'flex',alignItems:'center',gap:8}}>
+            padding:'8px 14px',alignItems:'center',gap:8}}>
             <input ref={searchInputRef}
               value={localSearch}
               onChange={e=>{setLocalSearch(e.target.value);setSearchIdx(0);}}

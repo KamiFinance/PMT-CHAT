@@ -189,7 +189,8 @@
   .mobile-chat-header { display: flex; flex-direction: column; }
 }
 
-/* Mobile: hide desktop search bar, reset messages paddingTop */
+/* Desktop search bar: flex on desktop, hidden on mobile */
+.desktop-search-bar { display: flex; }
 @media (max-width: 640px) {
   .desktop-search-bar { display: none !important; }
   .chat-messages-area { padding-top: 0 !important; }
