@@ -360,7 +360,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
         <div className="msg-bubble-text" style={{maxWidth:'68%',padding:'9px 13px',borderRadius:16,fontSize:15,lineHeight:1.45,
           ...(isOut?{background:'var(--bubble-out)',border:'none',borderBottomRightRadius:4,color:'#0a0c14'}
                    :{background:'var(--bubble-in)',border:'none',borderBottomLeftRadius:4})}}>
-          {msg.senderName&&!isOut&&(
+          {msg.senderName&&!isOut&&contact?.isGroup&&(
             <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent2)',marginBottom:3,fontWeight:600}}>{msg.senderName}</div>
           )}
           {replyPreview}
