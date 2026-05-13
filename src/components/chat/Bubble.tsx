@@ -357,7 +357,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
             />
           </div>
         )}
-        <div className="msg-bubble-text" style={{maxWidth:'68%',padding:'9px 13px',borderRadius:16,fontSize:13.5,lineHeight:1.5,
+        <div className="msg-bubble-text" style={{maxWidth:'68%',padding:'9px 13px',borderRadius:16,fontSize:15,lineHeight:1.45,
           ...(isOut?{background:'var(--bubble-out)',border:'none',borderBottomRightRadius:4,color:'#0a0c14'}
                    :{background:'var(--bubble-in)',border:'none',borderBottomLeftRadius:4})}}>
           {msg.senderName&&!isOut&&(

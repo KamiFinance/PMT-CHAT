@@ -18,7 +18,7 @@
   --bubble-out: #faff63;
   --bubble-in: #2c2c2e;
   --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   /* Safe area for iPhone notch/home indicator */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
