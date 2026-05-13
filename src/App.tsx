@@ -692,7 +692,11 @@ export default function App() {
     const tx: Message = { id: txId, type: 'tx', out: true, amount, text: '', time: now(), block, confirms: 0, hash: rndHash(), pending: true };
     const addr = normalizeAddress(contact.address);
     setMsgs(p => ({ ...p, [addr]: [...(p[addr] ?? []), tx] }));
-    setContacts(p => p.map(c => c.id === contact.id ? { ...c, preview: `◈ Sent ${amount} PMT` } : c));
+    setContacts(p => {
+      const target = p.find(c => c.id === contact.id);
+      if (!target) return p;
+      return [{ ...target, preview: `◈ Sent ${amount} PMT` }, ...p.filter(c => c.id !== contact.id)];
+    });
 
     if (!isDemo && walletRef.current?.address) {
       try {
@@ -856,7 +860,13 @@ export default function App() {
     const addr = normalizeAddress(activeRef.current.address);
     setMsgs(p => ({ ...p, [addr]: [...(p[addr] ?? []), { ...msg, _toAddr: addr }] }));
     const preview = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : textContent;
-    setContacts(p => p.map(c => c.id === activeRef.current?.id ? { ...c, preview } : c));
+    // Update preview and bubble the active contact to top of sidebar
+    setContacts(p => {
+      const id = activeRef.current?.id;
+      const target = p.find(c => c.id === id);
+      if (!target) return p;
+      return [{ ...target, preview }, ...p.filter(c => c.id !== id)];
+    });
 
     // AI Agent
     if (activeRef.current.isAI && (typeof input === 'string' || (typeof input === 'object' && (input as Message).type === 'text'))) {

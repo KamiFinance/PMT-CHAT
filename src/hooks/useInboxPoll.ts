@@ -238,8 +238,12 @@ export function useInboxPoll({
                 preview: previewText(inboxMsg), unread: 1,
               } as any, ...prev];
             } else {
-              updated = prev.map(c => (c.groupId === inboxMsg.groupId || normalizeAddress(c.address) === normalizeAddress(groupAddr))
-                ? { ...c, preview: previewText(inboxMsg), unread: (c.unread ?? 0) + 1 } : c);
+              // Update and bubble to top
+              const target = prev.find(c => c.groupId === inboxMsg.groupId || normalizeAddress(c.address) === normalizeAddress(groupAddr));
+              const updatedTarget = target ? { ...target, preview: previewText(inboxMsg), unread: (target.unread ?? 0) + 1 } : null;
+              updated = updatedTarget
+                ? [updatedTarget, ...prev.filter(c => c.groupId !== inboxMsg.groupId && normalizeAddress(c.address) !== normalizeAddress(groupAddr))]
+                : prev;
             }
             const grp = updated.find(c => c.groupId === inboxMsg.groupId);
             if (grp) pushNotif(grp, previewText(inboxMsg));
@@ -275,14 +279,15 @@ export function useInboxPoll({
               unread: 1,
             } as Contact, ...prev];
           } else {
-            updated = prev.map(c =>
-              normalizeAddress(c.address) === senderAddr
-                ? { ...c, preview: previewText(inboxMsg), unread: (c.unread ?? 0) + 1,
-                    ...(senderAvatarUrl ? { avatarUrl: senderAvatarUrl } : {}),
-                    ...(senderBio ? { bio: senderBio } : {}),
-                    ...(inboxMsg.fromName ? { name: inboxMsg.fromName } : {}) }
-                : c
-            );
+            // Update and bubble to top
+            const target = prev.find(c => normalizeAddress(c.address) === senderAddr);
+            if (target) {
+              const updatedTarget = { ...target, preview: previewText(inboxMsg), unread: (target.unread ?? 0) + 1,
+                ...(senderAvatarUrl ? { avatarUrl: senderAvatarUrl } : {}),
+                ...(senderBio ? { bio: senderBio } : {}),
+                ...(inboxMsg.fromName ? { name: inboxMsg.fromName } : {}) };
+              updated = [updatedTarget, ...prev.filter(c => normalizeAddress(c.address) !== senderAddr)];
+            }
           }
 
           // Show notification
