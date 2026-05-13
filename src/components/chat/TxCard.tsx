@@ -124,17 +124,17 @@ export default function TxCard({msg, isOut}) {
   return (
     <>
       <div style={{ animation: 'fadeIn .2s ease', background: 'var(--surface)',
-        border: `1px solid ${isOut ? 'rgba(74,222,128,.2)' : 'rgba(167,139,250,.3)'}`,
+        border: `1px solid ${isOut ? 'rgba(248,113,113,.25)' : 'rgba(74,222,128,.2)'}`,
         borderRadius: 12, padding: '12px 16px', maxWidth: 240, margin: '2px 0' }}>
 
         <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '1.5px', marginBottom: 6,
-          color: isOut ? 'rgba(74,222,128,.7)' : 'rgba(167,139,250,.8)' }}>
+          color: isOut ? 'rgba(248,113,113,.8)' : 'rgba(74,222,128,.75)' }}>
           {isOut ? '↑ SENT' : '↓ RECEIVED'}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 24, fontWeight: 700,
-            color: isOut ? 'var(--accent3)' : 'var(--accent2)' }}>{msg.amount}</span>
+            color: isOut ? 'var(--danger)' : 'var(--accent3)' }}>{msg.amount}</span>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>{msg.coin || 'PMT'}</span>
         </div>
 
