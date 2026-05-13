@@ -412,7 +412,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                 WebkitTapHighlightColor:'transparent'}}>
               📌
             </button>
-            {showPinChoice&&!contact?.isGroup&&(
+            {showPinChoice&&(
               <div style={{position:'absolute',bottom:30,right:0,background:'var(--panel)',
                 border:'1px solid var(--border)',borderRadius:10,padding:'6px 0',
                 boxShadow:'0 8px 24px rgba(0,0,0,.4)',zIndex:100,minWidth:160}}
