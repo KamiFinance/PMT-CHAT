@@ -201,6 +201,7 @@ export function useInboxPoll({
           senderAvatarUrl,
           senderBio,
           replyTo: (inboxMsg as any).replyTo ?? null,
+          senderRole: (inboxMsg as any).senderRole ?? null,
         };
 
         let extra: Partial<Message> = {};

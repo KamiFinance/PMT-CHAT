@@ -153,14 +153,26 @@ export default async function handler(req, res) {
       return res.json({ ok: true, bannedMembers: grp.bannedMembers });
     }
 
-    // Get members + banned list
-    if (action === 'getMembers') {
+    // Set member role (admin/moderator/none)
+    if (action === 'setRole') {
+      const { groupId, address, role, requestedBy } = body; // role: 'admin' | 'moderator' | null
+      const data = await redis('GET', `pmt:group:${groupId}`);
+      if (!data) return res.status(404).json({ error: 'Group not found' });
+      const grp = JSON.parse(data);
+      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can assign roles' });
+      if (address === grp.createdBy) return res.status(400).json({ error: 'Cannot change owner role' });
+      grp.roles = grp.roles || {};
+      if (role) grp.roles[address.toLowerCase()] = role;
+      else delete grp.roles[address.toLowerCase()];
+      await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
+      return res.json({ ok: true, roles: grp.roles });
+    }
       const { groupId, requestedBy } = body;
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
       const grp = JSON.parse(data);
       if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can view member details' });
-      return res.json({ ok: true, members: grp.members || [], bannedMembers: grp.bannedMembers || [], createdBy: grp.createdBy });
+      return res.json({ ok: true, members: grp.members || [], bannedMembers: grp.bannedMembers || [], createdBy: grp.createdBy, roles: grp.roles || {} });
     }
 
     // Update group

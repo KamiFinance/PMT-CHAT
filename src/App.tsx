@@ -1008,9 +1008,23 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         const grpRes = await fetch(`/api/groups?id=${groupId}`);
         const grpData = await grpRes.json();
         const members: string[] = (grpData.members ?? grp.members ?? []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
-        // Update local contact's member list
-        if (grpData.members) {
-          setContacts(p => p.map(c => c.groupId === groupId ? { ...c, members: grpData.members } : c));
+        // Determine sender's role: owner > admin > moderator > none
+        const myAddrLower = w.address.toLowerCase();
+        const grpRoles: Record<string,string> = grpData.roles || {};
+        const senderRole = grpData.createdBy?.toLowerCase() === myAddrLower
+          ? 'owner'
+          : grpRoles[myAddrLower] || null;
+        // Attach role to inbox message so receivers can display badge
+        if (senderRole) (inboxMsg as any).senderRole = senderRole;
+        // Also attach to local message
+        if (senderRole) (msg as any).senderRole = senderRole;
+        // Update local contact's member list + roles
+        if (grpData.members || grpData.roles) {
+          setContacts(p => p.map(c => c.groupId === groupId ? {
+            ...c,
+            ...(grpData.members ? { members: grpData.members } : {}),
+            ...(grpData.roles ? { roles: grpData.roles } : {}),
+          } : c));
         }
         // Relay to each member except self
         members.forEach(memberAddr => {

@@ -60,6 +60,7 @@ export interface Message {
 
   // Sender profile (attached when message received)
   senderName?: string;
+  senderRole?: string | null;
   senderAddress?: string;
   senderAvatarUrl?: string | null;
   senderBio?: string;

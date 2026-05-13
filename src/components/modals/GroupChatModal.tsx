@@ -48,6 +48,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [banningAddr, setBanningAddr] = useState('');
   const [memberProfiles, setMemberProfiles] = useState<Record<string,{name:string,avatarUrl:string|null,color:string,bg:string}>>({});
+  const [groupRoles, setGroupRoles] = useState<Record<string,string>>({});
   const [isAnnouncement, setIsAnnouncement] = useState(existingGroup?.isAnnouncement || false);
 
   const fileRef = useRef(null);
@@ -83,6 +84,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
         setMemberProfiles(profiles);
         setMembers(d.members || []);
         setBannedMembers(d.bannedMembers || []);
+        setGroupRoles(d.roles || {});
       }
     } catch {} finally { setLoadingMembers(false); }
   };
@@ -421,6 +423,16 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                     const p = memberProfiles[addr.toLowerCase()] || getProfile(addr);
                     const isOwner = addr.toLowerCase() === (group.createdBy||'').toLowerCase();
                     const isMe = addr.toLowerCase() === myAddress?.toLowerCase();
+                    const currentRole = isOwner ? 'owner' : (groupRoles[addr.toLowerCase()] || null);
+                    const setRole = async (role: string | null) => {
+                      try {
+                        const r = await fetch('/api/groups?action=setRole', { method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ groupId: group.id||group.groupId, address: addr, role, requestedBy: myAddress }) });
+                        const d = await r.json();
+                        if (d.ok) setGroupRoles(d.roles || {});
+                        else alert(d.error);
+                      } catch(e: any) { alert(e.message); }
+                    };
                     return (
                       <div key={addr} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--border)' }}>
                         <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:p.bg,
@@ -429,14 +441,28 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                           {p.avatarUrl ? <img src={p.avatarUrl} style={{width:'100%',height:'100%',objectFit:'cover'}}/> : p.name.slice(0,2).toUpperCase()}
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                            {p.name}{isOwner&&<span style={{fontSize:10,color:'var(--accent)',fontFamily:'var(--mono)',marginLeft:6}}>OWNER</span>}
-                            {isMe&&!isOwner&&<span style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)',marginLeft:6}}>YOU</span>}
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:5 }}>
+                            <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</span>
+                            {currentRole==='owner'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:4,background:'rgba(250,255,99,.15)',color:'var(--accent)',border:'1px solid rgba(250,255,99,.3)',letterSpacing:.5,flexShrink:0}}>OWNER</span>}
+                            {currentRole==='admin'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:4,background:'rgba(99,210,255,.15)',color:'var(--accent)',border:'1px solid rgba(99,210,255,.3)',letterSpacing:.5,flexShrink:0}}>ADMIN</span>}
+                            {currentRole==='moderator'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:4,background:'rgba(167,139,250,.15)',color:'var(--accent2)',border:'1px solid rgba(167,139,250,.3)',letterSpacing:.5,flexShrink:0}}>MOD</span>}
+                            {isMe&&!isOwner&&<span style={{fontSize:9,color:'var(--muted)',fontFamily:'var(--mono)',flexShrink:0}}>YOU</span>}
                           </div>
                           <div style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--muted)' }}>{addr.slice(0,10)}...{addr.slice(-4)}</div>
                         </div>
                         {!isOwner&&!isMe&&(
-                          <button disabled={banningAddr===addr}
+                          <div style={{display:'flex',gap:4,flexShrink:0}}>
+                            {/* Role buttons */}
+                            <select
+                              value={currentRole||''}
+                              onChange={e=>setRole(e.target.value||null)}
+                              style={{fontSize:10,padding:'3px 6px',background:'var(--surface)',border:'1px solid var(--border)',
+                                borderRadius:6,color:'var(--text)',cursor:'pointer',fontFamily:'var(--mono)'}}>
+                              <option value=''>No role</option>
+                              <option value='admin'>Admin</option>
+                              <option value='moderator'>Mod</option>
+                            </select>
+                            <button disabled={banningAddr===addr}
                             onClick={async()=>{
                               if(!window.confirm(`Ban ${nm} from this group?`)) return;
                               setBanningAddr(addr);
@@ -452,6 +478,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                               fontWeight:600, opacity:banningAddr===addr?0.5:1 }}>
                             🚫 Ban
                           </button>
+                          </div>
                         )}
                       </div>
                     );
@@ -475,7 +502,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                               <div style={{fontSize:13,fontWeight:600,color:'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{bp.name}</div>
                               <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--danger)',opacity:0.7}}>BANNED · {addr.slice(0,10)}...{addr.slice(-4)}</div>
                             </div>
-                            <button disabled={banningAddr===addr}
+                              <button disabled={banningAddr===addr}
                               onClick={async()=>{
                                 setBanningAddr(addr);
                                 try {

@@ -364,7 +364,19 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
           ...(isOut?{background:'var(--bubble-out)',border:'none',borderBottomRightRadius:4,color:'#0a0c14'}
                    :{background:'var(--bubble-in)',border:'none',borderBottomLeftRadius:4})}}>
           {msg.senderName&&!isOut&&contact?.isGroup&&(
-            <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent2)',marginBottom:3,fontWeight:600}}>{msg.senderName}</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:10,marginBottom:3,fontWeight:600,display:'flex',alignItems:'center',gap:5}}>
+              <span style={{color:'var(--accent2)'}}>{msg.senderName}</span>
+              {(msg as any).senderRole==='owner'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:4,background:'rgba(250,255,99,.15)',color:'var(--accent)',border:'1px solid rgba(250,255,99,.3)',letterSpacing:.5}}>OWNER</span>}
+              {(msg as any).senderRole==='admin'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:4,background:'rgba(99,210,255,.15)',color:'var(--accent)',border:'1px solid rgba(99,210,255,.3)',letterSpacing:.5}}>ADMIN</span>}
+              {(msg as any).senderRole==='moderator'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:4,background:'rgba(167,139,250,.15)',color:'var(--accent2)',border:'1px solid rgba(167,139,250,.3)',letterSpacing:.5}}>MOD</span>}
+            </div>
+          )}
+          {isOut&&contact?.isGroup&&(msg as any).senderRole&&(
+            <div style={{fontFamily:'var(--mono)',fontSize:9,marginBottom:3,display:'flex',justifyContent:'flex-end'}}>
+              {(msg as any).senderRole==='owner'&&<span style={{padding:'1px 5px',borderRadius:4,background:'rgba(0,0,0,.12)',color:'rgba(0,0,0,0.5)',border:'1px solid rgba(0,0,0,.15)',letterSpacing:.5}}>OWNER</span>}
+              {(msg as any).senderRole==='admin'&&<span style={{padding:'1px 5px',borderRadius:4,background:'rgba(0,0,0,.12)',color:'rgba(0,0,0,0.5)',border:'1px solid rgba(0,0,0,.15)',letterSpacing:.5}}>ADMIN</span>}
+              {(msg as any).senderRole==='moderator'&&<span style={{padding:'1px 5px',borderRadius:4,background:'rgba(0,0,0,.12)',color:'rgba(0,0,0,0.5)',border:'1px solid rgba(0,0,0,.15)',letterSpacing:.5}}>MOD</span>}
+            </div>
           )}
           {replyPreview}
           <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup} isOut={isOut}/>
