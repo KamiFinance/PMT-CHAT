@@ -179,8 +179,15 @@ export function useInboxPoll({
               const updated = pinAction === 'unpin'
                 ? current.filter(p => p.id !== pinMsgId)
                 : current.some(p => p.id === pinMsgId) ? current
-                  : [...current, { id: pinMsgId, text: pinText, pinnedAt: Date.now(), pinnedBy }]
-                      .sort((a: any, b: any) => (a.pinnedAt || 0) - (b.pinnedAt || 0));
+                  : [...current, {
+                    id: pinMsgId, text: pinText, pinnedAt: Date.now(), pinnedBy,
+                    // Extract original message send time from its uid
+                    msgTs: (inboxMsg as any).msgTs
+                      || (pinMsgId?.startsWith('u') ? parseInt(pinMsgId.slice(1)) : 0)
+                      || Date.now(),
+                  }].sort((a: any, b: any) =>
+                    (a.msgTs || a.pinnedAt || 0) - (b.msgTs || b.pinnedAt || 0)
+                  );
               return { ...prev, [pinAddr]: updated };
             });
             setMsgs(prev => ({

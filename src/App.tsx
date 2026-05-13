@@ -1128,10 +1128,16 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     const pin = grp.isGroup ? true : (forBoth ?? true); // groups always pin for all
 
     // Store pinnedBy so only pinner can unpin
+    // Extract the original message send time for sorting
+    // uid() = 'u' + Date.now() + random, so parse the timestamp from the id
+    const msgTs: number = msg.ts
+      || (msg.id?.startsWith('u') ? parseInt(msg.id.slice(1)) : 0)
+      || 0;
+
     const newPins = alreadyPinned
       ? currentPins.filter(p => p.id !== msg.id)
-      : [...currentPins, { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time, pinnedAt: Date.now(), pinnedBy: myAddr }]
-          .sort((a, b) => (a.pinnedAt || 0) - (b.pinnedAt || 0)); // oldest first
+      : [...currentPins, { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time, msgTs, pinnedAt: Date.now(), pinnedBy: myAddr }]
+          .sort((a, b) => (a.msgTs || a.pinnedAt || 0) - (b.msgTs || b.pinnedAt || 0)); // sort by original send time
 
     setPinnedMsgs(prev => ({ ...prev, [addr]: newPins }));
     setMsgs(prev => ({
@@ -1145,7 +1151,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     const systemMsg = {
       id: uid(), type: 'pin', pinMsgId: msg.id, pinMsgText: msg.text || '',
       pinAction: alreadyPinned ? 'unpin' : 'pin',
-      pinnedBy: myAddr,
+      pinnedBy: myAddr, msgTs,
       from: walletRef.current.address, ts: Date.now(),
     };
 
