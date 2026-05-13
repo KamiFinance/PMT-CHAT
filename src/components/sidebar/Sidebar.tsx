@@ -81,7 +81,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
         </div>
         <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--accent)'}}>{wallet?wallet.address.slice(0,6)+'...'+wallet.address.slice(-4):isDemo?'Demo Wallet':'Not connected'}</div>
         <div style={{display:'flex',alignItems:'center',gap:8,marginTop:5}}>
-          <span style={{fontSize:12,color:'var(--accent3)',fontWeight:500}}>◈ {wallet?wallet.balance:isDemo?'2.847':'0.000'} PM</span>
+          <span style={{fontSize:12,color:'var(--accent3)',fontWeight:500}}>◈ {wallet?wallet.balance:isDemo?'2.847':'0.000'} PMT</span>
           <span style={{fontFamily:'var(--sans)',fontSize:10,fontWeight:600,background:'rgba(10,132,255,.15)',border:'none',
             borderRadius:6,padding:'3px 8px',color:'var(--accent)'}}>{wallet?wallet.network:isDemo?'demo':' - '}</span>
         </div>

@@ -3,7 +3,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import QRInline from '../ui/QRInline';
 export default function WalletModal({wallet,isDemo,onClose}){
-  const [tokens,setTokens]=useState([]);
+  const [tokens,setTokens]=useState(()=>
+    wallet?.balance ? [{symbol:'PMT',name:'PMTchain',balance:wallet.balance,icon:'◈',color:'#faff63'}] : []
+  );
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState(null);
   const [copied,setCopied]=useState(false);
@@ -25,7 +27,9 @@ export default function WalletModal({wallet,isDemo,onClose}){
   },[addr]);
 
   const fetchBalances=async(address)=>{
-    setLoading(true);setError(null);
+    // Only show spinner on first load; keep existing tokens visible during refresh
+    if(tokens.length===0) setLoading(true);
+    setError(null);
     const list=[];
     try{
       // ETH balance via public Cloudflare Ethereum gateway
