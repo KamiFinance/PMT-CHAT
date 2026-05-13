@@ -32,7 +32,14 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
     }
     return off;
   },[wallet?.address]);
-  const filtered=contacts.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.address.includes(q));
+  const filtered=contacts
+    .filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.address.includes(q))
+    .sort((a,b)=>{
+      // AI assistant always pinned to top
+      if(a.isAI && !b.isAI) return -1;
+      if(!a.isAI && b.isAI) return 1;
+      return 0; // preserve existing order (activity-based) for the rest
+    });
   return(
     <div className={`sidebar-panel${mobileOpen?' mobile-open':''}`}
       style={{background:'var(--panel)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
