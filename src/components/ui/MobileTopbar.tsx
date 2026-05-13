@@ -33,7 +33,7 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
           </div>
         </div>
         {/* Network indicator + ↑PMT button */}
-        <SwitchNetworkCompact/>
+        {/* Network indicator removed from chat header — always PMTchain */}
         {!contact.isGroup&&!contact.isAI&&onSendETH&&(
           <button onClick={()=>setShowSend(true)}
             style={{background:'var(--surface)',border:'1px solid var(--border)',
@@ -46,12 +46,11 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
         {onSearchToggle&&(
           <button onClick={onSearchToggle}
             title="Search in chat"
-            style={{background:'var(--surface)',border:'1px solid var(--border)',
-              borderRadius:8,width:34,height:34,display:'flex',alignItems:'center',
-              justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:15,
+            style={{background:'none',border:'none',
+              width:30,height:30,display:'flex',alignItems:'center',
+              justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:18,
               color:searchActive?'var(--accent)':'var(--muted)',
-              boxShadow:searchActive?'0 0 0 1px var(--accent) inset':'none',
-              WebkitTapHighlightColor:'transparent'}}>
+              WebkitTapHighlightColor:'transparent',padding:0}}>
             🔍
           </button>
         )}

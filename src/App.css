@@ -184,12 +184,12 @@
 }
 
 /* Mobile in-chat search bar */
-@media (max-width: 767px) {
+@media (max-width: 640px) {
   .mobile-search-bar { display: flex !important; }
 }
 
 /* Mobile: hide desktop search bar, reset messages paddingTop */
-@media (max-width: 767px) {
+@media (max-width: 640px) {
   .desktop-search-bar { display: none !important; }
   .chat-messages-area { padding-top: 0 !important; }
 }
