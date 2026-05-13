@@ -479,10 +479,11 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       const containerRect = messagesRef.current.getBoundingClientRect();
       const elRect = el.getBoundingClientRect();
       messagesRef.current.scrollTop += elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
-      el.style.transition = 'outline .15s';
+      el.style.transition = 'outline .15s, outline-offset .15s';
       el.style.outline = '2px solid var(--accent)';
-      el.style.borderRadius = '10px';
-      setTimeout(() => { el.style.outline = ''; el.style.borderRadius = ''; }, 1200);
+      el.style.outlineOffset = '3px';
+      el.style.borderRadius = '14px';
+      setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; el.style.borderRadius = ''; }, 1400);
     }
   };
 
