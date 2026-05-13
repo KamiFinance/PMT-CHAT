@@ -177,7 +177,12 @@ export function useInboxPoll({
             const updated = pinAction === 'unpin'
               ? current.filter(p => p.id !== pinMsgId)
               : current.some(p => p.id === pinMsgId) ? current
-                : [...current, { id: pinMsgId, text: pinText, time: Date.now(), pinnedBy }];
+                : [...current, { id: pinMsgId, text: pinText, time: Date.now(), pinnedBy }]
+                    .sort((a: any, b: any) => {
+                      const ta = typeof a.time === 'string' ? a.time : String(a.time ?? '');
+                      const tb = typeof b.time === 'string' ? b.time : String(b.time ?? '');
+                      return ta.localeCompare(tb);
+                    });
             return { ...prev, [pinAddr]: updated };
           });
           setMsgs(prev => ({

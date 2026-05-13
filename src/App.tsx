@@ -1130,7 +1130,13 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     // Store pinnedBy so only pinner can unpin
     const newPins = alreadyPinned
       ? currentPins.filter(p => p.id !== msg.id)
-      : [...currentPins, { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time, pinnedBy: myAddr }];
+      : [...currentPins, { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time, pinnedBy: myAddr }]
+          .sort((a, b) => {
+            // Sort by message time (oldest first — banner shows newest first by reversing index)
+            const ta = typeof a.time === 'string' ? a.time : String(a.time ?? '');
+            const tb = typeof b.time === 'string' ? b.time : String(b.time ?? '');
+            return ta.localeCompare(tb);
+          });
 
     setPinnedMsgs(prev => ({ ...prev, [addr]: newPins }));
     setMsgs(prev => ({
