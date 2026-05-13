@@ -85,6 +85,10 @@ input,textarea,select{font-size:16px!important}
   /* Mobile topbar */
   .mobile-topbar{display:flex!important}
   .desktop-topbar{display:none!important}
+  /* Mobile chat header wrapper */
+  .mobile-chat-header{display:flex!important;flex-direction:column}
+  /* Hide desktop search bar on mobile */
+  .desktop-search-bar{display:none!important}
 
   /* Hide block strip on small screens */
   .block-strip-bar{display:none!important}
@@ -134,6 +138,8 @@ input,textarea,select{font-size:16px!important}
 /* Desktop */
 @media(min-width:641px){
   .mobile-topbar{display:none!important}
+  .mobile-chat-header{display:none!important}
+  .desktop-search-bar{display:flex!important}
   .sidebar-overlay{display:none!important}
   .mobile-only-btn{display:none!important}
   .desktop-only-btn{display:block!important}

@@ -14,7 +14,7 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
     return(
       <>
       {/* Wrapper keeps topbar + search bar together as one flex column unit */}
-      <div className="mobile-chat-header">
+      <div className="mobile-chat-header" style={{display:'none',flexDirection:'column'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,
           padding:'10px 14px',
           background:'var(--panel)',borderBottom:'1px solid var(--border)',

@@ -183,15 +183,8 @@
   }
 }
 
-/* Mobile chat header: topbar + search bar as a column unit */
-.mobile-chat-header { display: none; }
+/* Desktop search bar - shown on desktop, hidden on mobile via index.css */
+/* Mobile chat header - hidden on desktop, shown on mobile via index.css */
 @media (max-width: 640px) {
-  .mobile-chat-header { display: flex; flex-direction: column; }
-}
-
-/* Desktop search bar: flex on desktop, hidden on mobile */
-.desktop-search-bar { display: flex; }
-@media (max-width: 640px) {
-  .desktop-search-bar { display: none !important; }
   .chat-messages-area { padding-top: 0 !important; }
 }
