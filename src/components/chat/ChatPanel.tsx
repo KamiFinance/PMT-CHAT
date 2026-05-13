@@ -152,6 +152,10 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [showAttach,setShowAttach]=useState(false);
   const [showEmoji,setShowEmoji]=useState(false);
   const [replyingTo,setReplyingTo]=useState(null); // message being replied to
+  const [localSearch,setLocalSearch]=useState(''); // in-chat search query
+  const [searchActive,setSearchActive]=useState(false); // search bar open
+  const [searchIdx,setSearchIdx]=useState(0); // current match index
+  const searchInputRef=useRef<HTMLInputElement>(null);
   const [recording,setRecording]=useState(false);
   const fileInputRef=useRef(null);
   const cameraInputRef=useRef(null);
@@ -452,6 +456,36 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     setRecordSeconds(0);
     recordSecondsRef.current=0;
   };
+  // Local search: filter messages by text match
+  const searchTerm = localSearch.trim().toLowerCase();
+  const filteredMessages = searchTerm
+    ? messages.filter(m =>
+        m.text?.toLowerCase().includes(searchTerm) ||
+        m.replyTo?.text?.toLowerCase().includes(searchTerm)
+      )
+    : messages;
+  const matchCount = searchTerm ? filteredMessages.length : 0;
+
+  // Navigate to match
+  const safeIdx = matchCount > 0 ? Math.min(searchIdx, matchCount - 1) : 0;
+  const goNext = () => setSearchIdx(i => matchCount > 0 ? (i + 1) % matchCount : 0);
+  const goPrev = () => setSearchIdx(i => matchCount > 0 ? (i - 1 + matchCount) % matchCount : 0);
+
+  // Scroll to current match bubble
+  const scrollToMatch = (idx: number) => {
+    if (!filteredMessages[idx]) return;
+    const el = document.getElementById('msg-' + filteredMessages[idx].id);
+    if (el && messagesRef.current) {
+      const containerRect = messagesRef.current.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      messagesRef.current.scrollTop += elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
+      el.style.transition = 'outline .15s';
+      el.style.outline = '2px solid var(--accent)';
+      el.style.borderRadius = '10px';
+      setTimeout(() => { el.style.outline = ''; el.style.borderRadius = ''; }, 1200);
+    }
+  };
+
   return(
     <>
       {/* iOS PWA safe area spacer — pushes content below status bar reliably */}
@@ -465,14 +499,21 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         <div ref={messagesRef}
           className="chat-messages-area"
           style={{position:'absolute',inset:0,overflowY:'auto',
-            paddingTop:62,paddingBottom:95,
+            paddingTop:searchActive?102:62,paddingBottom:95,
             display:'flex',flexDirection:'column'}}>
           <div style={{flex:1,padding:'0 20px 0',display:'flex',flexDirection:'column',gap:2}}>
-            {searchQuery&&(
+            {searchQuery&&!searchTerm&&(
               <div style={{textAlign:'center',fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',
                 margin:'4px 0 8px',background:'rgba(250,255,99,.08)',
                 border:'1px solid rgba(250,255,99,.2)',borderRadius:8,padding:'5px 12px'}}>
                 Showing results for "{searchQuery}"
+              </div>
+            )}
+            {searchTerm&&matchCount===0&&(
+              <div style={{textAlign:'center',fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',
+                margin:'4px 0 8px',background:'var(--surface)',
+                border:'1px solid var(--border)',borderRadius:8,padding:'5px 12px'}}>
+                No messages found for "{localSearch}"
               </div>
             )}
             <div style={{textAlign:'center',fontFamily:'var(--mono)',fontSize:10,
@@ -484,9 +525,11 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
               <div style={{flex:1,height:1,background:'var(--border)'}}/>TODAY
               <div style={{flex:1,height:1,background:'var(--border)'}}/>
             </div>
-            {messages.map(m=>(
+            {filteredMessages.map(m=>(
               <Bubble key={m.id} msg={m} isOut={m.out} contact={contact}
-                myAddress={myAddress} onReact={onReact} searchQuery={searchQuery} onJoinGroup={onJoinGroup}
+                myAddress={myAddress} onReact={onReact}
+                searchQuery={searchTerm || searchQuery}
+                onJoinGroup={onJoinGroup}
                 onReply={(msg)=>{setReplyingTo(msg);setTimeout(()=>inputRef.current?.focus(),50);}}/>
             ))}
             <div ref={bottomRef}/>
@@ -533,8 +576,51 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 style={{padding:'5px 10px',background:'var(--surface)',border:'1px solid var(--border)',
                   borderRadius:8,color:'var(--text2)',fontSize:12,cursor:'pointer',flexShrink:0}}>↑ PMT</button>
             )}
+            <button onClick={()=>{setSearchActive(s=>{const next=!s;if(!next){setLocalSearch('');setSearchIdx(0);}return next;});setTimeout(()=>searchInputRef.current?.focus(),80);}}
+              title="Search in chat"
+              style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,
+                width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',
+                cursor:'pointer',flexShrink:0,color:searchActive?'var(--accent)':'var(--muted)',fontSize:15,
+                boxShadow:searchActive?'0 0 0 1px var(--accent) inset':'none'}}>
+              🔍
+            </button>
           </div>
         </div>
+
+        {/* ── In-chat search bar ── */}
+        {searchActive&&(
+          <div style={{position:'absolute',top:58,left:0,right:0,zIndex:9,
+            background:'var(--panel)',borderBottom:'1px solid var(--border)',
+            padding:'8px 14px',display:'flex',alignItems:'center',gap:8}}>
+            <input ref={searchInputRef}
+              value={localSearch}
+              onChange={e=>{setLocalSearch(e.target.value);setSearchIdx(0);}}
+              onKeyDown={e=>{if(e.key==='Enter'){e.shiftKey?goPrev():goNext();scrollToMatch(safeIdx);}if(e.key==='Escape'){setSearchActive(false);setLocalSearch('');setSearchIdx(0);}}}
+              placeholder="Search in chat…"
+              style={{flex:1,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,
+                padding:'7px 12px',color:'var(--text)',fontSize:13,outline:'none',fontFamily:'var(--sans)'}}/>
+            {searchTerm&&(
+              <>
+                <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',flexShrink:0,minWidth:40,textAlign:'center'}}>
+                  {matchCount>0?`${safeIdx+1}/${matchCount}`:'0'}
+                </span>
+                <button onClick={()=>{goPrev();setTimeout(()=>scrollToMatch((safeIdx-1+matchCount)%matchCount),50);}}
+                  disabled={matchCount===0}
+                  style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,
+                    width:28,height:28,cursor:matchCount>0?'pointer':'default',color:'var(--text2)',
+                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,opacity:matchCount===0?.4:1}}>↑</button>
+                <button onClick={()=>{goNext();setTimeout(()=>scrollToMatch((safeIdx+1)%matchCount),50);}}
+                  disabled={matchCount===0}
+                  style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,
+                    width:28,height:28,cursor:matchCount>0?'pointer':'default',color:'var(--text2)',
+                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,opacity:matchCount===0?.4:1}}>↓</button>
+              </>
+            )}
+            <button onClick={()=>{setSearchActive(false);setLocalSearch('');setSearchIdx(0);}}
+              style={{background:'none',border:'none',color:'var(--muted)',fontSize:18,cursor:'pointer',
+                flexShrink:0,lineHeight:1,padding:'0 2px'}}>×</button>
+          </div>
+        )}
 
         {/* ── Block strip ── */}
         <div className="chat-passthrough" style={{position:'absolute',bottom:70,left:0,right:0,zIndex:5}}>
