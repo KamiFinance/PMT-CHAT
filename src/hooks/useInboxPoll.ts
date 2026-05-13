@@ -177,12 +177,8 @@ export function useInboxPoll({
             const updated = pinAction === 'unpin'
               ? current.filter(p => p.id !== pinMsgId)
               : current.some(p => p.id === pinMsgId) ? current
-                : [...current, { id: pinMsgId, text: pinText, time: Date.now(), pinnedBy }]
-                    .sort((a: any, b: any) => {
-                      const ta = typeof a.time === 'string' ? a.time : String(a.time ?? '');
-                      const tb = typeof b.time === 'string' ? b.time : String(b.time ?? '');
-                      return ta.localeCompare(tb);
-                    });
+                : [...current, { id: pinMsgId, text: pinText, pinnedAt: Date.now(), pinnedBy }]
+                    .sort((a: any, b: any) => (a.pinnedAt || 0) - (b.pinnedAt || 0));
             return { ...prev, [pinAddr]: updated };
           });
           setMsgs(prev => ({
@@ -221,7 +217,7 @@ export function useInboxPoll({
         const base: Message = {
           id: inboxMsg.id || uid(),
           out: false,
-          type: inboxMsg.type as Message['type'],
+          type: ((inboxMsg as any).type === 'pin_notify' ? 'system' : inboxMsg.type) as Message['type'],
           text: inboxMsg.text,
           time: inboxMsg.time ?? now(),
           block: 0, // will be incremented

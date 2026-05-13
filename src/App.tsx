@@ -1130,13 +1130,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     // Store pinnedBy so only pinner can unpin
     const newPins = alreadyPinned
       ? currentPins.filter(p => p.id !== msg.id)
-      : [...currentPins, { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time, pinnedBy: myAddr }]
-          .sort((a, b) => {
-            // Sort by message time (oldest first — banner shows newest first by reversing index)
-            const ta = typeof a.time === 'string' ? a.time : String(a.time ?? '');
-            const tb = typeof b.time === 'string' ? b.time : String(b.time ?? '');
-            return ta.localeCompare(tb);
-          });
+      : [...currentPins, { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time, pinnedAt: Date.now(), pinnedBy: myAddr }]
+          .sort((a, b) => (a.pinnedAt || 0) - (b.pinnedAt || 0)); // oldest first
 
     setPinnedMsgs(prev => ({ ...prev, [addr]: newPins }));
     setMsgs(prev => ({
@@ -1161,29 +1156,26 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         body: JSON.stringify(systemMsg),
       }).catch(() => {});
     } else {
-      // Group: send pin sync + visible system notification to all members
+      // Group: always send silent pin sync; notify members only if forBoth=true
       const groupId = grp.groupId || grp.id;
       const members: string[] = (grp.members || []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
-      members.filter(m => m !== normalizeAddress(walletRef.current!.address)).forEach(m => {
+      const otherMembers = members.filter(m => m !== normalizeAddress(walletRef.current!.address));
+      otherMembers.forEach(m => {
         fetch('/api/inbox?address=' + m, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...systemMsg, groupId }),
         }).catch(() => {});
       });
-
-      if (!alreadyPinned) {
-        // Visible system message in group chat: "📌 [Name] pinned a message"
+      // Visible system message + push only when "Pin + notify" chosen (forBoth=true)
+      if (!alreadyPinned && pin) {
         const notifMsg = {
-          id: uid(), type: 'system', out: true,
+          id: uid(), type: 'pin_notify', out: true,
           text: `📌 ${pinnerName} pinned: "${(msg.text||'').slice(0,60)}${(msg.text||'').length>60?'…':''}"`,
           time: now(), block: 0, confirms: 0, hash: rndHash(), pending: false,
-          groupId, groupName: grp.name,
-          from: walletRef.current.address,
+          groupId, groupName: grp.name, from: walletRef.current.address,
         };
-        // Add locally
         setMsgs(prev => ({ ...prev, [addr]: [...(prev[addr] || []), { ...notifMsg, out: true }] }));
-        // Relay to all members
-        members.filter(m => m !== normalizeAddress(walletRef.current!.address)).forEach(m => {
+        otherMembers.forEach(m => {
           fetch('/api/inbox?address=' + m, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...notifMsg, out: false }),

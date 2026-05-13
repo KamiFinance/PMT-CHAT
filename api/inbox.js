@@ -56,7 +56,9 @@ export default async function handler(req, res) {
       await redis('EXPIRE', key, '604800');
 
       // Send push notification to recipient (fire-and-forget)
-      try {
+      // Skip push for silent system messages (pin sync, reactions, etc.)
+      const skipPushTypes = ['pin', 'reaction'];
+      if (!skipPushTypes.includes(msg.type)) try {
         const addrKey = address.toLowerCase();
         const sub = await redis('GET', `push:${addrKey}`);
         console.log('[push] addr:', addrKey.slice(0,14), 'sub_type:', typeof sub, 'has_sub:', !!sub, 'vapid_pub:', !!process.env.VAPID_PUBLIC_KEY, 'vapid_priv:', !!process.env.VAPID_PRIVATE_KEY);
@@ -82,6 +84,7 @@ export default async function handler(req, res) {
           });
         }
       } catch (pushErr) { console.warn('[push] catch:', pushErr?.message?.slice(0,100)); }
+      } // end skipPushTypes check
 
       return res.status(200).json({ ok: true });
 

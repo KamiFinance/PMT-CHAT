@@ -400,7 +400,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             <button onClick={(e)=>{
               e.stopPropagation();
               if(msg.pinned){onPin(msg);return;} // unpin directly
-              if(contact?.isGroup){onPin(msg,true);return;} // groups always for all
+              if(contact?.isGroup){setShowPinChoice(v=>!v);return;} // groups show notify choice
               setShowPinChoice(v=>!v); // 1-on-1: show choice
             }}
               title={msg.pinned?'Unpin message':'Pin message'}
@@ -419,22 +419,41 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                 onMouseLeave={()=>setShowPinChoice(false)}>
                 <div style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)',
                   padding:'2px 12px 6px',letterSpacing:'1px'}}>PIN MESSAGE</div>
-                <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);setShowPinChoice(false);}}
-                  style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
-                    display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
-                    fontSize:13,textAlign:'left'}}
-                  onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
-                  onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                  <span>📌</span> Pin for both
-                </button>
-                <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);setShowPinChoice(false);}}
-                  style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
-                    display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
-                    fontSize:13,textAlign:'left'}}
-                  onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
-                  onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                  <span>🔒</span> Pin just for me
-                </button>
+                {contact?.isGroup ? (<>
+                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);setShowPinChoice(false);}}
+                    style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
+                      display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
+                      fontSize:13,textAlign:'left'}}
+                    onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                    <span>📢</span> Pin + notify members
+                  </button>
+                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);setShowPinChoice(false);}}
+                    style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
+                      display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
+                      fontSize:13,textAlign:'left'}}
+                    onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                    <span>📌</span> Pin silently
+                  </button>
+                </>) : (<>
+                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);setShowPinChoice(false);}}
+                    style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
+                      display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
+                      fontSize:13,textAlign:'left'}}
+                    onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                    <span>📌</span> Pin for both
+                  </button>
+                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);setShowPinChoice(false);}}
+                    style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
+                      display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
+                      fontSize:13,textAlign:'left'}}
+                    onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                    <span>🔒</span> Pin just for me
+                  </button>
+                </>)}
               </div>
             )}
           </div>
