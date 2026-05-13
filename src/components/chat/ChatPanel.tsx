@@ -624,9 +624,9 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           </div>
         </div>
 
-        {/* ── In-chat search bar ── */}
+        {/* ── In-chat search bar (desktop only — mobile version is in MobileTopbar) ── */}
         {searchActive&&(
-          <div style={{position:'absolute',top:58,left:0,right:0,zIndex:9,
+          <div className="desktop-search-bar" style={{position:'absolute',top:58,left:0,right:0,zIndex:9,
             background:'var(--panel)',borderBottom:'1px solid var(--border)',
             padding:'8px 14px',display:'flex',alignItems:'center',gap:8}}>
             <input ref={searchInputRef}
