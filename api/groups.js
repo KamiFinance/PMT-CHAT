@@ -66,7 +66,7 @@ export default async function handler(req, res) {
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
       const grp = JSON.parse(data);
-      if (grp.createdBy !== createdBy) return res.status(403).json({ error: 'Only group creator can create invite links' });
+      if (grp.createdBy?.toLowerCase() !== createdBy?.toLowerCase()) return res.status(403).json({ error: 'Only group creator can create invite links' });
       const linkId = Math.random().toString(36).slice(2,10) + Math.random().toString(36).slice(2,6);
       const expiresAt = expiresIn > 0 ? Date.now() + expiresIn * 3600000 : 0;
       const inv = { linkId, groupId, maxMembers: maxMembers||0, minPMT: Number(minPMT)||0, expiresAt, usedBy: [], createdAt: Date.now(), createdBy };
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
       const grp = JSON.parse(data);
-      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can delete links' });
+      if (grp.createdBy?.toLowerCase() !== requestedBy?.toLowerCase()) return res.status(403).json({ error: 'Only group creator can delete links' });
       await redis('DEL', `pmt:invite:${linkId}`);
       grp.inviteLinks = (grp.inviteLinks||[]).filter(l => l !== linkId);
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
@@ -133,8 +133,8 @@ export default async function handler(req, res) {
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
       const grp = JSON.parse(data);
-      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can ban members' });
-      if (address === grp.createdBy) return res.status(400).json({ error: 'Cannot ban the group creator' });
+      if (grp.createdBy?.toLowerCase() !== requestedBy?.toLowerCase()) return res.status(403).json({ error: 'Only group creator can ban members' });
+      if (address?.toLowerCase() === grp.createdBy?.toLowerCase()) return res.status(400).json({ error: 'Cannot ban the group creator' });
       grp.bannedMembers = [...new Set([...(grp.bannedMembers || []), address])];
       grp.members = (grp.members || []).filter(m => m !== address);
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
@@ -147,7 +147,7 @@ export default async function handler(req, res) {
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
       const grp = JSON.parse(data);
-      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can unban members' });
+      if (grp.createdBy?.toLowerCase() !== requestedBy?.toLowerCase()) return res.status(403).json({ error: 'Only group creator can unban members' });
       grp.bannedMembers = (grp.bannedMembers || []).filter(m => m !== address);
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
       return res.json({ ok: true, bannedMembers: grp.bannedMembers });
@@ -159,8 +159,8 @@ export default async function handler(req, res) {
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
       const grp = JSON.parse(data);
-      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can assign roles' });
-      if (address === grp.createdBy) return res.status(400).json({ error: 'Cannot change owner role' });
+      if (grp.createdBy?.toLowerCase() !== requestedBy?.toLowerCase()) return res.status(403).json({ error: 'Only group creator can assign roles' });
+      if (address?.toLowerCase() === grp.createdBy?.toLowerCase()) return res.status(400).json({ error: 'Cannot change owner role' });
       grp.roles = grp.roles || {};
       if (role) grp.roles[address.toLowerCase()] = role;
       else delete grp.roles[address.toLowerCase()];
@@ -171,7 +171,7 @@ export default async function handler(req, res) {
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
       const grp = JSON.parse(data);
-      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can view member details' });
+      if (grp.createdBy?.toLowerCase() !== requestedBy?.toLowerCase()) return res.status(403).json({ error: 'Only group creator can view member details' });
       return res.json({ ok: true, members: grp.members || [], bannedMembers: grp.bannedMembers || [], createdBy: grp.createdBy, roles: grp.roles || {} });
     }
 
@@ -181,7 +181,7 @@ export default async function handler(req, res) {
       const data = await redis('GET', `pmt:group:${groupId}`);
       if (!data) return res.status(404).json({ error: 'Group not found' });
       const grp = JSON.parse(data);
-      if (grp.createdBy !== requestedBy) return res.status(403).json({ error: 'Only group creator can edit' });
+      if (grp.createdBy?.toLowerCase() !== requestedBy?.toLowerCase()) return res.status(403).json({ error: 'Only group creator can edit' });
       if (name) grp.name = name;
       if (bio !== undefined) grp.bio = bio;
       if (avatarUrl !== undefined) grp.avatarUrl = avatarUrl;
