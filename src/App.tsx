@@ -1166,19 +1166,18 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
           body: JSON.stringify({ ...systemMsg, groupId }),
         }).catch(() => {});
       });
-      // Visible system message + push only when "Pin + notify" chosen (forBoth=true)
+      // Push notification only (no chat message) when "Pin + notify" chosen
       if (!alreadyPinned && pin) {
-        const notifMsg = {
-          id: uid(), type: 'pin_notify', out: true,
-          text: `📌 ${pinnerName} pinned: "${(msg.text||'').slice(0,60)}${(msg.text||'').length>60?'…':''}"`,
-          time: now(), block: 0, confirms: 0, hash: rndHash(), pending: false,
-          groupId, groupName: grp.name, from: walletRef.current.address,
+        const pushMsg = {
+          id: uid(), type: 'pin_notify',
+          text: `📌 ${pinnerName} pinned a message`,
+          from: walletRef.current.address, ts: Date.now(),
+          groupId, groupName: grp.name,
         };
-        setMsgs(prev => ({ ...prev, [addr]: [...(prev[addr] || []), { ...notifMsg, out: true }] }));
         otherMembers.forEach(m => {
           fetch('/api/inbox?address=' + m, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...notifMsg, out: false }),
+            body: JSON.stringify(pushMsg),
           }).catch(() => {});
         });
       }

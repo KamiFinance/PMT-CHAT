@@ -163,35 +163,39 @@ export function useInboxPoll({
           return;
         }
 
-        // ── Early exit for system-only messages (never shown in chat) ──────
-        if ((inboxMsg as any).type === 'pin') {
-          const pinAddr = (inboxMsg as any).groupId
-            ? normalizeAddress('group_' + (inboxMsg as any).groupId)
-            : normalizeAddress(inboxMsg.from ?? '');
-          const pinMsgId = (inboxMsg as any).pinMsgId;
-          const pinAction = (inboxMsg as any).pinAction; // 'pin' | 'unpin'
-          const pinText = (inboxMsg as any).pinMsgText || '';
-          const pinnedBy = (inboxMsg as any).pinnedBy || normalizeAddress(inboxMsg.from ?? '');
-          setPinnedMsgs(prev => {
-            const current: any[] = prev[pinAddr] || [];
-            const updated = pinAction === 'unpin'
-              ? current.filter(p => p.id !== pinMsgId)
-              : current.some(p => p.id === pinMsgId) ? current
-                : [...current, { id: pinMsgId, text: pinText, pinnedAt: Date.now(), pinnedBy }]
-                    .sort((a: any, b: any) => (a.pinnedAt || 0) - (b.pinnedAt || 0));
-            return { ...prev, [pinAddr]: updated };
-          });
-          setMsgs(prev => ({
-            ...prev,
-            [pinAddr]: (prev[pinAddr] || []).map(m => m.id === pinMsgId
-              ? { ...m, pinned: pinAction !== 'unpin' }
-              : m
-            )
-          }));
-          return; // never show pin system messages as chat bubbles
+                // ── Early exit for system-only messages (never shown in chat) ──────
+        if ((inboxMsg as any).type === 'pin' || (inboxMsg as any).type === 'pin_notify') {
+          if ((inboxMsg as any).type === 'pin') {
+            // Update pinned banner state from incoming pin sync
+            const pinAddr = (inboxMsg as any).groupId
+              ? normalizeAddress('group_' + (inboxMsg as any).groupId)
+              : normalizeAddress(inboxMsg.from ?? '');
+            const pinMsgId = (inboxMsg as any).pinMsgId;
+            const pinAction = (inboxMsg as any).pinAction;
+            const pinText = (inboxMsg as any).pinMsgText || '';
+            const pinnedBy = (inboxMsg as any).pinnedBy || normalizeAddress(inboxMsg.from ?? '');
+            setPinnedMsgs(prev => {
+              const current: any[] = prev[pinAddr] || [];
+              const updated = pinAction === 'unpin'
+                ? current.filter(p => p.id !== pinMsgId)
+                : current.some(p => p.id === pinMsgId) ? current
+                  : [...current, { id: pinMsgId, text: pinText, pinnedAt: Date.now(), pinnedBy }]
+                      .sort((a: any, b: any) => (a.pinnedAt || 0) - (b.pinnedAt || 0));
+              return { ...prev, [pinAddr]: updated };
+            });
+            setMsgs(prev => ({
+              ...prev,
+              [pinAddr]: (prev[pinAddr] || []).map(m => m.id === pinMsgId
+                ? { ...m, pinned: pinAction !== 'unpin' }
+                : m
+              )
+            }));
+          }
+          // pin_notify: push was already delivered by server — nothing else to do
+          return; // never show any pin messages as chat bubbles
         }
 
-        // ── Build new message ──────────────────────────────────────────────
+// ── Build new message ──────────────────────────────────────────────
         // Try to read sender's saved profile from localStorage
         let senderAvatarUrl: string | null = inboxMsg.fromAvatarUrl ?? null;
         let senderBio: string = inboxMsg.fromBio ?? '';
@@ -217,7 +221,7 @@ export function useInboxPoll({
         const base: Message = {
           id: inboxMsg.id || uid(),
           out: false,
-          type: ((inboxMsg as any).type === 'pin_notify' ? 'system' : inboxMsg.type) as Message['type'],
+          type: inboxMsg.type as Message['type'],
           text: inboxMsg.text,
           time: inboxMsg.time ?? now(),
           block: 0, // will be incremented
