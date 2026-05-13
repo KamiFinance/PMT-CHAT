@@ -521,7 +521,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           }
           setPinnedIdx(i=>(i+1)%pinnedMsgs.length);
         }}
-        onUnpinCurrent={(canPin||pinnedMsgs?.[pinnedMsgs?.length-1-Math.min(pinnedIdx,pinnedMsgs?.length-1)]?.pinnedBy===myAddress?.toLowerCase())&&pinnedMsgs&&pinnedMsgs.length>0?()=>{
+        onUnpinCurrent={pinnedMsgs&&pinnedMsgs.length>0&&pinnedMsgs[pinnedMsgs.length-1-Math.min(pinnedIdx,pinnedMsgs.length-1)]?.pinnedBy===myAddress?.toLowerCase()?()=>{
           const safePin=Math.min(pinnedIdx,pinnedMsgs.length-1);
           const pin=pinnedMsgs[pinnedMsgs.length-1-safePin];
           onPin&&onPin(pin);
@@ -731,7 +731,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 {currentPin.text||'📎 Media'}
               </div>
             </div>
-            {(canPin || currentPin.pinnedBy === myAddress?.toLowerCase())&&(
+            {currentPin.pinnedBy === myAddress?.toLowerCase()&&(
               <button onClick={(e)=>{e.stopPropagation();onPin&&onPin(currentPin);}}
                 title="Unpin this message"
                 style={{background:'none',border:'none',color:'var(--muted)',fontSize:16,cursor:'pointer',flexShrink:0,padding:'0 2px',lineHeight:1}}>
