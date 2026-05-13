@@ -13,7 +13,8 @@ export default function ReactionPicker({onPick,onClose,isOut}){
       background:'var(--panel)',border:'1px solid var(--border)',borderRadius:16,
       padding:'6px 8px',display:'flex',flexWrap:'wrap',gap:2,zIndex:200,
       boxShadow:'0 8px 24px rgba(0,0,0,.5)',animation:'fadeIn .12s ease',
-      maxWidth:260}}>
+      width:280,maxHeight:220,overflowY:'auto',overflowX:'hidden',
+      scrollbarWidth:'thin',scrollbarColor:'var(--border) transparent'}}>
       {ALL_REACTIONS.map(e=>(
         <button key={e} onClick={(ev)=>{ev.stopPropagation();onPick(e);onClose();}}
           style={{background:'none',border:'none',cursor:'pointer',fontSize:20,
