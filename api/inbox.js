@@ -69,14 +69,34 @@ export default async function handler(req, res) {
               process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
             const subscription = typeof sub === 'string' ? JSON.parse(sub) : sub;
             console.log('[push] endpoint:', subscription?.endpoint?.slice(0,40));
-            const senderName = msg.fromName || msg.senderName || (msg.from || '').slice(0,8) || 'PMT-Chat';
-            const body = msg.type === 'voice' ? '🎵 Voice message'
-              : msg.type === 'image' ? '🖼 Image'
-              : msg.type === 'video' ? '🎬 Video'
-              : msg.type === 'file' ? '📎 File'
-              : (msg.text || 'New message').slice(0, 80);
+
+            // Sender display name — never fall back to wallet address or 'PMT-Chat'
+            const senderName = msg.fromName || msg.senderName || 'Someone';
+
+            // Title: group name for group messages, sender name for 1-on-1
+            const isGroup = !!(msg.groupId || msg.groupName);
+            const title = isGroup
+              ? (msg.groupName || 'Group')
+              : senderName;
+
+            // Body: for groups prefix with sender name; special handling for pin_notify
+            let body;
+            if (msg.type === 'pin_notify') {
+              body = msg.text || `📌 ${senderName} pinned a message`;
+            } else if (msg.type === 'voice') {
+              body = isGroup ? `${senderName}: 🎵 Voice message` : '🎵 Voice message';
+            } else if (msg.type === 'image') {
+              body = isGroup ? `${senderName}: 🖼 Image` : '🖼 Image';
+            } else if (msg.type === 'video') {
+              body = isGroup ? `${senderName}: 🎬 Video` : '🎬 Video';
+            } else if (msg.type === 'file') {
+              body = isGroup ? `${senderName}: 📎 File` : '📎 File';
+            } else {
+              const text = (msg.text || 'New message').slice(0, 80);
+              body = isGroup ? `${senderName}: ${text}` : text;
+            }
             await webpush.sendNotification(subscription,
-              JSON.stringify({ title: senderName, body, icon: '/icon-192.png', url: '/' })
+              JSON.stringify({ title, body, icon: '/icon-192.png', url: '/' })
             ).then(() => console.log('[push] sent OK'))
              .catch(async (e) => {
               console.warn('[push] FAILED:', e.statusCode, e.message?.slice(0,100));
