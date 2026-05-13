@@ -158,11 +158,12 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     // Flash highlight
-    el.style.transition = 'outline .15s, outline-offset .15s';
-    el.style.outline = '2px solid var(--accent)';
-    el.style.outlineOffset = '3px';
-    el.style.borderRadius = '14px';
-    setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; el.style.borderRadius = ''; }, 1400);
+    // Flash highlight on the inner bubble element only
+    const bubble = (el.querySelector('.msg-bubble-text') as HTMLElement) || el;
+    bubble.style.transition = 'outline .15s, outline-offset .15s';
+    bubble.style.outline = '2px solid var(--accent)';
+    bubble.style.outlineOffset = '2px';
+    setTimeout(() => { bubble.style.outline = ''; bubble.style.outlineOffset = ''; }, 1400);
   };
 
   // Quoted message preview (shown when msg.replyTo is set)
