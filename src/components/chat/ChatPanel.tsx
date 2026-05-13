@@ -543,28 +543,28 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           </div>
         </div>
 
-        {/* ── Reply preview bar ── */}
-        {replyingTo&&(
-          <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px 4px',
-            background:'var(--panel)',borderTop:'1px solid var(--border)',
-            borderLeft:'3px solid var(--accent2)',flexShrink:0}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',fontWeight:700,marginBottom:1}}>
-                ↩ Replying to {replyingTo.out?'yourself':contact?.name||''}
-              </div>
-              <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                {replyingTo.type==='voice'?'🎵 Voice message':replyingTo.type==='image'?'🖼 Image':replyingTo.type==='file'?'📎 File':replyingTo.text}
-              </div>
-            </div>
-            <button onClick={()=>setReplyingTo(null)}
-              style={{background:'none',border:'none',color:'var(--muted)',fontSize:18,cursor:'pointer',
-                flexShrink:0,lineHeight:1,padding:'0 4px'}}>
-              ×
-            </button>
-          </div>
-        )}
         {/* ── Input — .chat-passthrough makes background pass-through, buttons/textarea stay clickable ── */}
         <div className="chat-passthrough" style={{position:'absolute',bottom:0,left:0,right:0,zIndex:10}}>
+          {/* Reply preview bar — inside the input container so it's always above the input on iOS */}
+          {replyingTo&&(
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px 4px',
+              background:'var(--panel)',borderTop:'1px solid var(--border)',
+              borderLeft:'3px solid var(--accent2)'}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',fontWeight:700,marginBottom:1}}>
+                  ↩ Replying to {replyingTo.out?'yourself':contact?.name||''}
+                </div>
+                <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                  {replyingTo.type==='voice'?'🎵 Voice message':replyingTo.type==='image'?'🖼 Image':replyingTo.type==='file'?'📎 File':replyingTo.text}
+                </div>
+              </div>
+              <button onClick={()=>setReplyingTo(null)}
+                style={{background:'none',border:'none',color:'var(--muted)',fontSize:18,cursor:'pointer',
+                  flexShrink:0,lineHeight:1,padding:'0 4px'}}>
+                ×
+              </button>
+            </div>
+          )}
           <div className="chat-input-row" 
             style={{padding:'12px 18px',
               borderTop:'1px solid var(--border)',background:'var(--panel)',

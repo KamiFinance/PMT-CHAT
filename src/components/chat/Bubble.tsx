@@ -89,6 +89,26 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
   const swipeTranslate=useRef(0);
   const bubbleRef=useRef(null);
 
+  // Swipe-right to reply — attach as non-passive so we can preventDefault and
+  // stop iOS from treating the gesture as a horizontal page/container scroll
+  useEffect(()=>{
+    const el=bubbleRef.current;
+    if(!el) return;
+    const handleMove=(e:TouchEvent)=>{
+      // Cancel long-press if user moves finger
+      if(longPressRef.current) clearTimeout(longPressRef.current);
+      if(swipeStartX.current===null) return;
+      const dx=e.touches[0].clientX-(swipeStartX.current as number);
+      if(dx>0&&dx<80){
+        e.preventDefault(); // stops the whole conversation from moving
+        swipeTranslate.current=dx;
+        (el as HTMLElement).style.transform=`translateX(${dx}px)`;
+      }
+    };
+    el.addEventListener('touchmove',handleMove,{passive:false});
+    return ()=>el.removeEventListener('touchmove',handleMove);
+  },[]);
+
   // Swipe-right to reply (mobile)
   const onTouchStartSwipe=(e)=>{
     swipeStartX.current=e.touches[0].clientX;
@@ -278,7 +298,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
     <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
       onTouchStart={(e)=>{handleLongPress(e);onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();onTouchEndSwipe();}}
-      onTouchMove={(e)=>{cancelLongPress();onTouchMoveSwipe(e);}}>
+      onTouchMove={cancelLongPress}>
       <VideoBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
     </div>
@@ -323,7 +343,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
       onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
       onTouchStart={(e)=>{handleLongPress(e);onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();onTouchEndSwipe();}}
-      onTouchMove={(e)=>{cancelLongPress();onTouchMoveSwipe(e);}}>
+      onTouchMove={cancelLongPress}>
       <div style={{display:'flex',alignItems:'flex-end',gap:4,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}
         onMouseEnter={()=>setShowReplyBtn(true)} onMouseLeave={()=>setShowReplyBtn(false)}>
         {!isOut&&(
