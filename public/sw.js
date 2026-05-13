@@ -44,11 +44,11 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   if (!e.data) return;
   let data = {};
-  try { data = e.data.json(); } catch { data = { title: 'PMT-Chat', body: e.data.text() }; }
+  try { data = e.data.json(); } catch { data = { title: 'New message', body: e.data.text() }; }
 
   e.waitUntil(
-    self.registration.showNotification(data.title || 'PMT-Chat', {
-      body: data.body || 'New message',
+    self.registration.showNotification(data.title || 'New message', {
+      body: data.body || '',
       icon: data.icon || '/icon-192.png',
       badge: '/icon-192.png',
       vibrate: [100, 50, 100],
