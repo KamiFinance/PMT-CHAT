@@ -4,7 +4,7 @@ import ProfilePic from '../ui/ProfilePic';
 import SendModal from '../modals/SendModal';
 import { SwitchNetworkCompact } from './SwitchNetworkButton';
 
-export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact,onSendETH,needsPasswordToSend}){
+export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact,onSendETH,needsPasswordToSend,searchActive,onSearchToggle,searchBar}){
   const [showSend,setShowSend]=useState(false);
   if(contact){
     return(
@@ -43,7 +43,20 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
             ↑ PMT
           </button>
         )}
+        {onSearchToggle&&(
+          <button onClick={onSearchToggle}
+            title="Search in chat"
+            style={{background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:8,width:34,height:34,display:'flex',alignItems:'center',
+              justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:15,
+              color:searchActive?'var(--accent)':'var(--muted)',
+              boxShadow:searchActive?'0 0 0 1px var(--accent) inset':'none',
+              WebkitTapHighlightColor:'transparent'}}>
+            🔍
+          </button>
+        )}
       </div>
+      {searchBar}
       {showSend&&onSendETH&&(
         <SendModal contact={contact} onClose={()=>setShowSend(false)}
           onSend={(amt,pwd)=>onSendETH(contact,amt,pwd)} isDemo={isDemo}

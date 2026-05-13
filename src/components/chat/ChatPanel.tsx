@@ -492,7 +492,42 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     <>
       {/* iOS PWA safe area spacer — pushes content below status bar reliably */}
       
-      <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact} onSendETH={onSendETH} isDemo={isDemo} needsPasswordToSend={needsPasswordToSend}/>
+      <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact} onSendETH={onSendETH} isDemo={isDemo} needsPasswordToSend={needsPasswordToSend}
+        searchActive={searchActive}
+        onSearchToggle={()=>{setSearchActive(s=>{const next=!s;if(!next){setLocalSearch('');setSearchIdx(0);}return next;});setTimeout(()=>searchInputRef.current?.focus(),80);}}
+        searchBar={searchActive?(
+          <div className="mobile-search-bar" style={{display:'none',alignItems:'center',gap:8,
+            padding:'8px 12px',background:'var(--panel)',borderBottom:'1px solid var(--border)'}}>
+            <input ref={searchInputRef}
+              value={localSearch}
+              onChange={e=>{setLocalSearch(e.target.value);setSearchIdx(0);}}
+              onKeyDown={e=>{if(e.key==='Enter'){e.shiftKey?goPrev():goNext();scrollToMatch(safeIdx);}if(e.key==='Escape'){setSearchActive(false);setLocalSearch('');setSearchIdx(0);}}}
+              placeholder="Search messages…"
+              style={{flex:1,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,
+                padding:'8px 12px',color:'var(--text)',fontSize:14,outline:'none',fontFamily:'var(--sans)'}}/>
+            {searchTerm&&(
+              <>
+                <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',flexShrink:0,minWidth:36,textAlign:'center'}}>
+                  {matchCount>0?`${safeIdx+1}/${matchCount}`:'0'}
+                </span>
+                <button onClick={()=>{goPrev();setTimeout(()=>scrollToMatch((safeIdx-1+matchCount)%matchCount),50);}}
+                  disabled={matchCount===0}
+                  style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,
+                    width:32,height:32,cursor:matchCount>0?'pointer':'default',color:'var(--text2)',
+                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,opacity:matchCount===0?.4:1}}>↑</button>
+                <button onClick={()=>{goNext();setTimeout(()=>scrollToMatch((safeIdx+1)%matchCount),50);}}
+                  disabled={matchCount===0}
+                  style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,
+                    width:32,height:32,cursor:matchCount>0?'pointer':'default',color:'var(--text2)',
+                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,opacity:matchCount===0?.4:1}}>↓</button>
+              </>
+            )}
+            <button onClick={()=>{setSearchActive(false);setLocalSearch('');setSearchIdx(0);}}
+              style={{background:'none',border:'none',color:'var(--muted)',fontSize:20,cursor:'pointer',
+                flexShrink:0,lineHeight:1,padding:'0 2px'}}>×</button>
+          </div>
+        ):null}
+      />
 
       {/* Outer wrapper — fills the chat-panel flex slot */}
       <div style={{flex:1,position:'relative',overflow:'hidden',minHeight:0}}>
