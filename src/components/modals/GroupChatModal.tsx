@@ -43,6 +43,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   const [newMinPMT, setNewMinPMT] = useState(0);
   const [creatingLink, setCreatingLink] = useState(false);
   const [copied, setCopied] = useState('');
+  const [isAnnouncement, setIsAnnouncement] = useState(existingGroup?.isAnnouncement || false);
 
   const fileRef = useRef(null);
 
@@ -80,7 +81,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
       const r = await fetch('/api/groups?action=create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), bio, avatarUrl, createdBy: myAddress }),
+        body: JSON.stringify({ name: name.trim(), bio, avatarUrl, createdBy: myAddress, isAnnouncement }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Failed to create group');
@@ -101,6 +102,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
         members: g.members,
         groupId: g.id,
         createdBy: g.createdBy,
+        isAnnouncement: g.isAnnouncement || false,
         preview: 'Group created',
         unread: 0,
       };
@@ -226,6 +228,37 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                   style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} disabled={!!group} />
                 <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'right', marginTop: 2 }}>{bio.length}/200</div>
               </div>
+
+              {/* Announcement group toggle */}
+              {!group && (
+                <div onClick={() => setIsAnnouncement(v => !v)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: isAnnouncement ? 'rgba(250,255,99,.06)' : 'var(--surface)',
+                    border: `1px solid ${isAnnouncement ? 'rgba(250,255,99,.3)' : 'var(--border)'}`,
+                    borderRadius: 10, padding: '12px 14px', cursor: 'pointer', userSelect: 'none' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      📢 Announcement Group
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
+                      Only the group owner can send messages. Members can read and react.
+                    </div>
+                  </div>
+                  <div style={{ width: 40, height: 22, borderRadius: 11, background: isAnnouncement ? 'var(--accent)' : 'var(--surface2)',
+                    border: '1px solid var(--border)', position: 'relative', flexShrink: 0, transition: 'background .2s' }}>
+                    <div style={{ position: 'absolute', top: 2, left: isAnnouncement ? 20 : 2, width: 16, height: 16,
+                      borderRadius: '50%', background: isAnnouncement ? '#0a0c14' : 'var(--muted)', transition: 'left .2s' }}/>
+                  </div>
+                </div>
+              )}
+
+              {/* Show badge on existing announcement groups */}
+              {group && existingGroup?.isAnnouncement && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(250,255,99,.06)',
+                  border: '1px solid rgba(250,255,99,.2)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--accent)' }}>
+                  📢 This is an announcement group — only the owner can send messages
+                </div>
+              )}
 
               {err && <div style={{ background: 'rgba(248,113,113,.1)', border: '1px solid rgba(248,113,113,.3)', borderRadius: 8, padding: '9px 12px', fontSize: 12, color: 'var(--danger)' }}>{err}</div>}
 

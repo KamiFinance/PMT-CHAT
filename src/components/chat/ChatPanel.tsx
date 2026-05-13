@@ -668,6 +668,15 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
 
         {/* ── Input — .chat-passthrough makes background pass-through, buttons/textarea stay clickable ── */}
         <div className="chat-passthrough" style={{position:'absolute',bottom:0,left:0,right:0,zIndex:10}}>
+          {/* Announcement group: non-owners see a read-only bar instead of input */}
+          {contact.isAnnouncement && contact.createdBy?.toLowerCase() !== myAddress?.toLowerCase() && (
+            <div style={{padding:'14px 18px',borderTop:'1px solid var(--border)',background:'var(--panel)',
+              display:'flex',alignItems:'center',justifyContent:'center',gap:8,color:'var(--muted)',fontSize:13}}>
+              📢 Only the group owner can send messages in this channel
+            </div>
+          )}
+          {!(contact.isAnnouncement && contact.createdBy?.toLowerCase() !== myAddress?.toLowerCase()) && (
+          <React.Fragment>
           {/* Reply preview bar — inside the input container so it's always above the input on iOS */}
           {replyingTo&&(
             <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px 4px',
@@ -786,6 +795,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
               </div>
             )}
           </div>
+          </React.Fragment>)}
         </div>
       </div>
 

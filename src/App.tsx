@@ -1055,6 +1055,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                 avatarUrl: g.avatarUrl, avatar: g.name.slice(0, 2).toUpperCase(),
                 color: '#a78bfa', bg: '#1e1b30', online: false, isGroup: true,
                 members: g.members, groupId: g.id, createdBy: g.createdBy,
+                isAnnouncement: g.isAnnouncement || false,
                 preview: d.alreadyMember ? 'Already a member' : 'Joined group', unread: 0,
               };
               if (!d.alreadyMember) setContacts(p => { if (p.find(x => x.id === g.id)) return p; return [contact, ...p]; });

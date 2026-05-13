@@ -52,10 +52,10 @@ export default async function handler(req, res) {
 
     // Create group
     if (action === 'create') {
-      const { name, bio, avatarUrl, createdBy } = body;
+      const { name, bio, avatarUrl, createdBy, isAnnouncement } = body;
       if (!name || !createdBy) return res.status(400).json({ error: 'name and createdBy required' });
       const groupId = 'g' + Date.now() + Math.random().toString(36).slice(2,6);
-      const group = { id: groupId, name, bio: bio||'', avatarUrl: avatarUrl||null, members: [createdBy], createdBy, createdAt: Date.now(), inviteLinks: [] };
+      const group = { id: groupId, name, bio: bio||'', avatarUrl: avatarUrl||null, members: [createdBy], createdBy, createdAt: Date.now(), inviteLinks: [], isAnnouncement: !!isAnnouncement };
       await redis('SET', `pmt:group:${groupId}`, JSON.stringify(group));
       return res.json({ ok: true, group });
     }
