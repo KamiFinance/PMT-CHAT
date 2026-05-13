@@ -4,7 +4,7 @@ import ProfilePic from '../ui/ProfilePic';
 import SendModal from '../modals/SendModal';
 import { SwitchNetworkCompact } from './SwitchNetworkButton';
 
-export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact,onSendETH,needsPasswordToSend,searchActive,onSearchToggle,searchBar,pinnedMsg,canPin,onUnpin,onScrollToPin}){
+export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact,onSendETH,needsPasswordToSend,searchActive,onSearchToggle,searchBar,pinnedMsgs,pinnedIdx,canPin,onPinnedClick,onUnpinCurrent}){
   const [showSend,setShowSend]=useState(false);
   // Connect Wallet (MetaMask/WalletConnect) users: needsPasswordToSend=false
   // Create/Import Wallet users: needsPasswordToSend=true
@@ -61,23 +61,30 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
             </button>
           )}
         </div>
-        {/* Pinned message banner */}
-        {pinnedMsg&&(
-          <div onClick={onScrollToPin}
+        {/* Pinned message banner — cycles through all pinned messages on tap */}
+        {pinnedMsgs&&pinnedMsgs.length>0&&(()=>{
+          const safePin=Math.min(pinnedIdx||0,pinnedMsgs.length-1);
+          const cur=pinnedMsgs[pinnedMsgs.length-1-safePin];
+          return (
+          <div onClick={onPinnedClick}
             style={{display:'flex',alignItems:'center',gap:8,padding:'6px 14px',
               background:'var(--panel)',borderBottom:'1px solid var(--border)',
               borderLeft:'3px solid var(--accent)',cursor:'pointer'}}>
-            <span style={{fontSize:13,flexShrink:0}}>📌</span>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--accent)',letterSpacing:'1px',marginBottom:1}}>PINNED</div>
-              <div style={{fontSize:12,color:'var(--text2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{pinnedMsg.text||'📎 Media'}</div>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,flexShrink:0}}>
+              <span style={{fontSize:13}}>📌</span>
+              {pinnedMsgs.length>1&&<span style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--accent)',lineHeight:1}}>{safePin+1}/{pinnedMsgs.length}</span>}
             </div>
-            {canPin&&onUnpin&&(
-              <button onClick={(e)=>{e.stopPropagation();onUnpin();}}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--accent)',letterSpacing:'1px',marginBottom:1}}>PINNED{pinnedMsgs.length>1?' • tap to cycle':''}</div>
+              <div style={{fontSize:12,color:'var(--text2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cur.text||'📎 Media'}</div>
+            </div>
+            {canPin&&onUnpinCurrent&&(
+              <button onClick={(e)=>{e.stopPropagation();onUnpinCurrent();}}
                 style={{background:'none',border:'none',color:'var(--muted)',fontSize:18,cursor:'pointer',flexShrink:0,padding:'0 2px',lineHeight:1}}>×</button>
             )}
           </div>
-        )}
+          );
+        })()}
         {/* Search bar sits directly under topbar — no gap */}
         {searchActive&&searchBar}
       </div>

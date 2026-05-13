@@ -146,7 +146,7 @@ async function blobToWavBase64(blob: Blob): Promise<string> {
   return 'data:audio/wav;base64,' + btoa(binary);
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsg}){
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
@@ -155,6 +155,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [localSearch,setLocalSearch]=useState(''); // in-chat search query
   const [searchActive,setSearchActive]=useState(false); // search bar open
   const [searchIdx,setSearchIdx]=useState(0); // current match index
+  const [pinnedIdx,setPinnedIdx]=useState(0); // current pinned message index for cycling
   const searchInputRef=useRef<HTMLInputElement>(null);
   const [recording,setRecording]=useState(false);
   const fileInputRef=useRef(null);
@@ -500,12 +501,14 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       
       <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact} onSendETH={onSendETH} isDemo={isDemo} needsPasswordToSend={needsPasswordToSend}
         searchActive={searchActive}
-        pinnedMsg={pinnedMsg}
+        pinnedMsgs={pinnedMsgs}
+        pinnedIdx={pinnedIdx}
         canPin={canPin}
-        onUnpin={canPin&&pinnedMsg?()=>onPin&&onPin(pinnedMsg):undefined}
-        onScrollToPin={()=>{
-          if(!pinnedMsg) return;
-          const el=document.getElementById('msg-'+pinnedMsg.id);
+        onPinnedClick={()=>{
+          if(!pinnedMsgs||pinnedMsgs.length===0) return;
+          const safePin=Math.min(pinnedIdx,pinnedMsgs.length-1);
+          const pin=pinnedMsgs[pinnedMsgs.length-1-safePin];
+          const el=document.getElementById('msg-'+pin.id);
           if(el&&messagesRef.current){
             const cr=messagesRef.current.getBoundingClientRect();
             const er=el.getBoundingClientRect();
@@ -516,7 +519,13 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
             b.style.outlineOffset='2px';
             setTimeout(()=>{b.style.outline='';b.style.outlineOffset='';},1400);
           }
+          setPinnedIdx(i=>(i+1)%pinnedMsgs.length);
         }}
+        onUnpinCurrent={canPin&&pinnedMsgs&&pinnedMsgs.length>0?()=>{
+          const safePin=Math.min(pinnedIdx,pinnedMsgs.length-1);
+          const pin=pinnedMsgs[pinnedMsgs.length-1-safePin];
+          onPin&&onPin(pin);
+        }:undefined}
         onSearchToggle={()=>{setSearchActive(s=>{const next=!s;if(!next){setLocalSearch('');setSearchIdx(0);}return next;});setTimeout(()=>searchInputRef.current?.focus(),80);}}
         searchBar={(
           <div style={{padding:'8px 12px',background:'var(--panel)',borderBottom:'1px solid var(--border)',
@@ -559,7 +568,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         <div ref={messagesRef}
           className="chat-messages-area"
           style={{position:'absolute',inset:0,overflowY:'auto',
-            paddingTop:searchActive?(pinnedMsg?138:102):(pinnedMsg?94:62),paddingBottom:95,
+            paddingTop:searchActive?(pinnedMsgs?.length?138:102):(pinnedMsgs?.length?94:62),paddingBottom:95,
             display:'flex',flexDirection:'column'}}>
           <div style={{flex:1,padding:'0 20px 0',display:'flex',flexDirection:'column',gap:2}}>
             {searchQuery&&!searchTerm&&(
@@ -683,41 +692,55 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           </div>
         )}
 
-        {/* ── Pinned message banner ── */}
-        {pinnedMsg&&(
+        {/* ── Pinned message banner (multiple, Telegram-style cycling) ── */}
+        {pinnedMsgs&&pinnedMsgs.length>0&&(()=>{
+          const safePin = Math.min(pinnedIdx, pinnedMsgs.length-1);
+          const currentPin = pinnedMsgs[pinnedMsgs.length-1-safePin]; // newest first
+          const scrollToPin = (pin: any) => {
+            const el=document.getElementById('msg-'+pin.id);
+            if(el&&messagesRef.current){
+              const cr=messagesRef.current.getBoundingClientRect();
+              const er=el.getBoundingClientRect();
+              messagesRef.current.scrollTop+=er.top-cr.top-cr.height/2+er.height/2;
+              const b=(el.querySelector('.msg-bubble-text') as HTMLElement)||el;
+              b.style.transition='outline .15s,outline-offset .15s';
+              b.style.outline='2px solid var(--accent)';
+              b.style.outlineOffset='2px';
+              setTimeout(()=>{b.style.outline='';b.style.outlineOffset='';},1400);
+            }
+          };
+          return (
           <div style={{position:'absolute',top:62,left:0,right:0,zIndex:8,
             background:'var(--panel)',borderBottom:'1px solid var(--border)',
             borderLeft:'3px solid var(--accent)',
             display:'flex',alignItems:'center',gap:8,padding:'6px 14px',cursor:'pointer'}}
             onClick={()=>{
-              const el=document.getElementById('msg-'+pinnedMsg.id);
-              if(el&&messagesRef.current){
-                const cr=messagesRef.current.getBoundingClientRect();
-                const er=el.getBoundingClientRect();
-                messagesRef.current.scrollTop+=er.top-cr.top-cr.height/2+er.height/2;
-                const b=(el.querySelector('.msg-bubble-text') as HTMLElement)||el;
-                b.style.transition='outline .15s,outline-offset .15s';
-                b.style.outline='2px solid var(--accent)';
-                b.style.outlineOffset='2px';
-                setTimeout(()=>{b.style.outline='';b.style.outlineOffset='';},1400);
-              }
+              scrollToPin(currentPin);
+              // Cycle to next pinned message on each click (like Telegram)
+              setPinnedIdx(i=>(i+1)%pinnedMsgs.length);
             }}>
-            <span style={{fontSize:14,flexShrink:0}}>📌</span>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,flexShrink:0}}>
+              <span style={{fontSize:13}}>📌</span>
+              {pinnedMsgs.length>1&&<span style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--accent)',lineHeight:1}}>{safePin+1}/{pinnedMsgs.length}</span>}
+            </div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',letterSpacing:'1px',marginBottom:1}}>PINNED MESSAGE</div>
+              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',letterSpacing:'1px',marginBottom:1}}>
+                PINNED MESSAGE {pinnedMsgs.length>1?`• tap to cycle`:''}
+              </div>
               <div style={{fontSize:12,color:'var(--text2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                {pinnedMsg.text||'📎 Media'}
+                {currentPin.text||'📎 Media'}
               </div>
             </div>
             {canPin&&(
-              <button onClick={(e)=>{e.stopPropagation();onPin&&onPin(pinnedMsg);}}
-                title="Unpin"
+              <button onClick={(e)=>{e.stopPropagation();onPin&&onPin(currentPin);}}
+                title="Unpin this message"
                 style={{background:'none',border:'none',color:'var(--muted)',fontSize:16,cursor:'pointer',flexShrink:0,padding:'0 2px',lineHeight:1}}>
                 ×
               </button>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* ── Block strip ── */}
         <div className="chat-passthrough" style={{position:'absolute',bottom:70,left:0,right:0,zIndex:5}}>

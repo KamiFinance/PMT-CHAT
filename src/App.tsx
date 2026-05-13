@@ -166,6 +166,7 @@ export default function App() {
   const walletRef = useRef<Wallet | null>(null);
   const contactsRef = useRef<Contact[]>([]);
   const msgsRef = useRef<Record<string, any[]>>({});
+  const pinnedMsgsRef = useRef<Record<string, any[]>>({});
   // True when user has an internal wallet but pk is missing/stale — SendModal shows password field
   const needsPasswordToSend = React.useMemo(() => {
     const w = wallet;
@@ -202,9 +203,20 @@ export default function App() {
   const [showGroup, setShowGroup] = useState(false);
   const [manageGroupContact, setManageGroupContact] = useState<any>(null);
   const [showSearch, setShowSearch] = useState(false);
-  // pinnedMsgs: { [conversationAddr]: { id, text, senderName, time } | null }
-  const [pinnedMsgs, setPinnedMsgs] = useState<Record<string,any>>(() => {
-    try { return JSON.parse(localStorage.getItem('pmt_pinned') || '{}'); } catch { return {}; }
+  // pinnedMsgs: { [conversationAddr]: Array<{id,text,senderName,time}> }
+  // Populated from cloud backup restore — no localStorage
+  const [pinnedMsgs, setPinnedMsgs] = useState<Record<string,any[]>>(() => {
+    try {
+      // One-time migration: read old localStorage format if it exists, then ignore it going forward
+      const raw = JSON.parse(localStorage.getItem('pmt_pinned') || '{}');
+      localStorage.removeItem('pmt_pinned'); // clean up old key
+      const migrated: Record<string,any[]> = {};
+      Object.entries(raw).forEach(([k, v]: any) => {
+        if (Array.isArray(v)) migrated[k] = v;
+        else if (v && v.id) migrated[k] = [v];
+      });
+      return migrated;
+    } catch { return {}; }
   });
   const [editContact, setEditContact] = useState<Contact | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -227,6 +239,7 @@ export default function App() {
 
   useEffect(() => { contactsRef.current = contacts; }, [contacts]);
   useEffect(() => { msgsRef.current = msgs; }, [msgs]);
+  useEffect(() => { pinnedMsgsRef.current = pinnedMsgs; }, [pinnedMsgs]);
 
   // Clean up stale pmt_pk_ entries in sessionStorage that don't belong to current wallet
   React.useEffect(() => {
@@ -473,6 +486,13 @@ export default function App() {
       contacts: enrichedCtx,
       messages: cleanMsgs,
       profile: profileRef.current ? { ...profileRef.current, avatarUrl: compressedAv } : {},
+      pinnedMsgs: (() => {
+        const pm: Record<string,any[]> = {};
+        Object.entries(pinnedMsgsRef.current || {}).forEach(([k,v]: any) => {
+          if (Array.isArray(v) && v.length > 0) pm[k] = v;
+        });
+        return pm;
+      })(),
     });
   }, [isDemo]);
 
@@ -547,7 +567,8 @@ export default function App() {
         handleWallet({ ...w, sessionPassword: backupKey,
           restoredContacts: backup.contacts ?? [],
           restoredMessages: backup.messages ?? {},
-          restoredProfile:  backup.profile  ?? {} });
+          restoredProfile:  backup.profile  ?? {},
+          restoredPinnedMsgs: backup.pinnedMsgs ?? {} });
       }).catch(e => {
         if (e?.message === 'WRONG_PASSWORD') {
           setShowWalletRestore(true);
@@ -586,7 +607,7 @@ export default function App() {
     setTimeout(() => setNotifs(p => p.filter(x => x.id !== id)), 5000);
   }, []);
 
-  useInboxPoll({ wallet, isDemo, setMsgs, setContacts, pushNotif });
+  useInboxPoll({ wallet, isDemo, setMsgs, setContacts, setPinnedMsgs, pushNotif });
 
   const handleMediaUploaded = useCallback((mediaMsgId: string, cid: string | null, ipfsUrl: string | null, fallbackB64?: string) => {
     if (!accountKey) return;
@@ -1095,24 +1116,23 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       .catch(() => alert('Could not fetch invite link info.'));
   }, [wallet?.address, setContacts, selectContact]);
 
-  // Pin/unpin a message in the active conversation
+  // Pin/unpin a message in the active conversation (supports multiple pinned messages)
   const handlePin = useCallback((msg: any) => {
     if (!activeRef.current) return;
     const addr = normalizeAddress(activeRef.current.address);
-    const isCurrentlyPinned = msg.pinned || pinnedMsgs[addr]?.id === msg.id;
-    const newPin = isCurrentlyPinned ? null : { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time };
+    const currentPins: any[] = pinnedMsgs[addr] || [];
+    const alreadyPinned = currentPins.some(p => p.id === msg.id);
+    const newPins = alreadyPinned
+      ? currentPins.filter(p => p.id !== msg.id)
+      : [...currentPins, { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time }];
 
-    // Update local pinned state
-    setPinnedMsgs(prev => {
-      const next = { ...prev, [addr]: newPin };
-      localStorage.setItem('pmt_pinned', JSON.stringify(next));
-      return next;
-    });
+    // Update pinned state (stored in backup, not localStorage)
+    setPinnedMsgs(prev => ({ ...prev, [addr]: newPins }));
 
     // Update pinned flag on the message itself
     setMsgs(prev => ({
       ...prev,
-      [addr]: (prev[addr] || []).map(m => m.id === msg.id ? { ...m, pinned: !isCurrentlyPinned } : { ...m, pinned: false })
+      [addr]: (prev[addr] || []).map(m => m.id === msg.id ? { ...m, pinned: !alreadyPinned } : m)
     }));
 
     // Notify the other user via system message
@@ -1120,17 +1140,15 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       const myAddr = walletRef.current.address;
       const systemMsg = {
         id: uid(), type: 'pin', pinMsgId: msg.id, pinMsgText: msg.text || '',
-        pinAction: isCurrentlyPinned ? 'unpin' : 'pin',
+        pinAction: alreadyPinned ? 'unpin' : 'pin',
         from: myAddr, ts: Date.now(),
       };
-      // For 1-on-1: send to contact
       if (!activeRef.current.isGroup) {
         fetch('/api/inbox?address=' + addr, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(systemMsg),
         }).catch(() => {});
       } else {
-        // For groups: send to all members
         const grp = activeRef.current;
         const groupId = grp.groupId || grp.id;
         const members: string[] = (grp.members || []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
@@ -1227,7 +1245,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     }
   };
 
-  const handleWallet = useCallback((w: Wallet & { restoredContacts?: any[]; restoredMessages?: Record<string,any[]>; restoredProfile?: any; sessionPassword?: string }) => {
+  const handleWallet = useCallback((w: Wallet & { restoredContacts?: any[]; restoredMessages?: Record<string,any[]>; restoredProfile?: any; sessionPassword?: string; restoredPinnedMsgs?: Record<string,any[]> }) => {
     // Write restored data to storage BEFORE setWallet so the accountKey useEffect
     // finds them and doesn't overwrite with AI_AGENT_CONTACT only
     if (w.address && w.restoredContacts !== undefined) {
@@ -1246,6 +1264,9 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       }
     }
     // Backup is source of truth — always apply restored data when provided
+    if (w.restoredPinnedMsgs) {
+      setPinnedMsgs(prev => ({ ...prev, ...w.restoredPinnedMsgs }));
+    }
     if (w.restoredContacts !== undefined) {
       const hasAI = w.restoredContacts.some((c: any) => c.isAI);
       const ctx = hasAI ? w.restoredContacts : [AI_AGENT_CONTACT, ...w.restoredContacts];
@@ -1386,6 +1407,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                       handleWallet({ ...fullWallet, sessionPassword: backupKey,
                         restoredContacts: backup.contacts ?? [],
                         restoredMessages: backup.messages ?? {},
+                        restoredPinnedMsgs: backup.pinnedMsgs ?? {},
                         restoredProfile:  backup.profile  ?? {} });
                     }).catch((e) => {
                       // WRONG_PASSWORD = old backup saved with user-set password → show migration modal
@@ -1424,6 +1446,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                           handleWallet({ ...fw, sessionPassword: backupKey2,
                             restoredContacts: backup.contacts ?? [],
                             restoredMessages: backup.messages ?? {},
+                            restoredPinnedMsgs: backup.pinnedMsgs ?? {},
                             restoredProfile:  backup.profile  ?? {} });
                         }).catch((e) => {
                           if (e?.message === 'WRONG_PASSWORD') {
@@ -1482,6 +1505,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         sessionPassword: walletRestoreMigrate.backupKey,
         restoredContacts: backup.contacts ?? [],
         restoredMessages: backup.messages ?? {},
+        restoredPinnedMsgs: backup.pinnedMsgs ?? {},
         restoredProfile:  backup.profile  ?? {} });
       setShowWalletRestore(false); setWalletRestorePwd(''); setWalletRestoreMigrate(null);
     } catch(e:any) {
@@ -1495,7 +1519,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         <div className={`sidebar-overlay${mobileSidebarOpen ? ' visible' : ''}`} onClick={() => setMobileSidebarOpen(false)} />
         <Sidebar contacts={contacts} activeId={active?.id ?? null} wallet={wallet} isDemo={isDemo} profile={profile} mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} onSelect={selectContact} onNew={() => { setShowNew(true); setMobileSidebarOpen(false); }} onNewGroup={() => { setShowGroup(true); setMobileSidebarOpen(false); }} onProfile={() => { setShowProfile(true); setMobileSidebarOpen(false); }} onSettings={() => { setShowSettings(true); setMobileSidebarOpen(false); }} onWallet={() => { setShowWallet(true); setMobileSidebarOpen(false); }} onLogout={handleLogout} onEditContact={setEditContact} onSearch={() => setShowSearch(true)} />
         <main className="chat-panel">
-          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsg={active ? pinnedMsgs[normalizeAddress(active.address)] : null} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
+          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsgs={active ? (pinnedMsgs[normalizeAddress(active.address)] || []) : []} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
         </main>
       </div>
       {showProfile && <ProfileModal profile={{ ...profile, address: wallet?.address ?? null }} onClose={() => setShowProfile(false)} onSave={saveProfile} />}

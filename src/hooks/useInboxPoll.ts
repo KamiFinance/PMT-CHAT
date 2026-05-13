@@ -21,6 +21,7 @@ interface UseInboxPollParams {
   isDemo: boolean;
   setMsgs: React.Dispatch<React.SetStateAction<MsgsMap>>;
   setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
+  setPinnedMsgs: React.Dispatch<React.SetStateAction<Record<string, any[]>>>;
   pushNotif: (contact: Contact, text: string) => void;
 }
 
@@ -99,6 +100,7 @@ export function useInboxPoll({
   isDemo,
   setMsgs,
   setContacts,
+  setPinnedMsgs,
   pushNotif,
 }: UseInboxPollParams) {
   const COLORS = ['#a78bfa', '#f59e0b', '#34d399', '#63d2ff', '#f43f5e', '#06b6d4'];
@@ -232,11 +234,15 @@ export function useInboxPoll({
           const pinAction = (inboxMsg as any).pinAction; // 'pin' | 'unpin'
           const pinText = (inboxMsg as any).pinMsgText || '';
           // Update pinned state in localStorage
-          try {
-            const stored = JSON.parse(localStorage.getItem('pmt_pinned') || '{}');
-            stored[pinAddr] = pinAction === 'unpin' ? null : { id: pinMsgId, text: pinText, time: Date.now() };
-            localStorage.setItem('pmt_pinned', JSON.stringify(stored));
-          } catch {}
+          // Update pinned state via React (stored in cloud backup, not localStorage)
+          setPinnedMsgs(prev => {
+            const current: any[] = prev[pinAddr] || [];
+            const updated = pinAction === 'unpin'
+              ? current.filter(p => p.id !== pinMsgId)
+              : current.some(p => p.id === pinMsgId) ? current
+                : [...current, { id: pinMsgId, text: pinText, time: Date.now() }];
+            return { ...prev, [pinAddr]: updated };
+          });
           // Update pinned flag on the message
           setMsgs(prev => ({
             ...prev,
