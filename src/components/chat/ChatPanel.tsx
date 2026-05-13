@@ -146,7 +146,7 @@ async function blobToWavBase64(blob: Blob): Promise<string> {
   return 'data:audio/wav;base64,' + btoa(binary);
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup}){
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsg}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
@@ -456,6 +456,12 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     setRecordSeconds(0);
     recordSecondsRef.current=0;
   };
+  // Pin permission: in 1-on-1 everyone can pin; in groups only owner/admin/mod
+  const canPin = !contact.isGroup
+    || contact.createdBy?.toLowerCase() === myAddress?.toLowerCase()
+    || (contact as any).roles?.[myAddress?.toLowerCase()] === 'admin'
+    || (contact as any).roles?.[myAddress?.toLowerCase()] === 'moderator';
+
   // Local search: filter messages by text match
   const searchTerm = localSearch.trim().toLowerCase();
   const filteredMessages = searchTerm
@@ -494,6 +500,23 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       
       <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact} onSendETH={onSendETH} isDemo={isDemo} needsPasswordToSend={needsPasswordToSend}
         searchActive={searchActive}
+        pinnedMsg={pinnedMsg}
+        canPin={canPin}
+        onUnpin={canPin&&pinnedMsg?()=>onPin&&onPin(pinnedMsg):undefined}
+        onScrollToPin={()=>{
+          if(!pinnedMsg) return;
+          const el=document.getElementById('msg-'+pinnedMsg.id);
+          if(el&&messagesRef.current){
+            const cr=messagesRef.current.getBoundingClientRect();
+            const er=el.getBoundingClientRect();
+            messagesRef.current.scrollTop+=er.top-cr.top-cr.height/2+er.height/2;
+            const b=(el.querySelector('.msg-bubble-text') as HTMLElement)||el;
+            b.style.transition='outline .15s,outline-offset .15s';
+            b.style.outline='2px solid var(--accent)';
+            b.style.outlineOffset='2px';
+            setTimeout(()=>{b.style.outline='';b.style.outlineOffset='';},1400);
+          }
+        }}
         onSearchToggle={()=>{setSearchActive(s=>{const next=!s;if(!next){setLocalSearch('');setSearchIdx(0);}return next;});setTimeout(()=>searchInputRef.current?.focus(),80);}}
         searchBar={(
           <div style={{padding:'8px 12px',background:'var(--panel)',borderBottom:'1px solid var(--border)',
@@ -536,7 +559,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         <div ref={messagesRef}
           className="chat-messages-area"
           style={{position:'absolute',inset:0,overflowY:'auto',
-            paddingTop:searchActive?102:62,paddingBottom:95,
+            paddingTop:searchActive?(pinnedMsg?138:102):(pinnedMsg?94:62),paddingBottom:95,
             display:'flex',flexDirection:'column'}}>
           <div style={{flex:1,padding:'0 20px 0',display:'flex',flexDirection:'column',gap:2}}>
             {searchQuery&&!searchTerm&&(
@@ -567,7 +590,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 myAddress={myAddress} onReact={onReact}
                 searchQuery={searchTerm || searchQuery}
                 onJoinGroup={onJoinGroup}
-                onReply={(msg)=>{setReplyingTo(msg);setTimeout(()=>inputRef.current?.focus(),50);}}/>
+                onReply={(msg)=>{setReplyingTo(msg);setTimeout(()=>inputRef.current?.focus(),50);}}
+                onPin={canPin?onPin:undefined}/>
             ))}
             <div ref={bottomRef}/>
           </div>
@@ -656,6 +680,42 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
             <button onClick={()=>{setSearchActive(false);setLocalSearch('');setSearchIdx(0);}}
               style={{background:'none',border:'none',color:'var(--muted)',fontSize:18,cursor:'pointer',
                 flexShrink:0,lineHeight:1,padding:'0 2px'}}>×</button>
+          </div>
+        )}
+
+        {/* ── Pinned message banner ── */}
+        {pinnedMsg&&(
+          <div style={{position:'absolute',top:62,left:0,right:0,zIndex:8,
+            background:'var(--panel)',borderBottom:'1px solid var(--border)',
+            borderLeft:'3px solid var(--accent)',
+            display:'flex',alignItems:'center',gap:8,padding:'6px 14px',cursor:'pointer'}}
+            onClick={()=>{
+              const el=document.getElementById('msg-'+pinnedMsg.id);
+              if(el&&messagesRef.current){
+                const cr=messagesRef.current.getBoundingClientRect();
+                const er=el.getBoundingClientRect();
+                messagesRef.current.scrollTop+=er.top-cr.top-cr.height/2+er.height/2;
+                const b=(el.querySelector('.msg-bubble-text') as HTMLElement)||el;
+                b.style.transition='outline .15s,outline-offset .15s';
+                b.style.outline='2px solid var(--accent)';
+                b.style.outlineOffset='2px';
+                setTimeout(()=>{b.style.outline='';b.style.outlineOffset='';},1400);
+              }
+            }}>
+            <span style={{fontSize:14,flexShrink:0}}>📌</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',letterSpacing:'1px',marginBottom:1}}>PINNED MESSAGE</div>
+              <div style={{fontSize:12,color:'var(--text2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                {pinnedMsg.text||'📎 Media'}
+              </div>
+            </div>
+            {canPin&&(
+              <button onClick={(e)=>{e.stopPropagation();onPin&&onPin(pinnedMsg);}}
+                title="Unpin"
+                style={{background:'none',border:'none',color:'var(--muted)',fontSize:16,cursor:'pointer',flexShrink:0,padding:'0 2px',lineHeight:1}}>
+                ×
+              </button>
+            )}
           </div>
         )}
 

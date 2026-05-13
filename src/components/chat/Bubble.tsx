@@ -75,7 +75,7 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,searchQuery,onJoinGroup}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,searchQuery,onJoinGroup}){
   const [showPicker,setShowPicker]=useState(false);
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const reactions=msg.reactions||{};
@@ -392,6 +392,18 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,sear
               color:'var(--muted)',opacity:showReplyBtn?1:0,transition:'opacity .15s',
               WebkitTapHighlightColor:'transparent'}}>
             ↩
+          </button>
+        )}
+        {onPin&&(
+          <button onClick={(e)=>{e.stopPropagation();onPin(msg);}}
+            title={msg.pinned?'Unpin message':'Pin message'}
+            style={{alignSelf:'center',background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:'50%',width:26,height:26,display:'flex',alignItems:'center',
+              justifyContent:'center',cursor:'pointer',fontSize:13,flexShrink:0,
+              color:msg.pinned?'var(--accent)':'var(--muted)',
+              opacity:showReplyBtn||msg.pinned?1:0,transition:'opacity .15s',
+              WebkitTapHighlightColor:'transparent'}}>
+            📌
           </button>
         )}
       </div>

@@ -223,6 +223,31 @@ export function useInboxPoll({
 
         const newMsg: Message = { ...base, ...extra };
 
+        // ── Pin/unpin notification ──────────────────────────────────────
+        if ((inboxMsg as any).type === 'pin') {
+          const pinAddr = (inboxMsg as any).groupId
+            ? normalizeAddress('group_' + (inboxMsg as any).groupId)
+            : senderAddr;
+          const pinMsgId = (inboxMsg as any).pinMsgId;
+          const pinAction = (inboxMsg as any).pinAction; // 'pin' | 'unpin'
+          const pinText = (inboxMsg as any).pinMsgText || '';
+          // Update pinned state in localStorage
+          try {
+            const stored = JSON.parse(localStorage.getItem('pmt_pinned') || '{}');
+            stored[pinAddr] = pinAction === 'unpin' ? null : { id: pinMsgId, text: pinText, time: Date.now() };
+            localStorage.setItem('pmt_pinned', JSON.stringify(stored));
+          } catch {}
+          // Update pinned flag on the message
+          setMsgs(prev => ({
+            ...prev,
+            [pinAddr]: (prev[pinAddr] || []).map(m => m.id === pinMsgId
+              ? { ...m, pinned: pinAction !== 'unpin' }
+              : { ...m, pinned: false }
+            )
+          }));
+          return;
+        }
+
         // ── Group message routing ──────────────────────────────────────────
         if (inboxMsg.groupId) {
           const groupAddr = `group_${inboxMsg.groupId}`;

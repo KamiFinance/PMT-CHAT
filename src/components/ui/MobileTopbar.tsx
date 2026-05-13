@@ -4,7 +4,7 @@ import ProfilePic from '../ui/ProfilePic';
 import SendModal from '../modals/SendModal';
 import { SwitchNetworkCompact } from './SwitchNetworkButton';
 
-export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact,onSendETH,needsPasswordToSend,searchActive,onSearchToggle,searchBar}){
+export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo,profile,onViewContact,onSendETH,needsPasswordToSend,searchActive,onSearchToggle,searchBar,pinnedMsg,canPin,onUnpin,onScrollToPin}){
   const [showSend,setShowSend]=useState(false);
   // Connect Wallet (MetaMask/WalletConnect) users: needsPasswordToSend=false
   // Create/Import Wallet users: needsPasswordToSend=true
@@ -61,6 +61,23 @@ export default function MobileTopbar({contact,onOpenSidebar,onBack,wallet,isDemo
             </button>
           )}
         </div>
+        {/* Pinned message banner */}
+        {pinnedMsg&&(
+          <div onClick={onScrollToPin}
+            style={{display:'flex',alignItems:'center',gap:8,padding:'6px 14px',
+              background:'var(--panel)',borderBottom:'1px solid var(--border)',
+              borderLeft:'3px solid var(--accent)',cursor:'pointer'}}>
+            <span style={{fontSize:13,flexShrink:0}}>📌</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--accent)',letterSpacing:'1px',marginBottom:1}}>PINNED</div>
+              <div style={{fontSize:12,color:'var(--text2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{pinnedMsg.text||'📎 Media'}</div>
+            </div>
+            {canPin&&onUnpin&&(
+              <button onClick={(e)=>{e.stopPropagation();onUnpin();}}
+                style={{background:'none',border:'none',color:'var(--muted)',fontSize:18,cursor:'pointer',flexShrink:0,padding:'0 2px',lineHeight:1}}>×</button>
+            )}
+          </div>
+        )}
         {/* Search bar sits directly under topbar — no gap */}
         {searchActive&&searchBar}
       </div>

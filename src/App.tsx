@@ -202,6 +202,10 @@ export default function App() {
   const [showGroup, setShowGroup] = useState(false);
   const [manageGroupContact, setManageGroupContact] = useState<any>(null);
   const [showSearch, setShowSearch] = useState(false);
+  // pinnedMsgs: { [conversationAddr]: { id, text, senderName, time } | null }
+  const [pinnedMsgs, setPinnedMsgs] = useState<Record<string,any>>(() => {
+    try { return JSON.parse(localStorage.getItem('pmt_pinned') || '{}'); } catch { return {}; }
+  });
   const [editContact, setEditContact] = useState<Contact | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -1091,6 +1095,55 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       .catch(() => alert('Could not fetch invite link info.'));
   }, [wallet?.address, setContacts, selectContact]);
 
+  // Pin/unpin a message in the active conversation
+  const handlePin = useCallback((msg: any) => {
+    if (!activeRef.current) return;
+    const addr = normalizeAddress(activeRef.current.address);
+    const isCurrentlyPinned = msg.pinned || pinnedMsgs[addr]?.id === msg.id;
+    const newPin = isCurrentlyPinned ? null : { id: msg.id, text: msg.text || '', senderName: msg.senderName || '', time: msg.time };
+
+    // Update local pinned state
+    setPinnedMsgs(prev => {
+      const next = { ...prev, [addr]: newPin };
+      localStorage.setItem('pmt_pinned', JSON.stringify(next));
+      return next;
+    });
+
+    // Update pinned flag on the message itself
+    setMsgs(prev => ({
+      ...prev,
+      [addr]: (prev[addr] || []).map(m => m.id === msg.id ? { ...m, pinned: !isCurrentlyPinned } : { ...m, pinned: false })
+    }));
+
+    // Notify the other user via system message
+    if (!isDemo && walletRef.current?.address) {
+      const myAddr = walletRef.current.address;
+      const systemMsg = {
+        id: uid(), type: 'pin', pinMsgId: msg.id, pinMsgText: msg.text || '',
+        pinAction: isCurrentlyPinned ? 'unpin' : 'pin',
+        from: myAddr, ts: Date.now(),
+      };
+      // For 1-on-1: send to contact
+      if (!activeRef.current.isGroup) {
+        fetch('/api/inbox?address=' + addr, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(systemMsg),
+        }).catch(() => {});
+      } else {
+        // For groups: send to all members
+        const grp = activeRef.current;
+        const groupId = grp.groupId || grp.id;
+        const members: string[] = (grp.members || []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
+        members.filter(m => m !== normalizeAddress(myAddr)).forEach(m => {
+          fetch('/api/inbox?address=' + m, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...systemMsg, groupId }),
+          }).catch(() => {});
+        });
+      }
+    }
+  }, [isDemo, pinnedMsgs]);
+
   // Handle invite link join on page load (?join=linkId)
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1442,7 +1495,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         <div className={`sidebar-overlay${mobileSidebarOpen ? ' visible' : ''}`} onClick={() => setMobileSidebarOpen(false)} />
         <Sidebar contacts={contacts} activeId={active?.id ?? null} wallet={wallet} isDemo={isDemo} profile={profile} mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} onSelect={selectContact} onNew={() => { setShowNew(true); setMobileSidebarOpen(false); }} onNewGroup={() => { setShowGroup(true); setMobileSidebarOpen(false); }} onProfile={() => { setShowProfile(true); setMobileSidebarOpen(false); }} onSettings={() => { setShowSettings(true); setMobileSidebarOpen(false); }} onWallet={() => { setShowWallet(true); setMobileSidebarOpen(false); }} onLogout={handleLogout} onEditContact={setEditContact} onSearch={() => setShowSearch(true)} />
         <main className="chat-panel">
-          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
+          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsg={active ? pinnedMsgs[normalizeAddress(active.address)] : null} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
         </main>
       </div>
       {showProfile && <ProfileModal profile={{ ...profile, address: wallet?.address ?? null }} onClose={() => setShowProfile(false)} onSave={saveProfile} />}
