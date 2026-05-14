@@ -146,7 +146,7 @@ async function blobToWavBase64(blob: Blob): Promise<string> {
   return 'data:audio/wav;base64,' + btoa(binary);
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs}){
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
@@ -600,7 +600,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 searchQuery={searchTerm || searchQuery}
                 onJoinGroup={onJoinGroup}
                 onReply={(msg)=>{setReplyingTo(msg);setTimeout(()=>inputRef.current?.focus(),50);}}
-                onPin={canPin?(msg:any,forBoth?:boolean)=>onPin&&onPin(msg,forBoth):undefined}/>
+                onPin={canPin?(msg:any,forBoth?:boolean)=>onPin&&onPin(msg,forBoth):undefined}
+                onDelete={onDelete?(msg:any,forAll:boolean)=>onDelete(msg,forAll):undefined}/>
             ))}
             <div ref={bottomRef}/>
           </div>

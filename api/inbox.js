@@ -57,7 +57,7 @@ export default async function handler(req, res) {
 
       // Send push notification to recipient (fire-and-forget)
       // Skip push for silent system messages (pin sync, reactions, etc.)
-      const skipPushTypes = ['pin', 'reaction'];
+      const skipPushTypes = ['pin', 'reaction', 'delete'];
       if (!skipPushTypes.includes(msg.type)) {
         try {
           const addrKey = address.toLowerCase();

@@ -164,6 +164,20 @@ export function useInboxPoll({
         }
 
                 // ── Early exit for system-only messages (never shown in chat) ──────
+
+        // Delete notification: remove the referenced message from state
+        if ((inboxMsg as any).type === 'delete') {
+          const delMsgId = (inboxMsg as any).deleteMsgId;
+          const delAddr = (inboxMsg as any).groupId
+            ? normalizeAddress('group_' + (inboxMsg as any).groupId)
+            : normalizeAddress(inboxMsg.from ?? '');
+          setMsgs(prev => ({
+            ...prev,
+            [delAddr]: (prev[delAddr] || []).filter(m => m.id !== delMsgId),
+          }));
+          return;
+        }
+
         if ((inboxMsg as any).type === 'pin' || (inboxMsg as any).type === 'pin_notify') {
           if ((inboxMsg as any).type === 'pin') {
             // Update pinned banner state from incoming pin sync
