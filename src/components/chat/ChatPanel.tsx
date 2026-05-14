@@ -164,16 +164,20 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
 
 
   // Lock scroll on messages container when any popup is open
+  // Use wheel/touch prevention instead of overflow:hidden to avoid scroll position reset
   useEffect(()=>{
     const el = messagesRef.current;
     if(!el) return;
     const anyOpen = !!(ctxMenuMsg||delConfirmMsg||pickerMsgId||pinConfirmMsgId);
     if(anyOpen){
-      el.style.overflow='hidden';
-    } else {
-      el.style.overflow='';
+      const prevent=(e:Event)=>e.preventDefault();
+      el.addEventListener('wheel',prevent,{passive:false});
+      el.addEventListener('touchmove',prevent,{passive:false});
+      return ()=>{
+        el.removeEventListener('wheel',prevent);
+        el.removeEventListener('touchmove',prevent);
+      };
     }
-    return ()=>{ el.style.overflow=''; };
   },[ctxMenuMsg,delConfirmMsg,pickerMsgId,pinConfirmMsgId]);
 
   // Close ctx menu when clicking/touching anywhere outside
