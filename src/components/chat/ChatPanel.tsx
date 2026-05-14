@@ -160,12 +160,16 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [delConfirmMsg,setDelConfirmMsg]=useState<any>(null); // which message needs delete confirm
   const [pickerMsgId,setPickerMsgId]=useState<string|null>(null); // which message has emoji picker open
 
-  // Close ctx menu when clicking anywhere outside
+  // Close ctx menu when clicking/touching anywhere outside
   useEffect(()=>{
     if(!ctxMenuMsg) return;
-    const close=(e:MouseEvent)=>{ setCtxMenuMsg(null); };
+    const close=()=>{ setCtxMenuMsg(null); };
     document.addEventListener('mousedown',close);
-    return ()=>document.removeEventListener('mousedown',close);
+    document.addEventListener('touchstart',close,{passive:true});
+    return ()=>{
+      document.removeEventListener('mousedown',close);
+      document.removeEventListener('touchstart',close);
+    };
   },[ctxMenuMsg]);
 
   // Close emoji picker when touching/clicking anywhere outside

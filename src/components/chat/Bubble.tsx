@@ -269,7 +269,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     <>
       <div onClick={()=>{onClosePicker&&onClosePicker();setShowFullPicker(false);}}
         onMouseDown={(e)=>e.stopPropagation()}
-        onTouchStart={(e)=>e.stopPropagation()}
+        onTouchStart={(e)=>{e.stopPropagation();onClosePicker&&onClosePicker();setShowFullPicker(false);}}
         style={{position:'fixed',inset:0,zIndex:198,
           background:showFullPicker?'rgba(0,0,0,.35)':'rgba(0,0,0,.15)',
           backdropFilter:showFullPicker?'blur(1px)':'none',
@@ -522,7 +522,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           <div style={{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,.35)',
             backdropFilter:'blur(1px)',WebkitBackdropFilter:'blur(1px)'}}
             onClick={()=>onCloseMenus&&onCloseMenus()}
-            onTouchStart={(e)=>{e.preventDefault();onCloseMenus&&onCloseMenus();}}/>
+            onTouchStart={(e)=>{onCloseMenus&&onCloseMenus();}}/>
           {/* Quick reactions above bubble — always shown with ctx menu */}
           <div style={{position:'fixed',zIndex:201,
             bottom: window.innerHeight - bubblePos.top + 8,
