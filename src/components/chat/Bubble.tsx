@@ -261,7 +261,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     </div>
   );
 
-  const QUICK_EMOJIS = ['❤️','😂','😮','😢','🔥','👍','👎','✅'];
+  const QUICK_EMOJIS = ['👍','❤️','🔥','🎉','😂','😮','😢','💩'];
   const [showFullPicker,setShowFullPicker]=useState(false);
   const picker=(pickerOpen||showFullPicker)&&bubblePos&&createPortal(
     <>
@@ -511,7 +511,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
               background:'var(--panel)',border:'1px solid var(--border)',
               borderRadius:24,padding:'6px 10px',
               boxShadow:'0 4px 20px rgba(0,0,0,.5)',animation:'fadeIn .12s ease'}}>
-              {['❤️','😂','😮','😢','🔥','👍','👎','✅'].map(e=>(
+              {['👍','❤️','🔥','🎉','😂','😮','😢','💩'].map(e=>(
                 <button key={e} onClick={(ev)=>{ev.stopPropagation();onReact&&onReact(msg.id,e);onCloseMenus&&onCloseMenus();}}
                   style={{background:'none',border:'none',cursor:'pointer',fontSize:22,
                     padding:'2px 3px',borderRadius:8,lineHeight:1,transition:'transform .1s'}}
@@ -537,18 +537,6 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             animation:'fadeIn .12s ease'}}
             onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}
             onTouchStart={(e)=>e.stopPropagation()}>
-            {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
-              <button
-                onClick={(e)=>{e.stopPropagation();onEdit(msg);onCloseMenus&&onCloseMenus();}}
-                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
-                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text)',
-                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
-                onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
-                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                ✏️ <span>Edit message</span>
-              </button>
-            )}
-            {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(onReply||(msg.text&&(onPin||onDelete)))&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {onReply&&(
               <button
                 onClick={(e)=>{e.stopPropagation();onReply(msg);onCloseMenus&&onCloseMenus();}}
@@ -560,19 +548,18 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                 ↩ <span>Reply</span>
               </button>
             )}
-            {onReply&&(msg.text||(onPin||onDelete))&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
-            {msg.text&&(
+            {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
               <button
-                onClick={(e)=>{e.stopPropagation();navigator.clipboard?.writeText(msg.text).catch(()=>{});onCloseMenus&&onCloseMenus();}}
+                onClick={(e)=>{e.stopPropagation();onEdit(msg);onCloseMenus&&onCloseMenus();}}
                 style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
                   display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text)',
                   fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                📋 <span>Copy text</span>
+                ✏️ <span>Edit message</span>
               </button>
             )}
-            {msg.text&&(onPin||onDelete)&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
+            {(onReply||onEdit)&&(onPin||msg.text||onDelete)&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {onPin&&(
               <button
                 onClick={(e)=>{e.stopPropagation();
@@ -589,6 +576,18 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
               </button>
             )}
             {onPin&&onDelete&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
+            {msg.text&&(
+              <button
+                onClick={(e)=>{e.stopPropagation();navigator.clipboard?.writeText(msg.text).catch(()=>{});onCloseMenus&&onCloseMenus();}}
+                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
+                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text)',
+                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
+                onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                📋 <span>Copy text</span>
+              </button>
+            )}
+            {msg.text&&onDelete&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {onDelete&&(
             <button
               onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
