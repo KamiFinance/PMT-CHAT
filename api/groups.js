@@ -234,8 +234,7 @@ export default async function handler(req, res) {
       const { b64Data, audioUrl, audioB64, fileData, imgData, uploading, _toAddr, ...lean } = message;
       const key = `pmt:group:history:${groupId}`;
       await redis('RPUSH', key, JSON.stringify(lean));
-      await redis('LTRIM', key, -200, -1); // keep last 200 messages
-      await redis('EXPIRE', key, String(60*60*24*30)); // 30 days
+      await redis('LTRIM', key, -2000, -1); // keep last 2000 messages
       return res.json({ ok: true });
     }
 
