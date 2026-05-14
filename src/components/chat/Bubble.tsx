@@ -540,63 +540,53 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             {onReply&&(
               <button
                 onClick={(e)=>{e.stopPropagation();onReply(msg);onCloseMenus&&onCloseMenus();}}
-                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
-                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text)',
-                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
+                style={{width:'100%',background:'none',border:'none',padding:'14px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',fontSize:15,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                <span style={{display:"inline-flex",alignItems:"center",opacity:.75}}><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg></span> <span>Reply</span>
-              </button>
-            )}
-            {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
-              <button
-                onClick={(e)=>{e.stopPropagation();onEdit(msg);onCloseMenus&&onCloseMenus();}}
-                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
-                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text)',
-                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
-                onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
-                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                <span style={{display:"inline-flex",alignItems:"center",opacity:.75}}><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span> <span>Edit</span>
+                <span>Reply</span><span style={{display:"inline-flex",alignItems:"center",color:"currentColor"}}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></span>
               </button>
             )}
             {(onReply||onEdit)&&(onPin||msg.text||onDelete)&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
+            {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
+              <button
+                onClick={(e)=>{e.stopPropagation();onEdit(msg);onCloseMenus&&onCloseMenus();}}
+                style={{width:'100%',background:'none',border:'none',padding:'14px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',fontSize:15,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
+                onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                <span>Edit</span><span style={{display:"inline-flex",alignItems:"center",color:"currentColor"}}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span>
+              </button>
+            )}
+            {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(onPin||onDelete)&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {onPin&&(
               <button
                 onClick={(e)=>{e.stopPropagation();
                   if(msg.pinned){onPin(msg);onCloseMenus&&onCloseMenus();}
                   else{onCloseMenus&&onCloseMenus();onOpenPinConfirm&&onOpenPinConfirm(msg);}
                 }}
-                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
-                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',
-                  color:msg.pinned?'var(--accent)':'var(--text)',
-                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
+                style={{width:'100%',background:'none',border:'none',padding:'14px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',fontSize:15,textAlign:'left',fontFamily:'var(--sans)',color:msg.pinned?'var(--accent)':'var(--text)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                {msg.pinned ? '📌' : <span style={{display:"inline-flex",alignItems:"center",opacity:.75}}><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 4v5l1.8 1.8c.1.1.2.3.2.5V12a1 1 0 01-1 1h-4v6l-1 2-1-2v-6H8a1 1 0 01-1-1v-.7c0-.2.1-.4.2-.5L9 9V4H8a1 1 0 010-2h8a1 1 0 010 2h-1z"/></svg></span>} <span>{msg.pinned ? 'Unpin' : 'Pin'}</span>
+                <span>{msg.pinned ? 'Unpin' : 'Pin'}</span>
+                {msg.pinned?<span style={{display:"inline-flex",alignItems:"center",color:"currentColor"}}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h12"/><path d="M15 9.34V6h1a2 2 0 0 0 0-4H7.89"/><line x1="12" y1="17" x2="12" y2="22"/></svg></span>:<span style={{display:"inline-flex",alignItems:"center",color:"currentColor"}}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg></span>}
               </button>
             )}
-            {onPin&&onDelete&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {msg.text&&(
               <button
                 onClick={(e)=>{e.stopPropagation();navigator.clipboard?.writeText(msg.text).catch(()=>{});onCloseMenus&&onCloseMenus();}}
-                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
-                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text)',
-                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
+                style={{width:'100%',background:'none',border:'none',padding:'14px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',fontSize:15,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                <span style={{display:"inline-flex",alignItems:"center",opacity:.75}}><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 1H4a2 2 0 00-2 2v14h2V3h12V1zm3 4H8a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2zm0 16H8V7h11v14z"/></svg></span> <span>Copy Text</span>
+                <span>Copy Text</span><span style={{display:"inline-flex",alignItems:"center",color:"currentColor"}}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
               </button>
             )}
             {msg.text&&onDelete&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {onDelete&&(
             <button
               onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
-              style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
-                display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--danger)',
-                fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
-              onMouseEnter={e=>(e.currentTarget.style.background='rgba(248,113,113,.08)')}
+              style={{width:'100%',background:'none',border:'none',padding:'14px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',fontSize:15,textAlign:'left',fontFamily:'var(--sans)',color:'#ef4444'}}
+              onMouseEnter={e=>(e.currentTarget.style.background='rgba(239,68,68,.08)')}
               onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-              <span style={{display:"inline-flex",alignItems:"center",opacity:.75}}><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19a2 2 0 002 2h8a2 2 0 002-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></span> <span>Delete</span>
+              <span>Delete</span><span style={{display:"inline-flex",alignItems:"center",color:"#ef4444"}}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></span>
             </button>
             )}
           </div>
