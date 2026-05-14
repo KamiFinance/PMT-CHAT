@@ -640,10 +640,10 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                   ?(msg:any,forAll:boolean)=>onDelete(msg,forAll):undefined}
                 ctxMenuOpen={ctxMenuMsg?.id===m.id}
                 delConfirmOpen={delConfirmMsg?.id===m.id}
-                onOpenCtxMenu={(m:any)=>{setDelConfirmMsg(null);setCtxMenuMsg(m);}}
+                onOpenCtxMenu={(m:any)=>{setDelConfirmMsg(null);setCtxMenuMsg(m);setPickerMsgId(null);}}
                 onOpenDelConfirm={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(m);}}
                 anyPopupOpen={!!(ctxMenuMsg||delConfirmMsg||pickerMsgId)}
-                onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);}}
+                onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(null);}}
                 pickerOpen={pickerMsgId===m.id}
                 onOpenPicker={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(m.id);}}
                 onClosePicker={()=>setPickerMsgId(null)}/>
