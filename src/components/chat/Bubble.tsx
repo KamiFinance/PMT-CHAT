@@ -76,7 +76,7 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,pinConfirmOpen,onOpenPinConfirm,searchQuery,onJoinGroup}:{[k:string]:any}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onEdit,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,pinConfirmOpen,onOpenPinConfirm,searchQuery,onJoinGroup}:{[k:string]:any}){
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const delLongPressRef=useRef<any>(null);
   const [bubblePos,setBubblePos]=useState<any>(null);
@@ -432,6 +432,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           )}
           {replyPreview}
           <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup} isOut={isOut}/>
+          {msg.editedAt&&<span style={{fontSize:9,color:'var(--muted)',fontFamily:'var(--mono)',marginLeft:4,opacity:.7}}>(edited)</span>}
           {meta}
         </div>
         {/* Reply button — shown in flex row on hover, stays visible when moving to click */}
@@ -536,6 +537,18 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             animation:'fadeIn .12s ease'}}
             onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}
             onTouchStart={(e)=>e.stopPropagation()}>
+            {onEdit&&msg.type==='text'&&msg.text&&(
+              <button
+                onClick={(e)=>{e.stopPropagation();onEdit(msg);onCloseMenus&&onCloseMenus();}}
+                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
+                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text)',
+                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
+                onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                ✏️ <span>Edit message</span>
+              </button>
+            )}
+            {onEdit&&msg.type==='text'&&msg.text&&(onReply||(msg.text&&(onPin||onDelete)))&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {onReply&&(
               <button
                 onClick={(e)=>{e.stopPropagation();onReply(msg);onCloseMenus&&onCloseMenus();}}

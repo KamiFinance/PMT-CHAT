@@ -165,6 +165,23 @@ export function useInboxPoll({
 
                 // ── Early exit for system-only messages (never shown in chat) ──────
 
+        // Edit notification: update the message text in state
+        if ((inboxMsg as any).type === 'edit') {
+          const editMsgId = (inboxMsg as any).editMsgId;
+          const editText = (inboxMsg as any).editText;
+          const editedAt = (inboxMsg as any).editedAt || Date.now();
+          const editAddr = (inboxMsg as any).groupId
+            ? normalizeAddress('group_' + (inboxMsg as any).groupId)
+            : normalizeAddress(inboxMsg.from ?? '');
+          setMsgs(prev => ({
+            ...prev,
+            [editAddr]: (prev[editAddr] || []).map(m =>
+              m.id === editMsgId ? { ...m, text: editText, editedAt } : m
+            ),
+          }));
+          return;
+        }
+
         // Delete notification: remove the referenced message from state
         if ((inboxMsg as any).type === 'delete') {
           const delMsgId = (inboxMsg as any).deleteMsgId;

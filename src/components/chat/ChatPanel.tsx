@@ -146,12 +146,13 @@ async function blobToWavBase64(blob: Blob): Promise<string> {
   return 'data:audio/wav;base64,' + btoa(binary);
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete}){
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
   const [showEmoji,setShowEmoji]=useState(false);
   const [replyingTo,setReplyingTo]=useState(null); // message being replied to
+  const [editingMsg,setEditingMsg]=useState<any>(null); // message being edited
   const [localSearch,setLocalSearch]=useState(''); // in-chat search query
   const [searchActive,setSearchActive]=useState(false); // search bar open
   const [searchIdx,setSearchIdx]=useState(0); // current match index
@@ -233,7 +234,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   useEffect(()=>{onSendRef.current=onSend;},[onSend]);
 
   useEffect(()=>bottomRef.current?.scrollIntoView({behavior:'smooth'}),[messages]);
-  useEffect(()=>{setText('');setReplyingTo(null);inputRef.current?.focus();setShowAttach(false);setShowEmoji(false);},[contact?.id]);
+  useEffect(()=>{setText('');setReplyingTo(null);setEditingMsg(null);inputRef.current?.focus();setShowAttach(false);setShowEmoji(false);},[contact?.id]);
   useEffect(()=>{
     if(!showAttach)return;
     const close=e=>{
@@ -245,6 +246,12 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
 
   const send=()=>{
     const t=text.trim();if(!t)return;
+    // If editing an existing message, update it instead of sending new
+    if(editingMsg){
+      onEditMsg&&onEditMsg(editingMsg,t);
+      setText('');setEditingMsg(null);
+      return;
+    }
     if(replyingTo){
       // Pass as object with type:'text' so sendMsg handles it correctly
       onSend({type:'text',text:t,replyTo:{
@@ -639,6 +646,9 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 onPin={canPin?(msg:any,forBoth?:boolean)=>onPin&&onPin(msg,forBoth):undefined}
                 onDelete={onDelete&&(m.out||m.from?.toLowerCase()===myAddress?.toLowerCase()||(contact.isGroup&&canPin))
                   ?(msg:any,forAll:boolean)=>onDelete(msg,forAll):undefined}
+                onEdit={(m.out||m.from?.toLowerCase()===myAddress?.toLowerCase())
+                  ?(msg:any)=>{setEditingMsg(msg);setText(msg.text||'');setTimeout(()=>inputRef.current?.focus(),50);}
+                  :undefined}
                 ctxMenuOpen={ctxMenuMsg?.id===m.id}
                 delConfirmOpen={delConfirmMsg?.id===m.id}
                 onOpenCtxMenu={(m:any)=>{setDelConfirmMsg(null);setCtxMenuMsg(m);setPickerMsgId(null);}}
@@ -811,6 +821,25 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           {!(contact.isAnnouncement && contact.createdBy?.toLowerCase() !== myAddress?.toLowerCase()) && (
           <React.Fragment>
           {/* Reply preview bar — inside the input container so it's always above the input on iOS */}
+          {editingMsg&&(
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px 4px',
+              background:'var(--panel)',borderTop:'1px solid var(--border)',
+              borderLeft:'3px solid var(--accent)'}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',fontWeight:700,marginBottom:1}}>
+                  ✏️ Editing message
+                </div>
+                <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                  {editingMsg.text}
+                </div>
+              </div>
+              <button onClick={()=>{setEditingMsg(null);setText('');}}
+                style={{background:'none',border:'none',color:'var(--muted)',fontSize:18,cursor:'pointer',
+                  flexShrink:0,lineHeight:1,padding:'0 4px'}}>
+                ×
+              </button>
+            </div>
+          )}
           {replyingTo&&(
             <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px 4px',
               background:'var(--panel)',borderTop:'1px solid var(--border)',
