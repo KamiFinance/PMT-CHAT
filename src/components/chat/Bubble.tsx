@@ -545,7 +545,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                   fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                ↩️ <span>Reply</span>
+                <span style={{display:"inline-flex",alignItems:"center",opacity:.8}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></span> <span>Reply</span>
               </button>
             )}
             {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
@@ -556,7 +556,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                   fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                ✏️ <span>Edit</span>
+                <span style={{display:"inline-flex",alignItems:"center",opacity:.8}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span> <span>Edit</span>
               </button>
             )}
             {(onReply||onEdit)&&(onPin||msg.text||onDelete)&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
@@ -584,7 +584,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                   fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                📄 <span>Copy Text</span>
+                <span style={{display:"inline-flex",alignItems:"center",opacity:.8}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span> <span>Copy Text</span>
               </button>
             )}
             {msg.text&&onDelete&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
@@ -596,7 +596,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                 fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
               onMouseEnter={e=>(e.currentTarget.style.background='rgba(248,113,113,.08)')}
               onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-              🗑 <span>Delete</span>
+              <span style={{display:"inline-flex",alignItems:"center",opacity:.8}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></span> <span>Delete</span>
             </button>
             )}
           </div>
