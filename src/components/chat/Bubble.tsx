@@ -76,7 +76,7 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,searchQuery,onJoinGroup}:{[k:string]:any}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,searchQuery,onJoinGroup}:{[k:string]:any}){
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const [showPinChoice,setShowPinChoice]=useState(false);
   const delLongPressRef=useRef<any>(null);
@@ -137,8 +137,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     swipeTranslate.current=0;
   };
 
-  const handleLongPress=()=>{longPressRef.current=setTimeout(()=>(()=>{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);})(),500);};
-  const handleDelLongPressStart=()=>{if(onDelete) delLongPressRef.current=setTimeout(()=>{clearTimeout(longPressRef.current);if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);},700);};
+  const handleLongPress=()=>{ if(anyPopupOpen) return; longPressRef.current=setTimeout(()=>(()=>{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);})(),500); };
+  const handleDelLongPressStart=()=>{ if(anyPopupOpen||!onDelete) return; delLongPressRef.current=setTimeout(()=>{clearTimeout(longPressRef.current);if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);},700); };
   const handleDelLongPressEnd=()=>{clearTimeout(delLongPressRef.current);};
   const cancelLongPress=()=>clearTimeout(longPressRef.current);
   const togglePicker=(e)=>{e.stopPropagation();pickerOpen?onClosePicker&&onClosePicker():(()=>{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);})();};
@@ -522,7 +522,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           <div style={{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,.35)',
             backdropFilter:'blur(1px)',WebkitBackdropFilter:'blur(1px)'}}
             onClick={()=>onCloseMenus&&onCloseMenus()}
-            onTouchStart={(e)=>{onCloseMenus&&onCloseMenus();}}/>
+            onTouchStart={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();}}/>
           {/* Quick reactions above bubble — always shown with ctx menu */}
           <div style={{position:'fixed',zIndex:201,
             bottom: window.innerHeight - bubblePos.top + 8,
