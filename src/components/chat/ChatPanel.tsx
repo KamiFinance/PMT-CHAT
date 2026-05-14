@@ -159,6 +159,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [ctxMenuMsg,setCtxMenuMsg]=useState<any>(null); // which message has ctx menu open
   const [delConfirmMsg,setDelConfirmMsg]=useState<any>(null); // which message needs delete confirm
   const [pickerMsgId,setPickerMsgId]=useState<string|null>(null); // which message has emoji picker open
+  const [pinChoiceMsgId,setPinChoiceMsgId]=useState<string|null>(null); // which message has pin choice open
 
   // Close ctx menu when clicking/touching anywhere outside
   // Delay attaching listeners so the long-press touch sequence ends first —
@@ -176,6 +177,17 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       document.removeEventListener('touchstart',close);
     };
   },[ctxMenuMsg]);
+
+  // Close pin choice on outside click/touch
+  useEffect(()=>{
+    if(!pinChoiceMsgId) return;
+    const close=()=>setPinChoiceMsgId(null);
+    const t=setTimeout(()=>{
+      document.addEventListener('mousedown',close);
+      document.addEventListener('touchstart',close,{passive:true});
+    },150);
+    return ()=>{clearTimeout(t);document.removeEventListener('mousedown',close);document.removeEventListener('touchstart',close);};
+  },[pinChoiceMsgId]);
 
   // Close emoji picker when clicking/touching anywhere outside
   useEffect(()=>{
@@ -642,9 +654,12 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 delConfirmOpen={delConfirmMsg?.id===m.id}
                 onOpenCtxMenu={(m:any)=>{setDelConfirmMsg(null);setCtxMenuMsg(m);setPickerMsgId(null);}}
                 onOpenDelConfirm={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(m);}}
-                anyPopupOpen={!!(ctxMenuMsg||delConfirmMsg||pickerMsgId)}
+                anyPopupOpen={!!(ctxMenuMsg||delConfirmMsg||pickerMsgId||pinChoiceMsgId)}
                 isSelected={ctxMenuMsg?.id===m.id||pickerMsgId===m.id}
-                onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(null);}}
+                pinChoiceOpen={pinChoiceMsgId===m.id}
+                onOpenPinChoice={(mm:any)=>{setPinChoiceMsgId(mm.id);}}
+                onClosePinChoice={()=>setPinChoiceMsgId(null)}
+                onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(null);setPinChoiceMsgId(null);}}
                 pickerOpen={pickerMsgId===m.id}
                 onOpenPicker={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(m.id);}}
                 onClosePicker={()=>setPickerMsgId(null)}/>

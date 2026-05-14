@@ -76,9 +76,8 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,searchQuery,onJoinGroup}:{[k:string]:any}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,pinChoiceOpen,onOpenPinChoice,onClosePinChoice,searchQuery,onJoinGroup}:{[k:string]:any}){
   const [showSenderProfile,setShowSenderProfile]=useState(false);
-  const [showPinChoice,setShowPinChoice]=useState(false);
   const delLongPressRef=useRef<any>(null);
   const [bubblePos,setBubblePos]=useState<any>(null);
   const updatePos=()=>{ if(bubbleRef.current) setBubblePos(bubbleRef.current.getBoundingClientRect()); };
@@ -453,8 +452,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             <button onClick={(e)=>{
               e.stopPropagation();
               if(msg.pinned){onPin(msg);return;} // unpin directly
-              if(contact?.isGroup){setShowPinChoice(v=>!v);return;} // groups show notify choice
-              setShowPinChoice(v=>!v); // 1-on-1: show choice
+              if(contact?.isGroup){pinChoiceOpen?onClosePinChoice&&onClosePinChoice():onOpenPinChoice&&onOpenPinChoice(msg);return;} // groups show notify choice
+              pinChoiceOpen?onClosePinChoice&&onClosePinChoice():onOpenPinChoice&&onOpenPinChoice(msg); // 1-on-1: show choice
             }}
               title={msg.pinned?'Unpin message':'Pin message'}
               style={{background:'var(--surface)',border:'1px solid var(--border)',
@@ -465,15 +464,15 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                 WebkitTapHighlightColor:'transparent'}}>
               📌
             </button>
-            {showPinChoice&&(
+            {pinChoiceOpen&&(
               <div style={{position:'absolute',bottom:30,right:0,background:'var(--panel)',
                 border:'1px solid var(--border)',borderRadius:10,padding:'6px 0',
                 boxShadow:'0 8px 24px rgba(0,0,0,.4)',zIndex:100,minWidth:160}}
-                onMouseLeave={()=>setShowPinChoice(false)}>
+                onMouseLeave={()=>onClosePinChoice&&onClosePinChoice()}>
                 <div style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)',
                   padding:'2px 12px 6px',letterSpacing:'1px'}}>PIN MESSAGE</div>
                 {contact?.isGroup ? (<>
-                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);setShowPinChoice(false);}}
+                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);onClosePinChoice&&onClosePinChoice();}}
                     style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
                       display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
                       fontSize:13,textAlign:'left'}}
@@ -481,7 +480,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                     onMouseLeave={e=>(e.currentTarget.style.background='none')}>
                     <span>📢</span> Pin + notify members
                   </button>
-                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);setShowPinChoice(false);}}
+                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);onClosePinChoice&&onClosePinChoice();}}
                     style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
                       display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
                       fontSize:13,textAlign:'left'}}
@@ -490,7 +489,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                     <span>📌</span> Pin silently
                   </button>
                 </>) : (<>
-                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);setShowPinChoice(false);}}
+                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);onClosePinChoice&&onClosePinChoice();}}
                     style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
                       display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
                       fontSize:13,textAlign:'left'}}
@@ -498,7 +497,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                     onMouseLeave={e=>(e.currentTarget.style.background='none')}>
                     <span>📌</span> Pin for both
                   </button>
-                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);setShowPinChoice(false);}}
+                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);onClosePinChoice&&onClosePinChoice();}}
                     style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
                       display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
                       fontSize:13,textAlign:'left'}}
