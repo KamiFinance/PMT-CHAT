@@ -349,9 +349,9 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     <>
     <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3}}
       ref={bubbleRef}
-      onContextMenu={(e)=>{e.preventDefault();setShowPicker(true);}}
-      onTouchStart={(e)=>{handleLongPress(e);onTouchStartSwipe(e);}}
-      onTouchEnd={(e)=>{cancelLongPress();onTouchEndSwipe();}}
+      onContextMenu={(e)=>{e.preventDefault();if(onDelete){setShowCtxMenu(true);}else{setShowPicker(true);}}}
+      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
+      onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
       <div style={{display:'flex',alignItems:'flex-end',gap:4,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}
         onMouseEnter={()=>setShowReplyBtn(true)} onMouseLeave={()=>setShowReplyBtn(false)}>
