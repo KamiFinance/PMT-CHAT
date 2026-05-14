@@ -263,21 +263,60 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     </div>
   );
 
-  const picker=pickerOpen&&bubblePos&&createPortal(
+  const QUICK_EMOJIS = ['❤️','😂','😮','😢','🔥','👍','👎','✅'];
+  const [showFullPicker,setShowFullPicker]=useState(false);
+  const picker=(pickerOpen||showFullPicker)&&bubblePos&&createPortal(
     <>
-      {/* Invisible backdrop to close picker on outside tap */}
-      <div onClick={()=>onClosePicker&&onClosePicker()}
+      <div onClick={()=>{onClosePicker&&onClosePicker();setShowFullPicker(false);}}
         onMouseDown={(e)=>e.stopPropagation()}
         onTouchStart={(e)=>e.stopPropagation()}
-        style={{position:'fixed',inset:0,zIndex:198}}/>
-      {/* Picker above the bubble — fixed so overflow:hidden can't clip it */}
-      <div style={{position:'fixed',zIndex:200,
-        bottom: window.innerHeight - bubblePos.top + 6,
-        ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left})}}>
-        <ReactionPicker isOut={isOut}
-          onPick={(e)=>{onReact&&onReact(msg.id,e);onClosePicker&&onClosePicker();}}
-          onClose={()=>onClosePicker&&onClosePicker()}/>
-      </div>
+        style={{position:'fixed',inset:0,zIndex:198,
+          background:showFullPicker?'rgba(0,0,0,.35)':'rgba(0,0,0,.15)',
+          backdropFilter:showFullPicker?'blur(1px)':'none',
+          WebkitBackdropFilter:showFullPicker?'blur(1px)':'none'}}/>
+      {/* Telegram-style: quick reactions above bubble */}
+      {pickerOpen&&!showFullPicker&&(
+        <div style={{position:'fixed',zIndex:200,
+          bottom: window.innerHeight - bubblePos.top + 8,
+          ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left})}}
+          onMouseDown={(e)=>e.stopPropagation()}
+          onTouchStart={(e)=>e.stopPropagation()}>
+          <div style={{display:'flex',alignItems:'center',gap:2,
+            background:'var(--panel)',border:'1px solid var(--border)',
+            borderRadius:24,padding:'6px 10px',
+            boxShadow:'0 4px 20px rgba(0,0,0,.5)',animation:'fadeIn .12s ease'}}>
+            {QUICK_EMOJIS.map(e=>(
+              <button key={e} onClick={(ev)=>{ev.stopPropagation();onReact&&onReact(msg.id,e);onClosePicker&&onClosePicker();}}
+                style={{background:'none',border:'none',cursor:'pointer',fontSize:22,
+                  padding:'2px 3px',borderRadius:8,lineHeight:1,
+                  transition:'transform .1s'}}
+                onMouseEnter={ev=>ev.currentTarget.style.transform='scale(1.3)'}
+                onMouseLeave={ev=>ev.currentTarget.style.transform='scale(1)'}>
+                {e}
+              </button>
+            ))}
+            {/* + button to expand full picker */}
+            <button onClick={(ev)=>{ev.stopPropagation();setShowFullPicker(true);}}
+              style={{background:'var(--surface)',border:'1px solid var(--border)',
+                cursor:'pointer',fontSize:16,padding:'4px 6px',
+                borderRadius:12,lineHeight:1,color:'var(--muted)',fontWeight:700}}>
+              ＋
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Full picker (shown when + clicked) */}
+      {showFullPicker&&(
+        <div style={{position:'fixed',zIndex:200,
+          bottom: window.innerHeight - bubblePos.top + 8,
+          ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left})}}
+          onMouseDown={(e)=>e.stopPropagation()}
+          onTouchStart={(e)=>e.stopPropagation()}>
+          <ReactionPicker isOut={isOut}
+            onPick={(e)=>{onReact&&onReact(msg.id,e);onClosePicker&&onClosePicker();setShowFullPicker(false);}}
+            onClose={()=>{onClosePicker&&onClosePicker();setShowFullPicker(false);}}/>
+        </div>
+      )}
     </>,
     document.body
   );
@@ -478,32 +517,58 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
 
       {/* Delete context menu — shown on right-click or long-press */}
       {ctxMenuOpen&&onDelete&&bubblePos&&createPortal(
-        <div style={{position:'fixed',zIndex:200,
-          top: bubblePos.bottom + 4,
-          ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left}),
-          background:'var(--panel)',border:'1px solid var(--border)',borderRadius:10,
-          boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:160}}
-          onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}>
-          <button
-            onClick={(e)=>{e.stopPropagation();if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenPicker&&onOpenPicker(msg);}}
-            style={{width:'100%',background:'none',border:'none',padding:'10px 16px',
-              display:'flex',alignItems:'center',gap:10,cursor:'pointer',color:'var(--text)',
-              fontSize:13,textAlign:'left',fontFamily:'var(--sans)'}}
-            onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
-            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-            <span style={{fontSize:16}}>😀</span> Add reaction
-          </button>
-          <div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>
-          <button
-            onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
-            style={{width:'100%',background:'none',border:'none',padding:'10px 16px',
-              display:'flex',alignItems:'center',gap:10,cursor:'pointer',color:'var(--danger)',
-              fontSize:13,textAlign:'left',fontFamily:'var(--sans)'}}
-            onMouseEnter={e=>(e.currentTarget.style.background='rgba(248,113,113,.1)')}
-            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-            <span style={{fontSize:16}}>🗑️</span> Delete message
-          </button>
-        </div>,
+        <>
+          {/* Dim backdrop — like Telegram */}
+          <div style={{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,.35)',
+            backdropFilter:'blur(1px)',WebkitBackdropFilter:'blur(1px)'}}
+            onClick={()=>onCloseMenus&&onCloseMenus()}
+            onTouchStart={(e)=>{e.preventDefault();onCloseMenus&&onCloseMenus();}}/>
+          {/* Quick reactions above bubble — always shown with ctx menu */}
+          <div style={{position:'fixed',zIndex:201,
+            bottom: window.innerHeight - bubblePos.top + 8,
+            ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left})}}
+            onMouseDown={(e)=>e.stopPropagation()}
+            onTouchStart={(e)=>e.stopPropagation()}>
+            <div style={{display:'flex',alignItems:'center',gap:2,
+              background:'var(--panel)',border:'1px solid var(--border)',
+              borderRadius:24,padding:'6px 10px',
+              boxShadow:'0 4px 20px rgba(0,0,0,.5)',animation:'fadeIn .12s ease'}}>
+              {['❤️','😂','😮','😢','🔥','👍','👎','✅'].map(e=>(
+                <button key={e} onClick={(ev)=>{ev.stopPropagation();onReact&&onReact(msg.id,e);onCloseMenus&&onCloseMenus();}}
+                  style={{background:'none',border:'none',cursor:'pointer',fontSize:22,
+                    padding:'2px 3px',borderRadius:8,lineHeight:1,transition:'transform .1s'}}
+                  onMouseEnter={ev=>ev.currentTarget.style.transform='scale(1.3)'}
+                  onMouseLeave={ev=>ev.currentTarget.style.transform='scale(1)'}>
+                  {e}
+                </button>
+              ))}
+              <button onClick={(ev)=>{ev.stopPropagation();if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenPicker&&onOpenPicker(msg);}}
+                style={{background:'var(--surface)',border:'1px solid var(--border)',
+                  cursor:'pointer',fontSize:16,padding:'4px 6px',
+                  borderRadius:12,lineHeight:1,color:'var(--muted)',fontWeight:700}}>
+                ＋
+              </button>
+            </div>
+          </div>
+          {/* Action menu below bubble */}
+          <div style={{position:'fixed',zIndex:200,
+            top: bubblePos.bottom + 4,
+            ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left}),
+            background:'var(--panel)',border:'1px solid var(--border)',borderRadius:12,
+            boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:180,
+            animation:'fadeIn .12s ease'}}
+            onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}>
+            <button
+              onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
+              style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
+                display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--danger)',
+                fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
+              onMouseEnter={e=>(e.currentTarget.style.background='rgba(248,113,113,.08)')}
+              onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+              🗑️ <span>Delete message</span>
+            </button>
+          </div>
+        </>,
         document.body
       )}
 
