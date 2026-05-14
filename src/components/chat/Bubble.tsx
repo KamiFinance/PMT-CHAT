@@ -537,7 +537,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             animation:'fadeIn .12s ease'}}
             onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}
             onTouchStart={(e)=>e.stopPropagation()}>
-            {onEdit&&msg.type==='text'&&msg.text&&(
+            {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
               <button
                 onClick={(e)=>{e.stopPropagation();onEdit(msg);onCloseMenus&&onCloseMenus();}}
                 style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
@@ -548,7 +548,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                 ✏️ <span>Edit message</span>
               </button>
             )}
-            {onEdit&&msg.type==='text'&&msg.text&&(onReply||(msg.text&&(onPin||onDelete)))&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
+            {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(onReply||(msg.text&&(onPin||onDelete)))&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {onReply&&(
               <button
                 onClick={(e)=>{e.stopPropagation();onReply(msg);onCloseMenus&&onCloseMenus();}}
