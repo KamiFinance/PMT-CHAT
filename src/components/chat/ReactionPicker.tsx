@@ -8,10 +8,9 @@ const ALL_REACTIONS = ['__PMT__', ...REACTION_EMOJIS];
 
 export default function ReactionPicker({onPick,onClose,isOut}){
   return(
-    <div style={{position:'absolute',bottom:'calc(100% + 6px)',
-      ...(isOut?{right:0}:{left:0}),
+    <div style={{
       background:'var(--panel)',border:'1px solid var(--border)',borderRadius:16,
-      padding:'6px 8px',display:'flex',flexWrap:'wrap',gap:2,zIndex:200,
+      padding:'6px 8px',display:'flex',flexWrap:'wrap',gap:2,
       boxShadow:'0 8px 24px rgba(0,0,0,.5)',animation:'fadeIn .12s ease',
       width:280,maxHeight:220,overflowY:'auto',overflowX:'hidden',
       scrollbarWidth:'thin',scrollbarColor:'var(--border) transparent'}}>
