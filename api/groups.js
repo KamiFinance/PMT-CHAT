@@ -59,6 +59,8 @@ export default async function handler(req, res) {
       const groupId = 'g' + Date.now() + Math.random().toString(36).slice(2,6);
       const group = { id: groupId, name, bio: bio||'', avatarUrl: avatarUrl||null, members: [createdBy], createdBy, createdAt: Date.now(), inviteLinks: [], isAnnouncement: !!isAnnouncement };
       await redis('SET', `pmt:group:${groupId}`, JSON.stringify(group));
+      // Index: user → groups for recovery
+      await redis('SADD', `pmt:user:groups:${createdBy.toLowerCase()}`, groupId);
       return res.json({ ok: true, group });
     }
 
@@ -126,6 +128,8 @@ export default async function handler(req, res) {
       inv.usedBy.push(address);
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
       await redis('SET', `pmt:invite:${linkId}`, JSON.stringify(inv));
+      // Index: user → groups for recovery
+      await redis('SADD', `pmt:user:groups:${address.toLowerCase()}`, grp.id);
       return res.json({ ok: true, group: grp });
     }
 
@@ -168,6 +172,21 @@ export default async function handler(req, res) {
       else delete grp.roles[address.toLowerCase()];
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
       return res.json({ ok: true, roles: grp.roles });
+    }
+
+    // Get all groups the user is a member of (for backup recovery)
+    if (action === 'getMyGroups') {
+      const { address: userAddr } = body;
+      if (!userAddr) return res.status(400).json({ error: 'address required' });
+      const groupIds = await redis('SMEMBERS', `pmt:user:groups:${userAddr.toLowerCase()}`);
+      if (!groupIds || !groupIds.length) return res.json({ ok: true, groups: [] });
+      const groups = await Promise.all(groupIds.map(async gid => {
+        const d = await redis('GET', `pmt:group:${gid}`);
+        return d ? JSON.parse(d) : null;
+      }));
+      // Filter out null and groups the user is no longer a member of
+      const myGroups = groups.filter(g => g && (g.members || []).some(m => m.toLowerCase() === userAddr.toLowerCase()));
+      return res.json({ ok: true, groups: myGroups });
     }
 
     // Get members + banned list

@@ -1174,6 +1174,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                 preview: d.alreadyMember ? 'Already a member' : 'Joined group', unread: 0,
               };
               if (!d.alreadyMember) setContacts(p => { if (p.find(x => x.id === g.id)) return p; return [contact, ...p]; });
+              // Ensure server index is updated (in case this is a re-join or first join)
+              if (!d.alreadyMember && wallet?.address) {
+                fetch('/api/groups?action=join', { method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({ linkId: joinId, address: wallet.address }) }).catch(()=>{});
+              }
               selectContact(contact);
             } else { alert('Could not join: ' + d.error); }
           });
@@ -1407,6 +1412,33 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
           }));
         } catch { /* ignore */ }
       });
+      // Also recover any groups from server that may be missing from backup
+      // (happens when iOS clears sessionStorage and auto-backup stops running)
+      if (w.address && !(w as any).isDemo) {
+        setTimeout(() => {
+          fetch('/api/groups?action=getMyGroups', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: w.address }),
+          }).then(r => r.json()).then(d => {
+            if (!d.groups?.length) return;
+            setContacts(prev => {
+              const existingIds = new Set(prev.map((c: any) => c.id || c.groupId));
+              const missing = d.groups.filter((g: any) => !existingIds.has(g.id));
+              if (!missing.length) return prev;
+              const newContacts = missing.map((g: any) => ({
+                id: g.id, address: `group_${g.id}`, name: g.name, bio: g.bio || '',
+                avatarUrl: g.avatarUrl || null, avatar: g.name.slice(0, 2).toUpperCase(),
+                color: '#a78bfa', bg: '#1e1b30', online: false, isGroup: true,
+                members: g.members || [], groupId: g.id, createdBy: g.createdBy,
+                isAnnouncement: g.isAnnouncement || false,
+                roles: g.roles || {}, bannedMembers: g.bannedMembers || [],
+                preview: 'Group', unread: 0,
+              }));
+              return [...newContacts, ...prev];
+            });
+          }).catch(() => {});
+        }, 1500); // slight delay to not block the initial render
+      }
     }
     if (w.restoredMessages !== undefined) {
       setMsgs(w.restoredMessages as MsgsMap);
