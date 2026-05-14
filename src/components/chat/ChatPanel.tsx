@@ -163,20 +163,16 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [pinConfirmMsgId,setPinConfirmMsgId]=useState<string|null>(null); // which message has pin confirm open
 
 
-  // Lock scroll on messages container when any popup is open
-  // Use wheel/touch prevention instead of overflow:hidden to avoid scroll position reset
+  // Lock scroll on messages container when any popup is open (web/mouse only)
   useEffect(()=>{
     const el = messagesRef.current;
     if(!el) return;
     const anyOpen = !!(ctxMenuMsg||delConfirmMsg||pickerMsgId||pinConfirmMsgId);
-    if(anyOpen){
-      const prevent=(e:Event)=>e.preventDefault();
-      el.addEventListener('wheel',prevent,{passive:false});
-      el.addEventListener('touchmove',prevent,{passive:false});
-      return ()=>{
-        el.removeEventListener('wheel',prevent);
-        el.removeEventListener('touchmove',prevent);
-      };
+    const isDesktop = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+    if(anyOpen && isDesktop){
+      const prevent=(e:Event)=>{ e.preventDefault(); e.stopPropagation(); };
+      el.addEventListener('wheel', prevent, {passive:false, capture:true});
+      return ()=>{ el.removeEventListener('wheel', prevent, {capture:true} as any); };
     }
   },[ctxMenuMsg,delConfirmMsg,pickerMsgId,pinConfirmMsgId]);
 
