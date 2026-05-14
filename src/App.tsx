@@ -1076,6 +1076,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
             body: JSON.stringify(inboxMsg),
           }).catch(() => {});
         });
+        // Store in history even in fallback path
+        fetch('/api/groups?action=storeMessage', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ groupId, message: inboxMsg }),
+        }).catch(() => {});
       }
     }
   }, [isDemo, handleMediaUploaded]);
@@ -1084,10 +1089,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     if (!c || !c.address) return;
     setActiveAndRef(c);
     const addr = normalizeAddress(c.address);
-    setMsgs(p => {
-      // For groups with no messages, will trigger history fetch below
-      return p[addr] ? p : { ...p, [addr]: [] };
-    });
+    setMsgs(p => p[addr] ? p : { ...p, [addr]: [] });
     setContacts(p => p.map(x => x.id === c.id ? { ...x, unread: 0 } : x));
     setMobileSidebarOpen(false);
 
@@ -1095,53 +1097,41 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       const myAddr = walletRef.current.address;
       if (c.isGroup) {
         const groupId = c.groupId || c.id?.replace(/^group_/,'');
-        // Fetch group data: pinned messages + history for new members
+        // Fetch group data for pinned messages
         fetch(`/api/groups?id=${groupId}`).then(r=>r.json()).then(grpData => {
-          // Update pinned messages from server
           if (grpData.pinnedMsgs?.length) {
             setPinnedMsgs(prev => {
               const existing = prev[addr] || [];
-              // Use server state if it has more pins (server is source of truth)
-              if (existing.length < grpData.pinnedMsgs.length) {
-                return { ...prev, [addr]: grpData.pinnedMsgs };
-              }
+              if (existing.length < grpData.pinnedMsgs.length) return { ...prev, [addr]: grpData.pinnedMsgs };
               return prev;
             });
           }
         }).catch(()=>{});
 
-        // Fetch group message history for members with no messages yet
-        setMsgs(current => {
-          const existing = current[addr] || [];
-          if (existing.length === 0) {
-            fetch('/api/groups?action=getHistory', {
-              method: 'POST', headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({ groupId })
-            }).then(r=>r.json()).then(d => {
-              if (d.messages?.length) {
-                setMsgs(prev => {
-                  const cur = prev[addr] || [];
-                  if (cur.length > 0) return prev; // already have messages, skip
-                  // Mark all history messages as read and not-out
-                  const history = d.messages.map((m: any) => ({
-                    ...m, out: m.from?.toLowerCase() === myAddr?.toLowerCase(), read: true
-                  }));
-                  return { ...prev, [addr]: history };
-                });
-              }
-            }).catch(()=>{});
-          }
-          return current;
-        });
+        // Fetch group message history — use msgsRef (always fresh) to check if we need it
+        const existingMsgs = msgsRef.current?.[addr] || [];
+        if (existingMsgs.length === 0) {
+          fetch('/api/groups?action=getHistory', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId })
+          }).then(r=>r.json()).then(d => {
+            if (!d.messages?.length) return;
+            setMsgs(prev => {
+              if ((prev[addr] || []).length > 0) return prev; // messages arrived in the meantime
+              const history = d.messages.map((m: any) => ({
+                ...m, out: m.from?.toLowerCase() === myAddr?.toLowerCase(), read: true
+              }));
+              return { ...prev, [addr]: history };
+            });
+          }).catch(()=>{});
+        }
       } else if (!c.isAI) {
         // 1-on-1: fetch pins from shared Redis key
         fetch(`/api/pins?addr1=${myAddr}&addr2=${addr}`).then(r=>r.json()).then(d => {
           if (d.pins?.length) {
             setPinnedMsgs(prev => {
               const existing = prev[addr] || [];
-              if (existing.length < d.pins.length) {
-                return { ...prev, [addr]: d.pins };
-              }
+              if (existing.length < d.pins.length) return { ...prev, [addr]: d.pins };
               return prev;
             });
           }
