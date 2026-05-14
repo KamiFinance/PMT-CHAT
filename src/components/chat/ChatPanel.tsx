@@ -158,14 +158,27 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [pinnedIdx,setPinnedIdx]=useState(0); // current pinned message index for cycling
   const [ctxMenuMsg,setCtxMenuMsg]=useState<any>(null); // which message has ctx menu open
   const [delConfirmMsg,setDelConfirmMsg]=useState<any>(null); // which message needs delete confirm
+  const [pickerMsgId,setPickerMsgId]=useState<string|null>(null); // which message has emoji picker open
 
-  // Close ctx menu when clicking anywhere outside the menu
+  // Close ctx menu when clicking anywhere outside
   useEffect(()=>{
     if(!ctxMenuMsg) return;
     const close=(e:MouseEvent)=>{ setCtxMenuMsg(null); };
     document.addEventListener('mousedown',close);
     return ()=>document.removeEventListener('mousedown',close);
   },[ctxMenuMsg]);
+
+  // Close emoji picker when touching/clicking anywhere outside
+  useEffect(()=>{
+    if(!pickerMsgId) return;
+    const close=()=>setPickerMsgId(null);
+    document.addEventListener('touchstart',close,{passive:true});
+    document.addEventListener('mousedown',close);
+    return ()=>{
+      document.removeEventListener('touchstart',close);
+      document.removeEventListener('mousedown',close);
+    };
+  },[pickerMsgId]);
   const searchInputRef=useRef<HTMLInputElement>(null);
   const [recording,setRecording]=useState(false);
   const fileInputRef=useRef(null);
@@ -617,7 +630,10 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 delConfirmOpen={delConfirmMsg?.id===m.id}
                 onOpenCtxMenu={(m:any)=>{setDelConfirmMsg(null);setCtxMenuMsg(m);}}
                 onOpenDelConfirm={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(m);}}
-                onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);}}/>
+                onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);}}
+                pickerOpen={pickerMsgId===m.id}
+                onOpenPicker={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(m.id);}}
+                onClosePicker={()=>setPickerMsgId(null)}/>
             ))}
             <div ref={bottomRef}/>
           </div>
