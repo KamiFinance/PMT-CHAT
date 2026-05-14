@@ -611,7 +611,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 onJoinGroup={onJoinGroup}
                 onReply={(msg)=>{setReplyingTo(msg);setTimeout(()=>inputRef.current?.focus(),50);}}
                 onPin={canPin?(msg:any,forBoth?:boolean)=>onPin&&onPin(msg,forBoth):undefined}
-                onDelete={onDelete&&(m.out||m.from?.toLowerCase()===myAddress?.toLowerCase()||canPin)
+                onDelete={onDelete&&(m.out||m.from?.toLowerCase()===myAddress?.toLowerCase()||(contact.isGroup&&canPin))
                   ?(msg:any,forAll:boolean)=>onDelete(msg,forAll):undefined}
                 ctxMenuOpen={ctxMenuMsg?.id===m.id}
                 delConfirmOpen={delConfirmMsg?.id===m.id}
