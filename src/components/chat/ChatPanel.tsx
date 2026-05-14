@@ -162,6 +162,20 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [pickerMsgId,setPickerMsgId]=useState<string|null>(null); // which message has emoji picker open
   const [pinConfirmMsgId,setPinConfirmMsgId]=useState<string|null>(null); // which message has pin confirm open
 
+
+  // Lock scroll on messages container when any popup is open
+  useEffect(()=>{
+    const el = messagesRef.current;
+    if(!el) return;
+    const anyOpen = !!(ctxMenuMsg||delConfirmMsg||pickerMsgId||pinConfirmMsgId);
+    if(anyOpen){
+      el.style.overflow='hidden';
+    } else {
+      el.style.overflow='';
+    }
+    return ()=>{ el.style.overflow=''; };
+  },[ctxMenuMsg,delConfirmMsg,pickerMsgId,pinConfirmMsgId]);
+
   // Close ctx menu when clicking/touching anywhere outside
   // Delay attaching listeners so the long-press touch sequence ends first —
   // otherwise the synthetic mousedown after touchend closes the popup immediately
