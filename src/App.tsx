@@ -1501,6 +1501,50 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
   const handleDemo = useCallback(() => { setIsDemo(true); const w = { address: 'demo', balance: '2.847', network: 'PMTchain', username: 'Demo' }; setWallet(w); walletRef.current = w; setScreen('chat'); }, []);
+  const handleChangePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const w = walletRef.current;
+    if (!w?.address || !w?.username) throw new Error('Not logged in');
+
+    const { PMTAuth } = await import('./lib/auth');
+    const { saveCloudBackup } = await import('./lib/cloudBackup');
+
+    // 1. Verify current password matches the server record
+    const uname = w.username.toLowerCase();
+    const serverRes = await fetch(`/api/auth?username=${encodeURIComponent(uname)}`);
+    if (!serverRes.ok) throw new Error('Could not reach server');
+    const serverRec = await serverRes.json();
+    const { hash: curHash } = await PMTAuth.hashPassword(currentPassword, serverRec.salt);
+    if (curHash !== serverRec.passwordHash) throw new Error('Current password is incorrect');
+
+    // 2. Re-encrypt backup with new password (passes oldPassword so server accepts the re-key)
+    const currentContacts = contactsRef.current ?? [];
+    const currentMsgs = msgsRef.current ?? {};
+    const cleanMsgs: Record<string, object[]> = {};
+    Object.entries(currentMsgs).forEach(([a, arr]: any) => {
+      cleanMsgs[a] = arr.slice(-200).map((m: any) => {
+        const { b64Data, audioUrl, fileUrl, imgData, fileData, uploading, _toAddr, waveform, audioB64, ...keep } = m;
+        return keep;
+      });
+    });
+    await saveCloudBackup(uname, newPassword, {
+      wallet: { address: w.address, privateKey: w.privateKey ?? '', username: uname },
+      contacts: currentContacts.filter((c: any) => !c.isAI),
+      messages: cleanMsgs,
+      profile: profileRef.current ?? {},
+    }, currentPassword);
+
+    // 3. Update local account record with new password hash + re-encrypted wallet
+    const { hash: newHash, salt: newSalt } = await PMTAuth.hashPassword(newPassword);
+    const newEw = await PMTAuth.encryptWallet({ address: w.address, privateKey: w.privateKey ?? '' }, newPassword);
+    const acctData = { username: uname, address: w.address, passwordHash: newHash, passwordSalt: newSalt, encryptedWallet: newEw };
+    localStorage.setItem(`pmt_account_${uname}`, JSON.stringify(acctData));
+    localStorage.setItem(`pmt_account_${w.address.toLowerCase()}`, JSON.stringify(acctData));
+
+    // 4. Update in-memory session key and sessionStorage
+    sessionPasswordRef.current = newPassword;
+    sessionStorage.setItem(`pmt_bkpwd_${w.address.toLowerCase()}`, newPassword);
+  }, []);
+
   const handleLogout = useCallback(() => { if (walletRef.current?.address) { sessionStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase());
         sessionStorage.removeItem('pmt_bkpwd_' + walletRef.current.address.toLowerCase()); } storage.clearSession(); setWallet(null); walletRef.current = null; setIsDemo(false); setContacts([]); setMsgs({}); setActiveAndRef(null); setScreen('landing'); }, [setActiveAndRef]);
 
@@ -1770,7 +1814,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
           </div>
         </div>
       )}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} darkMode={darkMode} onToggleTheme={toggleTheme} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} darkMode={darkMode} onToggleTheme={toggleTheme} wallet={wallet} isDemo={isDemo} onChangePassword={handleChangePassword} />}
       {showWallet && <WalletModal wallet={wallet} isDemo={isDemo} onClose={() => setShowWallet(false)} />}
       {showNew && <NewChatModal onClose={() => setShowNew(false)} onAdd={(c) => { setContacts(p => p.find(x => normalizeAddress(x.address) === normalizeAddress(c.address)) ? p : [...p, c]); selectContact(c); setShowNew(false); }} />}
       {showGroup && <GroupChatModal contacts={contacts.filter(c => !c.isAI && !c.isGroup)} myAddress={wallet?.address ?? ''} onClose={() => setShowGroup(false)} onCreate={(g) => { setContacts(p => [g, ...p]); selectContact(g); }} />}
