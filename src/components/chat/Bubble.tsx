@@ -547,6 +547,18 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             animation:'fadeIn .12s ease'}}
             onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}
             onTouchStart={(e)=>e.stopPropagation()}>
+            {msg.text&&(
+              <button
+                onClick={(e)=>{e.stopPropagation();navigator.clipboard?.writeText(msg.text).catch(()=>{});onCloseMenus&&onCloseMenus();}}
+                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
+                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text)',
+                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
+                onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                📋 <span>Copy text</span>
+              </button>
+            )}
+            {msg.text&&(onPin||onDelete)&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {onPin&&(
               <button
                 onClick={(e)=>{e.stopPropagation();
