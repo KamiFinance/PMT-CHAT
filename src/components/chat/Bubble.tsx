@@ -87,7 +87,6 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   const iMine=(v)=>typeof v==='object'&&v!==null?Number((v as any)[myAddress??''])>0:Number(v)>0;
   const reactionEntries=Object.entries(reactions).filter(([,v])=>getRxnCount(v)>0);
   const longPressRef=useRef(null);
-  const [showReplyBtn,setShowReplyBtn]=useState(false);
   const swipeStartX=useRef(null);
   const swipeTranslate=useRef(0);
   const bubbleRef=useRef(null);
@@ -401,7 +400,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
       <div style={{display:'flex',alignItems:'flex-end',gap:4,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}
-        onMouseEnter={()=>setShowReplyBtn(true)} onMouseLeave={()=>setShowReplyBtn(false)}>
+       >
         {!isOut&&(
           <div style={{flexShrink:0}}>
             <ProfilePic
@@ -436,17 +435,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           {meta}
         </div>
         {/* Reply button — shown in flex row on hover, stays visible when moving to click */}
-        {onReply&&(
-          <button onClick={(e)=>{e.stopPropagation();onReply(msg);}}
-            title="Reply"
-            style={{alignSelf:'center',background:'var(--surface)',border:'1px solid var(--border)',
-              borderRadius:'50%',width:26,height:26,display:'flex',alignItems:'center',
-              justifyContent:'center',cursor:'pointer',fontSize:13,flexShrink:0,
-              color:'var(--muted)',opacity:showReplyBtn?1:0,transition:'opacity .15s',
-              WebkitTapHighlightColor:'transparent'}}>
-            ↩
-          </button>
-        )}
+
       </div>
       {/* Pin confirmation popup */}
       {pinConfirmOpen&&onPin&&bubblePos&&createPortal(
@@ -547,6 +536,18 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             animation:'fadeIn .12s ease'}}
             onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}
             onTouchStart={(e)=>e.stopPropagation()}>
+            {onReply&&(
+              <button
+                onClick={(e)=>{e.stopPropagation();onReply(msg);onCloseMenus&&onCloseMenus();}}
+                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
+                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text)',
+                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
+                onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                ↩ <span>Reply</span>
+              </button>
+            )}
+            {onReply&&(msg.text||(onPin||onDelete))&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             {msg.text&&(
               <button
                 onClick={(e)=>{e.stopPropagation();navigator.clipboard?.writeText(msg.text).catch(()=>{});onCloseMenus&&onCloseMenus();}}
