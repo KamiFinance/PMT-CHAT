@@ -612,8 +612,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 onReply={(msg)=>{setReplyingTo(msg);setTimeout(()=>inputRef.current?.focus(),50);}}
                 onPin={canPin?(msg:any,forBoth?:boolean)=>onPin&&onPin(msg,forBoth):undefined}
                 onDelete={onDelete?(msg:any,forAll:boolean)=>onDelete(msg,forAll):undefined}
-                ctxMenuOpen={ctxMenuMsg?.id===msg.id}
-                delConfirmOpen={delConfirmMsg?.id===msg.id}
+                ctxMenuOpen={ctxMenuMsg?.id===m.id}
+                delConfirmOpen={delConfirmMsg?.id===m.id}
                 onOpenCtxMenu={(m:any)=>{setDelConfirmMsg(null);setCtxMenuMsg(m);}}
                 onOpenDelConfirm={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(m);}}
                 onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);}}/>
