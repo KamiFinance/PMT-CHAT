@@ -161,24 +161,32 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [pickerMsgId,setPickerMsgId]=useState<string|null>(null); // which message has emoji picker open
 
   // Close ctx menu when clicking/touching anywhere outside
+  // Delay attaching listeners so the long-press touch sequence ends first —
+  // otherwise the synthetic mousedown after touchend closes the popup immediately
   useEffect(()=>{
     if(!ctxMenuMsg) return;
     const close=()=>{ setCtxMenuMsg(null); };
-    document.addEventListener('mousedown',close);
-    document.addEventListener('touchstart',close,{passive:true});
+    const t = setTimeout(()=>{
+      document.addEventListener('mousedown',close);
+      document.addEventListener('touchstart',close,{passive:true});
+    },350);
     return ()=>{
+      clearTimeout(t);
       document.removeEventListener('mousedown',close);
       document.removeEventListener('touchstart',close);
     };
   },[ctxMenuMsg]);
 
-  // Close emoji picker when touching/clicking anywhere outside
+  // Close emoji picker when clicking/touching anywhere outside
   useEffect(()=>{
     if(!pickerMsgId) return;
     const close=()=>setPickerMsgId(null);
-    document.addEventListener('touchstart',close,{passive:true});
-    document.addEventListener('mousedown',close);
+    const t = setTimeout(()=>{
+      document.addEventListener('touchstart',close,{passive:true});
+      document.addEventListener('mousedown',close);
+    },350);
     return ()=>{
+      clearTimeout(t);
       document.removeEventListener('touchstart',close);
       document.removeEventListener('mousedown',close);
     };
