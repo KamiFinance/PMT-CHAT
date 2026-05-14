@@ -471,7 +471,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         <div style={{position:'absolute',zIndex:200,[isOut?'right':'left']:0,bottom:'100%',marginBottom:4,
           background:'var(--panel)',border:'1px solid var(--border)',borderRadius:10,
           boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:160}}
-          onMouseDown={(e)=>e.stopPropagation()}>
+          onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}>
           <button
             onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
             style={{width:'100%',background:'none',border:'none',padding:'10px 16px',
