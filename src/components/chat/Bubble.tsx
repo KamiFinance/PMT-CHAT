@@ -347,7 +347,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   );
   return(
     <>
-    <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3}}
+    <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3,userSelect:'none',WebkitUserSelect:'none'}}
       ref={bubbleRef}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete){onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
