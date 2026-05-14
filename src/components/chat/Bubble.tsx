@@ -75,12 +75,10 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,searchQuery,onJoinGroup}:{[k:string]:any}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,searchQuery,onJoinGroup}:{[k:string]:any}){
   const [showPicker,setShowPicker]=useState(false);
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const [showPinChoice,setShowPinChoice]=useState(false);
-  const [showCtxMenu,setShowCtxMenu]=useState(false);
-  const [showDelConfirm,setShowDelConfirm]=useState(false);
   const delLongPressRef=useRef<any>(null);
   const reactions=msg.reactions||{};
   // Support both formats: {emoji: {addr: 1}} (new) and {emoji: count} (old)
@@ -93,13 +91,6 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   const swipeTranslate=useRef(0);
   const bubbleRef=useRef(null);
 
-  // Close ctx menu when clicking anywhere outside
-  useEffect(()=>{
-    if(!showCtxMenu) return;
-    const close=(e:MouseEvent)=>{ e.stopPropagation(); setShowCtxMenu(false); };
-    document.addEventListener('mousedown',close,{capture:true,once:true});
-    return ()=>document.removeEventListener('mousedown',close,{capture:true});
-  },[showCtxMenu]);
 
   // Swipe-right to reply — attach as non-passive so we can preventDefault and
   // stop iOS from treating the gesture as a horizontal page/container scroll
@@ -145,7 +136,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   };
 
   const handleLongPress=()=>{longPressRef.current=setTimeout(()=>setShowPicker(true),500);};
-  const handleDelLongPressStart=()=>{if(onDelete) delLongPressRef.current=setTimeout(()=>{clearTimeout(longPressRef.current);setShowDelConfirm(false);setShowCtxMenu(true);},700);};
+  const handleDelLongPressStart=()=>{if(onDelete) delLongPressRef.current=setTimeout(()=>{clearTimeout(longPressRef.current);onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);},700);};
   const handleDelLongPressEnd=()=>{clearTimeout(delLongPressRef.current);};
   const cancelLongPress=()=>clearTimeout(longPressRef.current);
   const togglePicker=(e)=>{e.stopPropagation();setShowPicker(p=>!p);};
@@ -282,7 +273,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   );
 
   if(msg.type==='voice') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){setShowDelConfirm(false);setShowCtxMenu(true);}else{setShowPicker(true);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{setShowPicker(true);}}}
       onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       <VoiceBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
@@ -305,14 +296,14 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     </div>
   );
   if(msg.type==='image') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){setShowDelConfirm(false);setShowCtxMenu(true);}else{setShowPicker(true);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{setShowPicker(true);}}}
       onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       <ImageBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
     </div>
   );
   if(msg.type==='video') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){setShowDelConfirm(false);setShowCtxMenu(true);}else{setShowPicker(true);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{setShowPicker(true);}}}
       onTouchStart={(e)=>{handleLongPress(e);onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
@@ -321,14 +312,14 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     </div>
   );
   if(msg.type==='file') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){setShowDelConfirm(false);setShowCtxMenu(true);}else{setShowPicker(true);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{setShowPicker(true);}}}
       onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       <FileBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
     </div>
   );
   if(msg.type==='tx') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){setShowDelConfirm(false);setShowCtxMenu(true);}else{setShowPicker(true);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete){onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{setShowPicker(true);}}}
       onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       <div style={{display:'flex',alignItems:'flex-end',gap:8,marginBottom:3,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
         {!isOut&&(
@@ -357,7 +348,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     <>
     <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3}}
       ref={bubbleRef}
-      onContextMenu={(e)=>{e.preventDefault();if(onDelete){setShowDelConfirm(false);setShowCtxMenu(true);}else{setShowPicker(true);}}}
+      onContextMenu={(e)=>{e.preventDefault();if(onDelete){onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{setShowPicker(true);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
@@ -476,13 +467,13 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       {picker}
 
       {/* Delete context menu — shown on right-click or long-press */}
-      {showCtxMenu&&onDelete&&(
+      {ctxMenuOpen&&onDelete&&(
         <div style={{position:'absolute',zIndex:200,[isOut?'right':'left']:0,bottom:'100%',marginBottom:4,
           background:'var(--panel)',border:'1px solid var(--border)',borderRadius:10,
           boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:160}}
           onMouseDown={(e)=>e.stopPropagation()}>
           <button
-            onClick={(e)=>{e.stopPropagation();setShowCtxMenu(false);setShowDelConfirm(true);}}
+            onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
             style={{width:'100%',background:'none',border:'none',padding:'10px 16px',
               display:'flex',alignItems:'center',gap:10,cursor:'pointer',color:'var(--danger)',
               fontSize:13,textAlign:'left',fontFamily:'var(--sans)'}}
@@ -494,9 +485,9 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       )}
 
       {/* Delete confirmation popup */}
-      {showDelConfirm&&onDelete&&(
+      {delConfirmOpen&&onDelete&&(
         <div style={{position:'fixed',inset:0,zIndex:300,display:'flex',alignItems:'center',justifyContent:'center'}}
-          onClick={()=>setShowDelConfirm(false)}>
+          onClick={()=>onCloseMenus&&onCloseMenus()}>
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:14,
             padding:'20px 20px 14px',minWidth:240,maxWidth:300,boxShadow:'0 16px 40px rgba(0,0,0,.5)',
             animation:'slideUp .2s ease'}}
@@ -506,19 +497,19 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
               {contact?.isGroup?'This message will be removed from your view, or for everyone in the group.':'This message will be removed from your view, or for both sides of the conversation.'}
             </div>
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <button onClick={()=>{onDelete(msg,false);setShowDelConfirm(false);}}
+              <button onClick={()=>{onDelete(msg,false);onCloseMenus&&onCloseMenus();}}
                 style={{padding:'10px',background:'var(--surface)',border:'1px solid var(--border)',
                   borderRadius:9,color:'var(--text)',fontSize:13,cursor:'pointer',fontWeight:500,
                   textAlign:'left',fontFamily:'var(--sans)'}}>
                 🙋 Delete for me
               </button>
-              <button onClick={()=>{onDelete(msg,true);setShowDelConfirm(false);}}
+              <button onClick={()=>{onDelete(msg,true);onCloseMenus&&onCloseMenus();}}
                 style={{padding:'10px',background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',
                   borderRadius:9,color:'var(--danger)',fontSize:13,cursor:'pointer',fontWeight:600,
                   textAlign:'left',fontFamily:'var(--sans)'}}>
                 👥 {contact?.isGroup?'Delete for all':'Delete for both'}
               </button>
-              <button onClick={()=>setShowDelConfirm(false)}
+              <button onClick={()=>onCloseMenus&&onCloseMenus()}
                 style={{padding:'8px',background:'none',border:'none',color:'var(--muted)',
                   fontSize:12,cursor:'pointer',textAlign:'center',fontFamily:'var(--sans)'}}>
                 Cancel

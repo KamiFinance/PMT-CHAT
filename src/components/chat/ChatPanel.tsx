@@ -156,6 +156,16 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [searchActive,setSearchActive]=useState(false); // search bar open
   const [searchIdx,setSearchIdx]=useState(0); // current match index
   const [pinnedIdx,setPinnedIdx]=useState(0); // current pinned message index for cycling
+  const [ctxMenuMsg,setCtxMenuMsg]=useState<any>(null); // which message has ctx menu open
+  const [delConfirmMsg,setDelConfirmMsg]=useState<any>(null); // which message needs delete confirm
+
+  // Close ctx menu when clicking anywhere outside the menu
+  useEffect(()=>{
+    if(!ctxMenuMsg) return;
+    const close=(e:MouseEvent)=>{ setCtxMenuMsg(null); };
+    document.addEventListener('mousedown',close);
+    return ()=>document.removeEventListener('mousedown',close);
+  },[ctxMenuMsg]);
   const searchInputRef=useRef<HTMLInputElement>(null);
   const [recording,setRecording]=useState(false);
   const fileInputRef=useRef(null);
@@ -601,7 +611,12 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 onJoinGroup={onJoinGroup}
                 onReply={(msg)=>{setReplyingTo(msg);setTimeout(()=>inputRef.current?.focus(),50);}}
                 onPin={canPin?(msg:any,forBoth?:boolean)=>onPin&&onPin(msg,forBoth):undefined}
-                onDelete={onDelete?(msg:any,forAll:boolean)=>onDelete(msg,forAll):undefined}/>
+                onDelete={onDelete?(msg:any,forAll:boolean)=>onDelete(msg,forAll):undefined}
+                ctxMenuOpen={ctxMenuMsg?.id===msg.id}
+                delConfirmOpen={delConfirmMsg?.id===msg.id}
+                onOpenCtxMenu={(m:any)=>{setDelConfirmMsg(null);setCtxMenuMsg(m);}}
+                onOpenDelConfirm={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(m);}}
+                onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);}}/>
             ))}
             <div ref={bottomRef}/>
           </div>
