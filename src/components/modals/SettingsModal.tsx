@@ -2,6 +2,30 @@
 import React, { useState } from 'react';
 import { storage } from '../../lib/storage';
 
+function Section({icon, title, badge, children}) {
+  return (
+    <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        <span style={{fontSize:18}}>{icon}</span>
+        <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:'1px'}}>{title}</span>
+        {badge && <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent3)',background:'rgba(52,211,153,.12)',border:'1px solid rgba(52,211,153,.3)',borderRadius:4,padding:'1px 7px'}}>{badge}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Field({label, value, onChange, placeholder, type='text'}) {
+  return (
+    <div>
+      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>{label}</div>
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        style={{width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,
+          padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11,outline:'none',boxSizing:'border-box'}}/>
+    </div>
+  );
+}
+
 export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet, isDemo, onChangePassword}) {
   const [pinataJwt, setPinataJwt] = useState(storage.getPinataJwt() || '');
   const [aiKey, setAiKey] = useState(localStorage.getItem('pmt_anthropic_key') || '');
@@ -44,26 +68,6 @@ export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet,
       setPwLoading(false);
     }
   };
-
-  const Section = ({icon, title, badge, children}) => (
-    <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}>
-        <span style={{fontSize:18}}>{icon}</span>
-        <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:'1px'}}>{title}</span>
-        {badge && <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent3)',background:'rgba(52,211,153,.12)',border:'1px solid rgba(52,211,153,.3)',borderRadius:4,padding:'1px 7px'}}>{badge}</span>}
-      </div>
-      {children}
-    </div>
-  );
-
-  const Field = ({label, value, onChange, placeholder, type='text'}) => (
-    <div>
-      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>{label}</div>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,
-          padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11,outline:'none',boxSizing:'border-box'}}/>
-    </div>
-  );
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',display:'flex',alignItems:'center',
