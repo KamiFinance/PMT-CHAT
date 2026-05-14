@@ -448,7 +448,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             animation:'slideUp .2s ease'}}
             onClick={e=>e.stopPropagation()}
             onTouchStart={(e)=>{e.stopPropagation();e.nativeEvent?.stopImmediatePropagation?.();}}>
-            <div style={{fontSize:15,fontWeight:600,color:'var(--text)',marginBottom:4}}>📌 Pin message?</div>
+            <div style={{fontSize:15,fontWeight:600,color:'var(--text)',marginBottom:4}}>📌 Pin?</div>
             <div style={{fontSize:12,color:'var(--muted)',marginBottom:16,lineHeight:1.5}}>
               {contact?.isGroup?'Choose how to pin this message for group members.':'Choose how to pin this message.'}
             </div>
@@ -545,7 +545,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                   fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                ↩ <span>Reply</span>
+                ↩️ <span>Reply</span>
               </button>
             )}
             {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
@@ -556,7 +556,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                   fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                ✏️ <span>Edit message</span>
+                ✏️ <span>Edit</span>
               </button>
             )}
             {(onReply||onEdit)&&(onPin||msg.text||onDelete)&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
@@ -572,7 +572,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                   fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                📌 <span>{msg.pinned ? 'Unpin message' : 'Pin message'}</span>
+                📌 <span>{msg.pinned ? 'Unpin' : 'Pin'}</span>
               </button>
             )}
             {onPin&&onDelete&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
@@ -584,7 +584,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                   fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
                 onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                📋 <span>Copy text</span>
+                📄 <span>Copy Text</span>
               </button>
             )}
             {msg.text&&onDelete&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
@@ -596,7 +596,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                 fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
               onMouseEnter={e=>(e.currentTarget.style.background='rgba(248,113,113,.08)')}
               onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-              🗑️ <span>Delete message</span>
+              🗑 <span>Delete</span>
             </button>
             )}
           </div>
