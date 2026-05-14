@@ -76,7 +76,7 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,pinChoiceOpen,onOpenPinChoice,onClosePinChoice,searchQuery,onJoinGroup}:{[k:string]:any}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,pinConfirmOpen,onOpenPinConfirm,searchQuery,onJoinGroup}:{[k:string]:any}){
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const delLongPressRef=useRef<any>(null);
   const [bubblePos,setBubblePos]=useState<any>(null);
@@ -447,70 +447,59 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             ↩
           </button>
         )}
-        {onPin&&(
-          <div style={{position:'relative',alignSelf:'center',flexShrink:0}}>
-            <button onClick={(e)=>{
-              e.stopPropagation();
-              if(msg.pinned){onPin(msg);return;} // unpin directly
-              if(contact?.isGroup){pinChoiceOpen?onClosePinChoice&&onClosePinChoice():onOpenPinChoice&&onOpenPinChoice(msg);return;} // groups show notify choice
-              pinChoiceOpen?onClosePinChoice&&onClosePinChoice():onOpenPinChoice&&onOpenPinChoice(msg); // 1-on-1: show choice
-            }}
-              title={msg.pinned?'Unpin message':'Pin message'}
-              style={{background:'var(--surface)',border:'1px solid var(--border)',
-                borderRadius:'50%',width:26,height:26,display:'flex',alignItems:'center',
-                justifyContent:'center',cursor:'pointer',fontSize:13,
-                color:msg.pinned?'var(--accent)':'var(--muted)',
-                opacity:showReplyBtn||msg.pinned?1:0,transition:'opacity .15s',
-                WebkitTapHighlightColor:'transparent'}}>
-              📌
-            </button>
-            {pinChoiceOpen&&(
-              <div style={{position:'absolute',bottom:30,right:0,background:'var(--panel)',
-                border:'1px solid var(--border)',borderRadius:10,padding:'6px 0',
-                boxShadow:'0 8px 24px rgba(0,0,0,.4)',zIndex:100,minWidth:160}}
-                onMouseLeave={()=>onClosePinChoice&&onClosePinChoice()}>
-                <div style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)',
-                  padding:'2px 12px 6px',letterSpacing:'1px'}}>PIN MESSAGE</div>
-                {contact?.isGroup ? (<>
-                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);onClosePinChoice&&onClosePinChoice();}}
-                    style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
-                      display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
-                      fontSize:13,textAlign:'left'}}
-                    onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
-                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                    <span>📢</span> Pin + notify members
-                  </button>
-                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);onClosePinChoice&&onClosePinChoice();}}
-                    style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
-                      display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
-                      fontSize:13,textAlign:'left'}}
-                    onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
-                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                    <span>📌</span> Pin silently
-                  </button>
-                </>) : (<>
-                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,true);onClosePinChoice&&onClosePinChoice();}}
-                    style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
-                      display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
-                      fontSize:13,textAlign:'left'}}
-                    onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
-                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                    <span>📌</span> Pin for both
-                  </button>
-                  <button onClick={(e)=>{e.stopPropagation();onPin(msg,false);onClosePinChoice&&onClosePinChoice();}}
-                    style={{width:'100%',background:'none',border:'none',padding:'8px 14px',
-                      display:'flex',alignItems:'center',gap:8,cursor:'pointer',color:'var(--text)',
-                      fontSize:13,textAlign:'left'}}
-                    onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
-                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                    <span>🔒</span> Pin just for me
-                  </button>
-                </>)}
-              </div>
-            )}
-          </div>
-        )}
       </div>
+      {/* Pin confirmation popup */}
+      {pinConfirmOpen&&onPin&&bubblePos&&createPortal(
+        <div style={{position:'fixed',inset:0,zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,.5)'}}
+          onClick={()=>onCloseMenus&&onCloseMenus()}
+          onTouchStart={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();}}>
+          <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:14,
+            padding:'20px 20px 14px',minWidth:240,maxWidth:300,boxShadow:'0 16px 40px rgba(0,0,0,.5)',
+            animation:'slideUp .2s ease'}}
+            onClick={e=>e.stopPropagation()}
+            onTouchStart={e=>e.stopPropagation()}>
+            <div style={{fontSize:15,fontWeight:600,color:'var(--text)',marginBottom:4}}>📌 Pin message?</div>
+            <div style={{fontSize:12,color:'var(--muted)',marginBottom:16,lineHeight:1.5}}>
+              {contact?.isGroup?'Choose how to pin this message for group members.':'Choose how to pin this message.'}
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {contact?.isGroup?(<>
+                <button onClick={()=>{onPin(msg,true);onCloseMenus&&onCloseMenus();}}
+                  style={{padding:'10px',background:'var(--surface)',border:'1px solid var(--border)',
+                    borderRadius:9,color:'var(--text)',fontSize:13,cursor:'pointer',fontWeight:500,
+                    textAlign:'left',fontFamily:'var(--sans)'}}>
+                  📢 Pin + notify members
+                </button>
+                <button onClick={()=>{onPin(msg,false);onCloseMenus&&onCloseMenus();}}
+                  style={{padding:'10px',background:'var(--surface)',border:'1px solid var(--border)',
+                    borderRadius:9,color:'var(--text)',fontSize:13,cursor:'pointer',fontWeight:500,
+                    textAlign:'left',fontFamily:'var(--sans)'}}>
+                  📌 Pin silently
+                </button>
+              </>):(<>
+                <button onClick={()=>{onPin(msg,true);onCloseMenus&&onCloseMenus();}}
+                  style={{padding:'10px',background:'var(--surface)',border:'1px solid var(--border)',
+                    borderRadius:9,color:'var(--text)',fontSize:13,cursor:'pointer',fontWeight:500,
+                    textAlign:'left',fontFamily:'var(--sans)'}}>
+                  📌 Pin for both
+                </button>
+                <button onClick={()=>{onPin(msg,false);onCloseMenus&&onCloseMenus();}}
+                  style={{padding:'10px',background:'var(--surface)',border:'1px solid var(--border)',
+                    borderRadius:9,color:'var(--text)',fontSize:13,cursor:'pointer',fontWeight:500,
+                    textAlign:'left',fontFamily:'var(--sans)'}}>
+                  🔒 Pin just for me
+                </button>
+              </>)}
+              <button onClick={()=>onCloseMenus&&onCloseMenus()}
+                style={{padding:'8px',background:'none',border:'none',color:'var(--muted)',
+                  fontSize:12,cursor:'pointer',textAlign:'center',fontFamily:'var(--sans)'}}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
       {reactionsBar}
       {picker}
 
@@ -557,6 +546,22 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:180,
             animation:'fadeIn .12s ease'}}
             onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}>
+            {onPin&&(
+              <button
+                onClick={(e)=>{e.stopPropagation();
+                  if(msg.pinned){onPin(msg);onCloseMenus&&onCloseMenus();}
+                  else{onCloseMenus&&onCloseMenus();onOpenPinConfirm&&onOpenPinConfirm(msg);}
+                }}
+                style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
+                  display:'flex',alignItems:'center',gap:12,cursor:'pointer',
+                  color:msg.pinned?'var(--accent)':'var(--text)',
+                  fontSize:14,textAlign:'left',fontFamily:'var(--sans)'}}
+                onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                📌 <span>{msg.pinned ? 'Unpin message' : 'Pin message'}</span>
+              </button>
+            )}
+            {onPin&&onDelete&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
             <button
               onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
               style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
