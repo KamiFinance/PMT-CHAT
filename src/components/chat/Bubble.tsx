@@ -457,7 +457,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             padding:'20px 20px 14px',minWidth:240,maxWidth:300,boxShadow:'0 16px 40px rgba(0,0,0,.5)',
             animation:'slideUp .2s ease'}}
             onClick={e=>e.stopPropagation()}
-            onTouchStart={e=>e.stopPropagation()}>
+            onTouchStart={(e)=>{e.stopPropagation();e.nativeEvent?.stopImmediatePropagation?.();}}>
             <div style={{fontSize:15,fontWeight:600,color:'var(--text)',marginBottom:4}}>📌 Pin message?</div>
             <div style={{fontSize:12,color:'var(--muted)',marginBottom:16,lineHeight:1.5}}>
               {contact?.isGroup?'Choose how to pin this message for group members.':'Choose how to pin this message.'}
@@ -504,7 +504,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       {picker}
 
       {/* Delete context menu — shown on right-click or long-press */}
-      {ctxMenuOpen&&onDelete&&bubblePos&&createPortal(
+      {ctxMenuOpen&&(onDelete||onPin)&&bubblePos&&createPortal(
         <>
           {/* Dim backdrop — like Telegram */}
           <div style={{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,.35)',
@@ -545,7 +545,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             background:'var(--panel)',border:'1px solid var(--border)',borderRadius:12,
             boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:180,
             animation:'fadeIn .12s ease'}}
-            onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}>
+            onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}
+            onTouchStart={(e)=>e.stopPropagation()}>
             {onPin&&(
               <button
                 onClick={(e)=>{e.stopPropagation();
@@ -562,6 +563,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
               </button>
             )}
             {onPin&&onDelete&&<div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>}
+            {onDelete&&(
             <button
               onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
               style={{width:'100%',background:'none',border:'none',padding:'11px 16px',
@@ -571,6 +573,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
               onMouseLeave={e=>(e.currentTarget.style.background='none')}>
               🗑️ <span>Delete message</span>
             </button>
+            )}
           </div>
         </>,
         document.body
@@ -583,7 +586,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:14,
             padding:'20px 20px 14px',minWidth:240,maxWidth:300,boxShadow:'0 16px 40px rgba(0,0,0,.5)',
             animation:'slideUp .2s ease'}}
-            onClick={e=>e.stopPropagation()}>
+            onClick={e=>e.stopPropagation()}
+            onTouchStart={(e)=>{e.stopPropagation();e.nativeEvent?.stopImmediatePropagation?.();}}>
             <div style={{fontSize:15,fontWeight:600,color:'var(--text)',marginBottom:4}}>Delete message?</div>
             <div style={{fontSize:12,color:'var(--muted)',marginBottom:16,lineHeight:1.5}}>
               {contact?.isGroup?'This message will be removed from your view, or for everyone in the group.':'This message will be removed from your view, or for both sides of the conversation.'}

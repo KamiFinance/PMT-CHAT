@@ -178,17 +178,6 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     };
   },[ctxMenuMsg]);
 
-  // Close pin choice on outside click/touch
-  useEffect(()=>{
-    if(!pinConfirmMsgId) return;
-    const close=()=>setPinConfirmMsgId(null);
-    const t=setTimeout(()=>{
-      document.addEventListener('mousedown',close);
-      document.addEventListener('touchstart',close,{passive:true});
-    },150);
-    return ()=>{clearTimeout(t);document.removeEventListener('mousedown',close);document.removeEventListener('touchstart',close);};
-  },[pinConfirmMsgId]);
-
   // Close emoji picker when clicking/touching anywhere outside
   useEffect(()=>{
     if(!pickerMsgId) return;
