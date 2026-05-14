@@ -482,7 +482,7 @@ export default function App() {
     const av = profileRef.current?.avatarUrl;
     const compressedAv = av ? await compressAvatarForBackup(av).catch(() => null) : null;
     await saveCloudBackup(username, password, {
-      wallet: { address: addr, privateKey: walletRef.current?.privateKey ?? '', username },
+      wallet: { address: addr, privateKey: sessionStorage.getItem(`pmt_pk_${addr.toLowerCase()}`) || walletRef.current?.privateKey || '', username },
       contacts: enrichedCtx,
       messages: cleanMsgs,
       profile: profileRef.current ? { ...profileRef.current, avatarUrl: compressedAv } : {},
@@ -1508,6 +1508,10 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     const { PMTAuth } = await import('./lib/auth');
     const { saveCloudBackup } = await import('./lib/cloudBackup');
 
+    // Get private key — prefer sessionStorage (most reliable source) then wallet state
+    const pk = sessionStorage.getItem(`pmt_pk_${w.address.toLowerCase()}`) || w.privateKey || '';
+    if (!pk) throw new Error('Private key not available. Please log out and log back in first.');
+
     // 1. Verify current password matches the server record
     const uname = w.username.toLowerCase();
     const serverRes = await fetch(`/api/auth?username=${encodeURIComponent(uname)}`);
@@ -1527,7 +1531,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       });
     });
     await saveCloudBackup(uname, newPassword, {
-      wallet: { address: w.address, privateKey: w.privateKey ?? '', username: uname },
+      wallet: { address: w.address, privateKey: pk, username: uname },
       contacts: currentContacts.filter((c: any) => !c.isAI),
       messages: cleanMsgs,
       profile: profileRef.current ?? {},
@@ -1535,7 +1539,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
 
     // 3. Update local account record with new password hash + re-encrypted wallet
     const { hash: newHash, salt: newSalt } = await PMTAuth.hashPassword(newPassword);
-    const newEw = await PMTAuth.encryptWallet({ address: w.address, privateKey: w.privateKey ?? '' }, newPassword);
+    const newEw = await PMTAuth.encryptWallet({ address: w.address, privateKey: pk }, newPassword);
     const acctData = { username: uname, address: w.address, passwordHash: newHash, passwordSalt: newSalt, encryptedWallet: newEw };
     localStorage.setItem(`pmt_account_${uname}`, JSON.stringify(acctData));
     localStorage.setItem(`pmt_account_${w.address.toLowerCase()}`, JSON.stringify(acctData));
@@ -1543,6 +1547,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     // 4. Update in-memory session key and sessionStorage
     sessionPasswordRef.current = newPassword;
     sessionStorage.setItem(`pmt_bkpwd_${w.address.toLowerCase()}`, newPassword);
+    // Keep the pk in sessionStorage (unchanged — only the backup password changes)
   }, []);
 
   const handleLogout = useCallback(() => { if (walletRef.current?.address) { sessionStorage.removeItem('pmt_pk_' + walletRef.current.address.toLowerCase());
