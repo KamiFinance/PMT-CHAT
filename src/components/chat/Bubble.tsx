@@ -76,7 +76,7 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,searchQuery,onJoinGroup}:{[k:string]:any}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,searchQuery,onJoinGroup}:{[k:string]:any}){
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const [showPinChoice,setShowPinChoice]=useState(false);
   const delLongPressRef=useRef<any>(null);
@@ -395,7 +395,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   );
   return(
     <>
-    <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3,userSelect:'none',WebkitUserSelect:'none'}}
+    <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3,userSelect:'none',WebkitUserSelect:'none',...(isSelected?{zIndex:202,isolation:'isolate'}:{})}}
       ref={bubbleRef}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete){if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}

@@ -643,6 +643,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 onOpenCtxMenu={(m:any)=>{setDelConfirmMsg(null);setCtxMenuMsg(m);setPickerMsgId(null);}}
                 onOpenDelConfirm={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(m);}}
                 anyPopupOpen={!!(ctxMenuMsg||delConfirmMsg||pickerMsgId)}
+                isSelected={ctxMenuMsg?.id===m.id||pickerMsgId===m.id}
                 onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(null);}}
                 pickerOpen={pickerMsgId===m.id}
                 onOpenPicker={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(m.id);}}
