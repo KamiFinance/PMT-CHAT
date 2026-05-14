@@ -485,6 +485,16 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:160}}
           onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}>
           <button
+            onClick={(e)=>{e.stopPropagation();if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenPicker&&onOpenPicker(msg);}}
+            style={{width:'100%',background:'none',border:'none',padding:'10px 16px',
+              display:'flex',alignItems:'center',gap:10,cursor:'pointer',color:'var(--text)',
+              fontSize:13,textAlign:'left',fontFamily:'var(--sans)'}}
+            onMouseEnter={e=>(e.currentTarget.style.background='var(--surface)')}
+            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+            <span style={{fontSize:16}}>😀</span> Add reaction
+          </button>
+          <div style={{height:1,background:'var(--border)',margin:'2px 0'}}/>
+          <button
             onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
             style={{width:'100%',background:'none',border:'none',padding:'10px 16px',
               display:'flex',alignItems:'center',gap:10,cursor:'pointer',color:'var(--danger)',
