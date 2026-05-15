@@ -1,6 +1,9 @@
 // PWA utilities: push notifications + install prompt
 
-const VAPID_PUBLIC_KEY = 'BMProviF9-1IpZKSxqU7E8sExoJ4WejH_jnh5qbXz5Twt0sxosLMnwC3AJ7VDPRlCM0rJ93nyrardhPEA9VKTQA';
+// VAPID public key — read from build-time env var (set in Vercel as VITE_VAPID_PUBLIC_KEY)
+// Falls back to hardcoded value so local dev still works
+const VAPID_PUBLIC_KEY = (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY
+  || 'BFp7ZA0WWEbiicNx3tuVrJ1cZdCgF1kHyld-Lu7cmRncS6t01_CYcrjW4dHseo4yRx7b_9hw6TOsEQrlBytIyRU';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
