@@ -426,7 +426,6 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         )}
         <TxCard msg={msg} isOut={isOut}/>
       </div>
-    </div>
       {reactionsBar}{picker}
     </div>
   );
