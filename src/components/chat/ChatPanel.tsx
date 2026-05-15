@@ -400,7 +400,10 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   useEffect(()=>{onSendRef.current=onSend;},[onSend]);
 
   useEffect(()=>bottomRef.current?.scrollIntoView({behavior:'smooth'}),[messages]);
-  useEffect(()=>{setText('');setReplyingTo(null);setEditingMsg(null);inputRef.current?.focus();setShowAttach(false);setShowEmoji(false);},[contact?.id]);
+  useEffect(()=>{setText('');setReplyingTo(null);setEditingMsg(null);
+    // Only auto-focus on desktop — on mobile this triggers the virtual keyboard immediately
+    if(!('ontouchstart' in window)) inputRef.current?.focus();
+    setShowAttach(false);setShowEmoji(false);},[contact?.id]);
   useEffect(()=>{
     if(!showAttach)return;
     const close=e=>{
