@@ -203,14 +203,14 @@ export default function LinkifyText({ text, query, onJoinGroup, isOut = true }) 
             if (!joinIds.includes(joinMatch[1])) joinIds.push(joinMatch[1]);
             return (
               <span key={i} onClick={e => { e.stopPropagation(); onJoinGroup(joinMatch[1]); }}
-                style={{ color:'var(--accent3)',textDecoration:'underline',cursor:'pointer',wordBreak:'break-all' }}>
+                style={{ color: isOut ? 'rgba(0,0,0,0.7)' : 'var(--accent3)',textDecoration:'underline',cursor:'pointer',wordBreak:'break-all' }}>
                 🔗 {part.value}
               </span>
             );
           }
           return (
             <span key={i} onClick={e => { e.stopPropagation(); setBrowserUrl(full); }}
-              style={{ color:'var(--accent)',textDecoration:'underline',cursor:'pointer',wordBreak:'break-all' }}>
+              style={{ color: isOut ? 'rgba(0,0,0,0.7)' : 'var(--accent)', textDecoration:'underline',cursor:'pointer',wordBreak:'break-all' }}>
               {part.value}
             </span>
           );
