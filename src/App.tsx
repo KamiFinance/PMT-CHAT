@@ -1283,10 +1283,36 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : (profileRef.current as any)?._thumbUrl ?? null; })(),
         ts: Date.now(),
       };
-      fetch(`/api/inbox?address=${addr}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inboxMsg),
-      }).catch(() => {});
+
+      if (targetContact.isGroup) {
+        // Group forward: relay to each member individually (same as sendMsg group path)
+        const groupId = targetContact.groupId || targetContact.id;
+        const groupInboxMsg = { ...inboxMsg, groupId, groupName: targetContact.name, groupAvatarUrl: (targetContact as any).avatarUrl ?? null };
+        const relayToMembers = (members: string[]) => {
+          members.forEach(memberAddr => {
+            if (!memberAddr || normalizeAddress(memberAddr) === normalizeAddress(myAddr)) return;
+            fetch(`/api/inbox?address=${normalizeAddress(memberAddr)}`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(groupInboxMsg),
+            }).catch(() => {});
+          });
+          fetch('/api/groups?action=storeMessage', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId, message: groupInboxMsg }),
+          }).catch(() => {});
+        };
+        // Fetch fresh member list then fall back to local
+        fetch(`/api/groups?id=${groupId}`)
+          .then(r => r.json())
+          .then(grpData => relayToMembers((grpData.members ?? targetContact.members ?? []).map((m: any) => typeof m === 'string' ? m : '')))
+          .catch(() => relayToMembers((targetContact.members ?? []).map((m: any) => typeof m === 'string' ? m : '')));
+      } else {
+        // 1-on-1 forward
+        fetch(`/api/inbox?address=${addr}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(inboxMsg),
+        }).catch(() => {});
+      }
     }
     // Navigate to the conversation where the message was forwarded
     setActiveAndRef(targetContact);
