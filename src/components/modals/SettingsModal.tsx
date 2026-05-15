@@ -71,7 +71,7 @@ export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet,
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',display:'flex',alignItems:'center',
-      justifyContent:'center',zIndex:200}} onClick={onClose}>
+      justifyContent:'center',zIndex:200}} onClick={onClose} onWheel={e=>e.stopPropagation()}>
       <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:18,
         padding:'24px 22px',width:340,maxHeight:'85vh',overflowY:'auto',display:'flex',flexDirection:'column',gap:16,
         animation:'slideUp .25s ease'}} onClick={e => e.stopPropagation()}>
