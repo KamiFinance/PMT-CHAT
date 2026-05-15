@@ -26,7 +26,7 @@ function Field({label, value, onChange, placeholder, type='text'}) {
   );
 }
 
-export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet, isDemo, onChangePassword}) {
+export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet, isDemo, onChangePassword, chatWallpaper='none', onSetWallpaper}) {
   const [pinataJwt, setPinataJwt] = useState(storage.getPinataJwt() || '');
   const [aiKey, setAiKey] = useState(localStorage.getItem('pmt_anthropic_key') || '');
   const [saved, setSaved] = useState(false);
@@ -98,6 +98,50 @@ export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet,
               <div style={{position:'absolute',top:3,left:darkMode?26:3,width:22,height:22,borderRadius:'50%',
                 background:darkMode?'#000':'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
             </button>
+          </div>
+        </Section>
+
+        {/* Chat Settings — wallpaper picker */}
+        <Section icon="🖼️" title="CHAT">
+          <div>
+            <div style={{fontSize:12,color:'var(--muted)',marginBottom:10}}>Chat Wallpaper</div>
+            <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+              {/* No wallpaper option */}
+              <button onClick={()=>onSetWallpaper&&onSetWallpaper('none')}
+                title="No wallpaper"
+                style={{width:56,height:56,borderRadius:10,border:`2px solid ${chatWallpaper==='none'?'var(--accent)':'var(--border)'}`,
+                  background:'var(--bg)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+                  flexShrink:0,transition:'border-color .15s',outline:'none'}}>
+                <span style={{fontSize:20}}>🚫</span>
+              </button>
+              {/* Wallpaper 1 */}
+              <button onClick={()=>onSetWallpaper&&onSetWallpaper('wallpaper1')}
+                title="Wallpaper 1"
+                style={{width:56,height:56,borderRadius:10,border:`2px solid ${chatWallpaper==='wallpaper1'?'var(--accent)':'var(--border)'}`,
+                  backgroundImage:'url(/wallpaper1.png)',backgroundSize:'cover',backgroundPosition:'center',
+                  cursor:'pointer',flexShrink:0,transition:'border-color .15s',outline:'none',position:'relative'}}>
+                {chatWallpaper==='wallpaper1'&&<div style={{position:'absolute',inset:0,borderRadius:8,background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:16}}>✓</span></div>}
+              </button>
+              {/* Wallpaper 2 */}
+              <button onClick={()=>onSetWallpaper&&onSetWallpaper('wallpaper2')}
+                title="Wallpaper 2"
+                style={{width:56,height:56,borderRadius:10,border:`2px solid ${chatWallpaper==='wallpaper2'?'var(--accent)':'var(--border)'}`,
+                  backgroundImage:'url(/wallpaper2.png)',backgroundSize:'cover',backgroundPosition:'center',
+                  cursor:'pointer',flexShrink:0,transition:'border-color .15s',outline:'none',position:'relative'}}>
+                {chatWallpaper==='wallpaper2'&&<div style={{position:'absolute',inset:0,borderRadius:8,background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:16}}>✓</span></div>}
+              </button>
+              {/* Wallpaper 3 */}
+              <button onClick={()=>onSetWallpaper&&onSetWallpaper('wallpaper3')}
+                title="Wallpaper 3"
+                style={{width:56,height:56,borderRadius:10,border:`2px solid ${chatWallpaper==='wallpaper3'?'var(--accent)':'var(--border)'}`,
+                  backgroundImage:'url(/wallpaper3.png)',backgroundSize:'cover',backgroundPosition:'center',
+                  cursor:'pointer',flexShrink:0,transition:'border-color .15s',outline:'none',position:'relative'}}>
+                {chatWallpaper==='wallpaper3'&&<div style={{position:'absolute',inset:0,borderRadius:8,background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:16}}>✓</span></div>}
+              </button>
+            </div>
+            <div style={{fontSize:10,color:'var(--muted)',marginTop:8,fontFamily:'var(--mono)'}}>
+              {chatWallpaper==='none'?'No wallpaper selected':`Wallpaper ${chatWallpaper.replace('wallpaper','')} active`}
+            </div>
           </div>
         </Section>
 
