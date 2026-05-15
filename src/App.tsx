@@ -386,6 +386,8 @@ export default function App() {
           return true;
         });
         normalized[key] = [...(normalized[key] ?? []), ...deduped.map(m => {
+          // Messages already in storage were definitely sent — clear stale pending flag
+          if (m.pending && m.out && m.confirms > 0) m = { ...m, pending: false };
           if ((m.type === 'image' || m.type === 'file') && !m.fileUrl) {
             if (m.ipfsCid) m.fileUrl = getIpfsUrl(m.ipfsCid);
             else if (m.b64Data) m.fileUrl = m.b64Data;
@@ -991,6 +993,12 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
           body: JSON.stringify(inboxMsg),
         }).then(r => {
           if (!r.ok) console.warn('[PMT relay] POST failed:', r.status);
+          else {
+            // Mark as delivered — no longer pending
+            setMsgs(p => ({ ...p, [toAddr]: (p[toAddr] ?? []).map(m =>
+              m.id === msg.id ? { ...m, pending: false, confirms: 1 } : m
+            )}));
+          }
         }).catch(e => {
           console.warn('[PMT relay] POST error:', e?.message);
           // Retry once after 2 seconds
@@ -1008,7 +1016,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         // Always use PMTchain local ledger — never ask wallet to sign each message
         // (using eth_sendTransaction per message would trigger a popup for every message)
         const { txHash, chain } = await broadcastMessage({ from: w.address, to: toAddr, msgHash, msgType, blockNum: block, useMetaMask: false, metaMaskProvider: null });
-        setMsgs(p => ({ ...p, [toAddr]: (p[toAddr] ?? []).map(m => m.id === msg.id ? { ...m, hash: shortHash(txHash), chain, onChain: true } : m) }));
+        setMsgs(p => ({ ...p, [toAddr]: (p[toAddr] ?? []).map(m => m.id === msg.id ? { ...m, pending: false, hash: shortHash(txHash), chain, onChain: true } : m) }));
       } catch {}
     }
 
