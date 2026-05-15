@@ -74,7 +74,7 @@ export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet,
       justifyContent:'center',zIndex:200}} onClick={onClose} onWheel={e=>e.stopPropagation()}>
       <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:18,
         padding:'24px 22px',width:340,maxHeight:'85vh',overflowY:'auto',display:'flex',flexDirection:'column',gap:16,
-        animation:'slideUp .25s ease'}} onClick={e => e.stopPropagation()}>
+        animation:'slideUp .25s ease',overscrollBehavior:'contain'}} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
