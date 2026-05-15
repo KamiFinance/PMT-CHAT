@@ -363,12 +363,108 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     document.body
   );
 
+  // ── Shared lift + context-menu portal (used by ALL message types) ──────────
+  const isLifted=!!(isSelected&&ctxMenuOpen&&bubblePos);
+  const ctxMenuPortal=ctxMenuOpen&&(onDelete||onPin)&&bubblePos&&createPortal(
+    <>
+      <div style={{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,.55)',
+        backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)'}}
+        onClick={()=>onCloseMenus&&onCloseMenus()}
+        onTouchStart={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();}}/>
+      <div style={{position:'fixed',zIndex:201,
+        bottom: window.innerHeight - (bubblePos.top+liftDelta) + 8,
+        ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left})}}
+        onMouseDown={(e)=>e.stopPropagation()}
+        onTouchStart={(e)=>e.stopPropagation()}>
+        <div style={{display:'flex',alignItems:'center',gap:2,
+          background:'var(--panel)',border:'1px solid var(--border)',
+          borderRadius:24,padding:'6px 10px',
+          boxShadow:'0 4px 20px rgba(0,0,0,.5)',animation:'fadeIn .12s ease'}}>
+          {['👍','❤️','🔥','🎉','😂','😮','😢','💩'].map(e=>(
+            <button key={e} onClick={(ev)=>{ev.stopPropagation();onReact&&onReact(msg.id,e);onCloseMenus&&onCloseMenus();}}
+              style={{background:'none',border:'none',cursor:'pointer',fontSize:22,
+                padding:'2px 3px',borderRadius:8,lineHeight:1,transition:'transform .1s'}}
+              onMouseEnter={ev=>ev.currentTarget.style.transform='scale(1.3)'}
+              onMouseLeave={ev=>ev.currentTarget.style.transform='scale(1)'}>
+              {e}
+            </button>
+          ))}
+          <button onClick={(ev)=>{ev.stopPropagation();if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenPicker&&onOpenPicker(msg);}}
+            style={{background:'var(--surface)',border:'1px solid var(--border)',
+              cursor:'pointer',fontSize:16,padding:'4px 6px',
+              borderRadius:12,lineHeight:1,color:'var(--muted)',fontWeight:700}}>
+            ＋
+          </button>
+        </div>
+      </div>
+      <div style={{position:'fixed',zIndex:200,
+        top: bubblePos.bottom+liftDelta+6,
+        ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left}),
+        background:'var(--panel)',border:'1px solid var(--border)',borderRadius:12,
+        boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:180,
+        animation:'fadeIn .12s ease'}}
+        onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}
+        onTouchStart={(e)=>e.stopPropagation()}>
+        {onReply&&(
+          <button onClick={(e)=>{e.stopPropagation();onReply(msg);onCloseMenus&&onCloseMenus();}}
+            style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
+            onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
+            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+            <span>Reply</span>
+          </button>
+        )}
+        {onForward&&(
+          <button onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();setTimeout(()=>onForward(msg),60);}}
+            style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
+            onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
+            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
+            <span>Forward</span>
+          </button>
+        )}
+        {onPin&&(
+          <button onClick={(e)=>{e.stopPropagation();if(msg.pinned){onPin(msg);onCloseMenus&&onCloseMenus();}else{onCloseMenus&&onCloseMenus();onOpenPinConfirm&&onOpenPinConfirm(msg);}}}
+            style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
+            onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
+            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>
+            <span>{msg.pinned?'Unpin':'Pin'}</span>
+          </button>
+        )}
+        {onDelete&&<div style={{height:1,background:'rgba(255,255,255,.1)',margin:'4px 0'}}/>}
+        {onDelete&&(
+          <button onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
+            style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'#ef4444'}}
+            onMouseEnter={e=>(e.currentTarget.style.background='rgba(239,68,68,.08)')}
+            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            <span>Delete</span>
+          </button>
+        )}
+      </div>
+    </>,
+    document.body
+  );
+  // Shared IIFE wrapper: applies isLifted portal to any bubble content
+  const _wrapBubble=(innerContent:React.ReactNode,extraOnCtx?:(e:any)=>void)=>{
+    const _ctx=(e:any)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}};
+    const _f=extraOnCtx||_ctx;
+    const _w=<>{innerContent}{reactionsBar}</>;
+    return isLifted&&bubblePos
+      ?createPortal(<div style={{position:'fixed',top:bubblePos.top+liftDelta,left:bubblePos.left,width:bubblePos.width,zIndex:202,pointerEvents:'auto',visibility:'visible'}} onContextMenu={_f}>{_w}</div>,document.body)
+      :<div onContextMenu={_f}>{_w}</div>;
+  };
+
   if(msg.type==='voice') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
-      <VoiceBubble msg={msg} isOut={isOut} contact={contact}/>
-      {reactionsBar}{picker}
+    <>
+    <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
+      onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
+      {_wrapBubble(<VoiceBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
+    {ctxMenuPortal}{picker}
+    </>
   );
   // Typing indicator
   if(msg.isTyping) return(
@@ -387,47 +483,51 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     </div>
   );
   if(msg.type==='image') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
-      <ImageBubble msg={msg} isOut={isOut} contact={contact}/>
-      {reactionsBar}{picker}
+    <>
+    <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
+      onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
+      {_wrapBubble(<ImageBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
+    {ctxMenuPortal}{picker}
+    </>
   );
   if(msg.type==='video') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={(e)=>{handleLongPress(e);onTouchStartSwipe(e);}}
-      onTouchEnd={(e)=>{cancelLongPress();onTouchEndSwipe();}}
+    <>
+    <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
+      onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
+      onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
-      <VideoBubble msg={msg} isOut={isOut} contact={contact}/>
-      {reactionsBar}{picker}
+      {_wrapBubble(<VideoBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
+    {ctxMenuPortal}{picker}
+    </>
   );
   if(msg.type==='file') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
-      <FileBubble msg={msg} isOut={isOut} contact={contact}/>
-      {reactionsBar}{picker}
+    <>
+    <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
+      onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
+      {_wrapBubble(<FileBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
+    {ctxMenuPortal}{picker}
+    </>
   );
   if(msg.type==='tx') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
-      <div style={{display:'flex',alignItems:'flex-end',gap:8,marginBottom:3,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
-        {!isOut&&(
-          <div style={{flexShrink:0}}>
-            <ProfilePic
-              initials={msg.senderName?.slice(0,2).toUpperCase()||contact?.avatar}
-              avatarUrl={msg.senderAvatarUrl!==undefined?msg.senderAvatarUrl:contact?.avatarUrl}
-              color={contact?.color}
-              bg={contact?.bg}
-              size={28} fs={10}
-            />
-          </div>
-        )}
-        <TxCard msg={msg} isOut={isOut}/>
-      </div>
-      {reactionsBar}{picker}
+    <>
+    <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
+      onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
+      {_wrapBubble(
+        <div style={{display:'flex',alignItems:'flex-end',gap:8,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
+          {!isOut&&(<div style={{flexShrink:0}}><ProfilePic initials={msg.senderName?.slice(0,2).toUpperCase()||contact?.avatar} avatarUrl={msg.senderAvatarUrl!==undefined?msg.senderAvatarUrl:contact?.avatarUrl} color={contact?.color} bg={contact?.bg} size={28} fs={10}/></div>)}
+          <TxCard msg={msg} isOut={isOut}/>
+        </div>
+      )}
     </div>
+    {ctxMenuPortal}{picker}
+    </>
   );
   if(msg.type==='system') return(
     <div style={{textAlign:'center',margin:'8px 0',animation:'fadeIn .2s ease'}}>
@@ -435,10 +535,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         border:'1px solid var(--border)',borderRadius:20,padding:'3px 12px'}}>{msg.text}</span>
     </div>
   );
-  // Whether the bubble is currently "floating" above the overlay (lifted for ctx menu)
-  // Always use position:fixed when the ctx menu is open so the bubble sits above
-  // the z-index:199 backdrop regardless of liftDelta value
-  const isLifted=!!(isSelected&&ctxMenuOpen&&bubblePos);
+  // isLifted and ctxMenuPortal are defined earlier (shared with all message types)
 
   return(
     <>
@@ -560,112 +657,9 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     })()}
       {picker}
 
-      {/* Delete context menu — shown on right-click or long-press */}
-      {ctxMenuOpen&&(onDelete||onPin)&&bubblePos&&createPortal(
-        <>
-          {/* Dim backdrop — like Telegram */}
-          <div style={{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,.55)',
-            backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)'}}
-            onClick={()=>onCloseMenus&&onCloseMenus()}
-            onTouchStart={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();}}/>
-          {/* Quick reactions above bubble — always shown with ctx menu */}
-          <div style={{position:'fixed',zIndex:201,
-            bottom: window.innerHeight - (bubblePos.top+liftDelta) + 8,
-            ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left})}}
-            onMouseDown={(e)=>e.stopPropagation()}
-            onTouchStart={(e)=>e.stopPropagation()}>
-            <div style={{display:'flex',alignItems:'center',gap:2,
-              background:'var(--panel)',border:'1px solid var(--border)',
-              borderRadius:24,padding:'6px 10px',
-              boxShadow:'0 4px 20px rgba(0,0,0,.5)',animation:'fadeIn .12s ease'}}>
-              {['👍','❤️','🔥','🎉','😂','😮','😢','💩'].map(e=>(
-                <button key={e} onClick={(ev)=>{ev.stopPropagation();onReact&&onReact(msg.id,e);onCloseMenus&&onCloseMenus();}}
-                  style={{background:'none',border:'none',cursor:'pointer',fontSize:22,
-                    padding:'2px 3px',borderRadius:8,lineHeight:1,transition:'transform .1s'}}
-                  onMouseEnter={ev=>ev.currentTarget.style.transform='scale(1.3)'}
-                  onMouseLeave={ev=>ev.currentTarget.style.transform='scale(1)'}>
-                  {e}
-                </button>
-              ))}
-              <button onClick={(ev)=>{ev.stopPropagation();if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenPicker&&onOpenPicker(msg);}}
-                style={{background:'var(--surface)',border:'1px solid var(--border)',
-                  cursor:'pointer',fontSize:16,padding:'4px 6px',
-                  borderRadius:12,lineHeight:1,color:'var(--muted)',fontWeight:700}}>
-                ＋
-              </button>
-            </div>
-          </div>
-          {/* Action menu — always below bubble (liftDelta ensures it fits) */}
-          <div style={{position:'fixed',zIndex:200,
-            top: bubblePos.bottom+liftDelta+6,
-            ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left}),
-            background:'var(--panel)',border:'1px solid var(--border)',borderRadius:12,
-            boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:180,
-            animation:'fadeIn .12s ease'}}
-            onMouseDown={(e)=>{if(e.button!==2) e.stopPropagation();}}
-            onTouchStart={(e)=>e.stopPropagation()}>
-            {onReply&&(
-              <button onClick={(e)=>{e.stopPropagation();onReply(msg);onCloseMenus&&onCloseMenus();}}
-                style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
-                onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
-                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                <span>Reply</span>
-              </button>
-            )}
-            {msg.text&&(
-              <button onClick={(e)=>{e.stopPropagation();navigator.clipboard?.writeText(msg.text).catch(()=>{});onCloseMenus&&onCloseMenus();}}
-                style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
-                onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
-                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <span>Copy</span>
-              </button>
-            )}
-            {onForward&&(
-              <button onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();setTimeout(()=>onForward(msg),60);}}
-                style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
-                onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
-                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
-                <span>Forward</span>
-              </button>
-            )}
-            {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
-              <button onClick={(e)=>{e.stopPropagation();onEdit(msg);onCloseMenus&&onCloseMenus();}}
-                style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
-                onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
-                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                <span>Edit</span>
-              </button>
-            )}
-            {onPin&&(
-              <button onClick={(e)=>{e.stopPropagation();if(msg.pinned){onPin(msg);onCloseMenus&&onCloseMenus();}else{onCloseMenus&&onCloseMenus();onOpenPinConfirm&&onOpenPinConfirm(msg);}}}
-                style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
-                onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
-                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>
-                <span>{msg.pinned?'Unpin':'Pin'}</span>
-              </button>
-            )}
-            {onDelete&&<div style={{height:1,background:'rgba(255,255,255,.1)',margin:'4px 0'}}/>}
-            {onDelete&&(
-              <button onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
-                style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'#ef4444'}}
-                onMouseEnter={e=>(e.currentTarget.style.background='rgba(239,68,68,.08)')}
-                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                <span>Delete</span>
-              </button>
-            )}
-          </div>
+      {ctxMenuPortal}
 
-        </>,
-        document.body
-      )}
-
-      {/* Delete confirmation popup */}
+            {/* Delete confirmation popup */}
       {delConfirmOpen&&onDelete&&(
         <div style={{position:'fixed',inset:0,zIndex:300,display:'flex',alignItems:'center',justifyContent:'center'}}
           onClick={()=>onCloseMenus&&onCloseMenus()}>
