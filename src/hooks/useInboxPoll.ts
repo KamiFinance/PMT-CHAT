@@ -288,6 +288,7 @@ export function useInboxPoll({
           senderBio,
           replyTo: (inboxMsg as any).replyTo ?? null,
           senderRole: (inboxMsg as any).senderRole ?? null,
+          ...(((inboxMsg as any).forwarded) ? { forwarded: true } : {}),
         };
 
         let extra: Partial<Message> = {};
