@@ -82,22 +82,40 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   const [bubblePos,setBubblePos]=useState<any>(null);
   const updatePos=()=>{ if(bubbleRef.current) setBubblePos(bubbleRef.current.getBoundingClientRect()); };
 
-  // Compute how many px to translateY the bubble so emoji bar above AND action menu below both fit
+  // Compute how many px to translateY the bubble so emoji bar above AND action menu below both fit.
+  // Uses the actual scroll-container bounds so mobile (with input bar) is handled correctly.
   const liftDelta=React.useMemo(()=>{
     if(!ctxMenuOpen||!bubblePos) return 0;
-    const EMOJI_H=64;   // reaction strip + gap above bubble
-    const ITEM_H=52;    // per action-menu row
-    const TOP_SAFE=68;  // clearance for app topbar
-    const BOT_SAFE=14;
+    const EMOJI_H=64;  // reaction strip height + gap
+    const ITEM_H=52;   // per action-menu row
+    const PAD=8;
+
+    // Walk up to find the scrollable messages container; use its bounds as our reference.
+    // This avoids relying on window.innerHeight which ignores the input bar on mobile.
+    let ctTop=0, ctBottom=window.innerHeight;
+    if(bubbleRef.current){
+      let el=bubbleRef.current.parentElement as HTMLElement|null;
+      while(el&&el!==document.body){
+        const oy=window.getComputedStyle(el).overflowY;
+        if(oy==='auto'||oy==='scroll'){
+          const r=el.getBoundingClientRect();
+          ctTop=r.top; ctBottom=r.bottom;
+          break;
+        }
+        el=el.parentElement;
+      }
+    }
+
     const nItems=[
       onReply?1:0, msg.text?1:0, onForward?1:0,
       (onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type))?1:0,
       onPin?1:0, onDelete?1:0
     ].reduce((a:number,b:number)=>a+b,0);
     const menuH=Math.max(nItems,1)*ITEM_H+16;
+
     const ideal=Math.max(
-      TOP_SAFE+EMOJI_H,
-      Math.min(bubblePos.top, window.innerHeight-BOT_SAFE-bubblePos.height-menuH-4)
+      ctTop+EMOJI_H+PAD,
+      Math.min(bubblePos.top, ctBottom-bubblePos.height-menuH-PAD)
     );
     return ideal-bubblePos.top;
   // eslint-disable-next-line react-hooks/exhaustive-deps
