@@ -1268,6 +1268,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       confirms: 0,
       hash: rndHash(),
       pending: false,
+      forwarded: true,
       // Preserve media for image/file/voice forwards
       ...(msg.type === 'image' && { b64Data: msg.b64Data, fileUrl: msg.fileUrl, ipfsCid: msg.ipfsCid, mediaMsgId: fwdId, mimeType: msg.mimeType }),
       ...(msg.type === 'file'  && { b64Data: msg.b64Data, fileUrl: msg.fileUrl, fileName: msg.fileName, fileSize: msg.fileSize, mimeType: msg.mimeType, mediaMsgId: fwdId }),

@@ -487,6 +487,14 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             </div>
           )}
           {replyPreview}
+          {(msg as any).forwarded&&(
+            <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:4,
+              fontFamily:'var(--mono)',fontSize:10,
+              color:isOut?'rgba(0,0,0,0.45)':'var(--muted)',opacity:.85}}>
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
+              Forwarded message
+            </div>
+          )}
           <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup} isOut={isOut}/>
           {msg.editedAt&&<span style={{fontSize:9,color:'var(--muted)',fontFamily:'var(--mono)',marginLeft:4,opacity:.7}}>(edited)</span>}
           {meta}
