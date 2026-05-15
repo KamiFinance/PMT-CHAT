@@ -783,16 +783,22 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       {/* Outer wrapper — fills the chat-panel flex slot */}
       <div style={{flex:1,position:'relative',overflow:'hidden',minHeight:0}}>
 
+        {/* ── Wallpaper layer — static, never scrolls. Messages float above it. ── */}
+        {chatWallpaper && chatWallpaper !== 'none' && (
+          <div style={{
+            position:'absolute',inset:0,zIndex:0,
+            backgroundImage:`url(/${chatWallpaper}.png?v=2)`,
+            backgroundSize:'cover',backgroundPosition:'center',backgroundRepeat:'no-repeat',
+            // Dark tint so bubbles pop — same trick Telegram uses
+            filter:'brightness(0.72)',
+          }}/>
+        )}
+
         {/* ── Messages div covers the ENTIRE area — always under the cursor ── */}
         <div ref={messagesRef}
           className="chat-messages-area"
           style={{position:'absolute',inset:0,overflowY:'auto',
-            ...(chatWallpaper && chatWallpaper !== 'none' ? {
-              backgroundImage: `url(/${chatWallpaper}.png?v=2)`,
-              backgroundSize: 'contain',
-              backgroundPosition: 'center',
-              backgroundAttachment: 'local',
-            } : {}),
+            zIndex:1,background:'transparent',
             paddingTop:searchActive?(pinnedMsgs?.length?138:102):(pinnedMsgs?.length?94:62),paddingBottom:95,
             display:'flex',flexDirection:'column'}}>
           <div style={{flex:1,padding:'0 20px 0',display:'flex',flexDirection:'column',gap:2}}>
