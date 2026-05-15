@@ -452,21 +452,11 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
-    {/* Inner div: when lifted becomes position:fixed — escapes ALL overflow containers */}
-    <div style={isLifted?{
-      position:'fixed',
-      top: bubblePos.top+liftDelta,
-      // Preserve horizontal position of the bubble row
-      left: 0, right: 0,
-      zIndex:202,
-      animation:'none',
-      // Pad to match the original chat layout (20px sides)
-      padding:'0 20px',
-      visibility:'visible', // override inherited visibility:hidden from the outer placeholder
-    }:{}}
-    onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}>
-      <div style={{display:'flex',alignItems:'flex-end',gap:4,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}
-       >
+    {/* Portal when lifted → root stacking context, escapes iOS Safari overflow:scroll clipping.
+         Inline div when not lifted. Content defined once in _w, used in both paths. */}
+    {(()=>{const _ctx=(e:any)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}};
+    const _w=(<>
+      <div style={{display:'flex',alignItems:'flex-end',gap:4,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
         {!isOut&&(
           <div style={{flexShrink:0}}>
             <ProfilePic
@@ -557,7 +547,9 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         document.body
       )}
       {reactionsBar}
-    </div>{/* end inner fixed div */}
+    </>);// end _w
+    return isLifted&&bubblePos?createPortal(<div style={{position:'fixed',top:bubblePos.top+liftDelta,left:0,right:0,zIndex:202,padding:'0 20px',pointerEvents:'auto'}} onContextMenu={_ctx}>{_w}</div>,document.body):<div onContextMenu={_ctx}>{_w}</div>;
+    })()}
       {picker}
 
       {/* Delete context menu — shown on right-click or long-press */}
