@@ -164,6 +164,8 @@ export default function App() {
   const [active, setActive] = useState<Contact | null>(null);
   const activeRef = useRef<Contact | null>(null);
   const walletRef = useRef<Wallet | null>(null);
+  // Tracks "last seen" timestamp per contact for unread divider
+  const lastSeenRef = useRef<Record<string, number>>({});
   const contactsRef = useRef<Contact[]>([]);
   const msgsRef = useRef<Record<string, any[]>>({});
   const pinnedMsgsRef = useRef<Record<string, any[]>>({});
@@ -1091,6 +1093,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     const addr = normalizeAddress(c.address);
     setMsgs(p => p[addr] ? p : { ...p, [addr]: [] });
     setContacts(p => p.map(x => x.id === c.id ? { ...x, unread: 0 } : x));
+    // Record when this contact was last opened, so ChatPanel can show unread divider
+    // on next open; persist in localStorage so it survives refresh
+    const nowTs = Date.now();
+    lastSeenRef.current[addr] = nowTs;
+    try { localStorage.setItem(`pmt_lastseen_${addr}`, String(nowTs)); } catch {}
     setMobileSidebarOpen(false);
 
     if (!isDemo && walletRef.current?.address) {
@@ -1808,7 +1815,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         <div className={`sidebar-overlay${mobileSidebarOpen ? ' visible' : ''}`} onClick={() => setMobileSidebarOpen(false)} />
         <Sidebar contacts={contacts} activeId={active?.id ?? null} wallet={wallet} isDemo={isDemo} profile={profile} mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} onSelect={selectContact} onNew={() => { setShowNew(true); setMobileSidebarOpen(false); }} onNewGroup={() => { setShowGroup(true); setMobileSidebarOpen(false); }} onProfile={() => { setShowProfile(true); setMobileSidebarOpen(false); }} onSettings={() => { setShowSettings(true); setMobileSidebarOpen(false); }} onWallet={() => { setShowWallet(true); setMobileSidebarOpen(false); }} onLogout={handleLogout} onEditContact={setEditContact} onSearch={() => setShowSearch(true)} />
         <main className="chat-panel">
-          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsgs={active ? (pinnedMsgs[normalizeAddress(active.address)] || []) : []} onDelete={handleDeleteMsg} onEditMsg={handleEditMsg} contacts={contacts} onForwardMsg={handleForwardMsg} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
+          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsgs={active ? (pinnedMsgs[normalizeAddress(active.address)] || []) : []} onDelete={handleDeleteMsg} onEditMsg={handleEditMsg} contacts={contacts} onForwardMsg={handleForwardMsg} lastSeenTs={active ? (lastSeenRef.current[normalizeAddress(active.address)] ?? (()=>{ try { return parseInt(localStorage.getItem(`pmt_lastseen_${normalizeAddress(active.address)}`) || '0'); } catch { return 0; } })()) : 0} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
         </main>
       </div>
       {showProfile && <ProfileModal profile={{ ...profile, address: wallet?.address ?? null }} onClose={() => setShowProfile(false)} onSave={saveProfile} />}

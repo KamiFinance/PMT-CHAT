@@ -195,6 +195,20 @@ export function useInboxPoll({
           return;
         }
 
+        // ── Read receipt ─────────────────────────────────────────────────
+        if ((inboxMsg as any).type === 'read') {
+          const readUpToTs: number = (inboxMsg as any).readUpToTs ?? Date.now();
+          const fromAddr = normalizeAddress(inboxMsg.from ?? '');
+          // Mark all outgoing messages sent up to readUpToTs as read
+          setMsgs(prev => ({
+            ...prev,
+            [fromAddr]: (prev[fromAddr] ?? []).map(m =>
+              m.out && (m.ts ?? 0) <= readUpToTs ? { ...m, read: true } : m
+            ),
+          }));
+          return;
+        }
+
         if ((inboxMsg as any).type === 'pin' || (inboxMsg as any).type === 'pin_notify') {
           if ((inboxMsg as any).type === 'pin') {
             // Update pinned banner state from incoming pin sync

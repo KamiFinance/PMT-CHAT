@@ -238,7 +238,7 @@ function ForwardModal({msg,contacts,onForward,onClose}:{msg:any;contacts:any[];o
   );
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg,contacts,onForwardMsg}){
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg,contacts,onForwardMsg,lastSeenTs=0}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
@@ -297,6 +297,34 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     const iv=setInterval(check,2500);
     return ()=>{mounted=false;clearInterval(iv);setContactTyping(false);};
   },[contact?.id,contact?.address,isDemo,myAddress]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Read receipts: send when conversation is opened or new messages arrive ──
+  const lastReadReceiptRef=useRef<number>(0); // timestamp of last receipt sent
+  useEffect(()=>{
+    if(!contact?.address||contact.isGroup||contact.isAI||isDemo||!myAddress) return;
+    // Find latest incoming message
+    const lastIncoming=[...messages].reverse().find(m=>!m.out&&!m.isTyping);
+    if(!lastIncoming) return;
+    const msgTs=lastIncoming.ts||0;
+    // Don't re-send if we already sent for this timestamp
+    if(msgTs<=lastReadReceiptRef.current) return;
+    lastReadReceiptRef.current=msgTs;
+    const contactAddr=contact.address.toLowerCase();
+    // Debounce slightly to avoid sending while user rapidly switches contacts
+    const t=setTimeout(()=>{
+      fetch(`/api/inbox?address=${contactAddr}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          id:'r'+Date.now().toString(36),
+          type:'read',
+          readUpToTs:Date.now(),
+          from:myAddress,
+          ts:Date.now(),
+        }),
+      }).catch(()=>{});
+    },800);
+    return ()=>clearTimeout(t);
+  },[contact?.id,messages.length,isDemo,myAddress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close ctx menu when clicking/touching anywhere outside
   // Delay attaching listeners so the long-press touch sequence ends first —
@@ -650,6 +678,13 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         m.replyTo?.text?.toLowerCase().includes(searchTerm)
       )
     : messages;
+
+  // Unread divider: index of first unread incoming message since lastSeenTs
+  const firstUnreadIdx = React.useMemo(()=>{
+    if(!lastSeenTs||lastSeenTs<=0) return -1;
+    return filteredMessages.findIndex(m=>!m.out&&!m.isTyping&&(m.ts||0)>lastSeenTs);
+  },[filteredMessages,lastSeenTs]);
+  const unreadCount = firstUnreadIdx>=0 ? filteredMessages.length-firstUnreadIdx : 0;
   const matchCount = searchTerm ? filteredMessages.length : 0;
 
   // Navigate to match
@@ -773,8 +808,21 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
               <div style={{flex:1,height:1,background:'var(--border)'}}/>TODAY
               <div style={{flex:1,height:1,background:'var(--border)'}}/>
             </div>
-            {filteredMessages.map(m=>(
-              <Bubble key={m.id} msg={m} isOut={m.out} contact={contact}
+            {filteredMessages.map((m,idx)=>(
+              <React.Fragment key={m.id}>
+                {/* Unread messages divider */}
+                {idx===firstUnreadIdx&&firstUnreadIdx>=0&&(
+                  <div style={{display:'flex',alignItems:'center',gap:10,margin:'10px 0',
+                    fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',letterSpacing:'1px'}}>
+                    <div style={{flex:1,height:1,background:'rgba(99,210,255,.25)'}}/>
+                    <span style={{background:'rgba(99,210,255,.08)',border:'1px solid rgba(99,210,255,.22)',
+                      borderRadius:20,padding:'3px 10px',whiteSpace:'nowrap',color:'var(--accent)'}}>
+                      {unreadCount} NEW MESSAGE{unreadCount!==1?'S':''}
+                    </span>
+                    <div style={{flex:1,height:1,background:'rgba(99,210,255,.25)'}}/>
+                  </div>
+                )}
+                <Bubble msg={m} isOut={m.out} contact={contact}
                 myAddress={myAddress} onReact={onReact}
                 searchQuery={searchTerm || searchQuery}
                 onJoinGroup={onJoinGroup}
@@ -798,6 +846,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 onOpenPicker={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(m.id);}}
                 onClosePicker={()=>setPickerMsgId(null)}
                 onForward={onForwardMsg?(msg:any)=>{setForwardMsg(msg);setShowForward(true);}:undefined}/>
+              </React.Fragment>
             ))}
             {/* Typing indicator bubble */}
             {contactTyping&&!contact.isGroup&&!contact.isAI&&(

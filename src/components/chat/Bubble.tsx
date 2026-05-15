@@ -205,12 +205,17 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       <span style={{fontFamily:'var(--mono)',fontSize:9,color:mc}}>{msg.time}</span>
       <span style={{fontFamily:'var(--mono)',fontSize:9,color:mc2,opacity:.8}}>{msg.hash?msg.hash.slice(0,8)+'...'+msg.hash.slice(-4):''}</span>
       {msg.block&&<span style={{fontFamily:'var(--mono)',fontSize:9,color:mc,opacity:.7}}>#{(msg.block||0).toLocaleString()}</span>}
-      <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.pending?mc:msg.confirms===0?mc:msg.confirms<6?mc2:mcOk}}>
-        {msg.pending?'✓':('✓'+msg.confirms)}
-      </span>
-      {isOut&&(
-        <span style={{fontFamily:'var(--mono)',fontSize:9,color:msg.read?mcOk:mc}}>
-          {msg.pending?'':msg.read?'✓✓':'✓'}
+      {/* Telegram-style delivery/read status — outgoing only */}
+      {isOut?(
+        <span style={{fontFamily:'var(--mono)',fontSize:10,fontWeight:600,letterSpacing:'-1px',
+          color:msg.read?(isOut?'#0a7abf':'var(--accent)')
+               :msg.pending?mc:mc,
+          transition:'color .3s'}}>
+          {msg.pending?'✓':msg.read?'✓✓':'✓✓'}
+        </span>
+      ):(
+        <span style={{fontFamily:'var(--mono)',fontSize:9,color:mc,opacity:.7}}>
+          {msg.confirms>0?'✓'+msg.confirms:''}
         </span>
       )}
       {msg.onChain&&(

@@ -7,6 +7,7 @@ import Avatar from '../ui/Avatar';
 export default function VoiceBubble({msg,isOut,contact}){
   const [playing,setPlaying]=useState(false);
   const [progress,setProgress]=useState(0);
+  const [speed,setSpeed]=useState(1); // playback speed: 1 | 1.5 | 2
   const audioRef=useRef(null);
 
   // Try to get audioUrl — from msg directly, or reconstruct from audioMsgId
@@ -50,8 +51,13 @@ export default function VoiceBubble({msg,isOut,contact}){
   const toggle=()=>{
     if(!hasAudio||!audioRef.current)return;
     if(playing){audioRef.current.pause();}
-    else{audioRef.current.play();}
+    else{audioRef.current.playbackRate=speed;audioRef.current.play();}
     setPlaying(!playing);
+  };
+  const cycleSpeed=()=>{
+    const next=speed===1?1.5:speed===1.5?2:1;
+    setSpeed(next);
+    if(audioRef.current) audioRef.current.playbackRate=next;
   };
 
   useEffect(()=>{
@@ -107,6 +113,19 @@ export default function VoiceBubble({msg,isOut,contact}){
               );
             })}
           </div>
+          {/* Playback speed */}
+          {hasAudio&&(
+            <button onClick={cycleSpeed}
+              title="Toggle playback speed"
+              style={{background:speed!==1?'rgba(99,210,255,.12)':'rgba(255,255,255,.05)',
+                border:`1px solid ${speed!==1?'rgba(99,210,255,.3)':'rgba(255,255,255,.1)'}`,
+                borderRadius:5,padding:'2px 5px',cursor:'pointer',flexShrink:0,
+                fontFamily:'var(--mono)',fontSize:9,fontWeight:700,
+                color:speed!==1?'var(--accent)':'var(--muted)',lineHeight:1.2,
+                transition:'all .15s'}}>
+              {speed}×
+            </button>
+          )}
           {/* Duration */}
           <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',flexShrink:0}}>
             {mins}:{secs}
