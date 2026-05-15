@@ -14,6 +14,88 @@ import FileBubble from './FileBubble';
 import ReactionPicker from './ReactionPicker';
 import HighlightText from '../ui/HighlightText';
 import LinkifyText from '../ui/LinkifyText';
+// ── Link Preview ────────────────────────────────────────────────────────────
+const _previewCache: Record<string, any> = {};
+
+function extractFirstUrl(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = text.match(/https?:\/\/[^\s<>"{}|\\^`\[\]]{4,}/i);
+  return m ? m[0].replace(/[.,;!?)]+$/, '') : null;
+}
+
+function LinkPreview({ url, isOut }: { url: string; isOut: boolean }) {
+  const [preview, setPreview] = React.useState<any>(_previewCache[url] ?? null);
+  const [loading, setLoading]   = React.useState(!_previewCache[url]);
+
+  React.useEffect(() => {
+    if (_previewCache[url]) { setPreview(_previewCache[url]); setLoading(false); return; }
+    const ctrl = new AbortController();
+    fetch(`/api/preview?url=${encodeURIComponent(url)}`, { signal: ctrl.signal })
+      .then(r => r.json())
+      .then(d => {
+        const ok = !!(d.title || d.description || d.image);
+        const data = { ...d, _ok: ok };
+        _previewCache[url] = data;
+        setPreview(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        _previewCache[url] = { _ok: false };
+        setLoading(false);
+      });
+    return () => ctrl.abort();
+  }, [url]);
+
+  if (loading || !preview?._ok) return null;
+
+  const borderAcc = isOut ? 'rgba(0,0,0,0.4)'   : 'var(--accent)';
+  const bg        = isOut ? 'rgba(0,0,0,0.12)'   : 'var(--surface)';
+  const border    = isOut ? 'rgba(0,0,0,0.18)'   : 'var(--border)';
+  const domColor  = isOut ? 'rgba(0,0,0,0.5)'    : 'var(--accent)';
+  const titleClr  = isOut ? '#0a0c14'             : 'var(--text)';
+  const descClr   = isOut ? 'rgba(0,0,0,0.65)'   : 'var(--text2)';
+
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer"
+      onClick={e => e.stopPropagation()}
+      style={{ display: 'block', textDecoration: 'none', marginTop: 7,
+        background: bg, borderRadius: 8, overflow: 'hidden',
+        border: `1px solid ${border}`, borderLeft: `3px solid ${borderAcc}` }}>
+      {preview.image && (
+        <img src={preview.image} alt=""
+          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          style={{ width: '100%', maxHeight: 130, objectFit: 'cover', display: 'block' }} />
+      )}
+      <div style={{ padding: '7px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+          {preview.favicon && (
+            <img src={preview.favicon} alt="" style={{ width: 12, height: 12, flexShrink: 0 }}
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+          )}
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: domColor,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '.3px' }}>
+            {preview.domain}
+          </span>
+        </div>
+        {preview.title && (
+          <div style={{ fontSize: 12, fontWeight: 600, color: titleClr, lineHeight: 1.3,
+            marginBottom: preview.description ? 2 : 0,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {preview.title}
+          </div>
+        )}
+        {preview.description && (
+          <div style={{ fontSize: 11, color: descClr, lineHeight: 1.35,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+            overflow: 'hidden' } as any}>
+            {preview.description}
+          </div>
+        )}
+      </div>
+    </a>
+  );
+}
+
 // ── Sender Profile Card (popup when clicking avatar) ──────────────────────
 function SenderProfileCard({msg, contact, onClose}) {
   const name = msg.senderName || contact?.name || 'Unknown';
@@ -76,7 +158,7 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onEdit,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,pinConfirmOpen,onOpenPinConfirm,searchQuery,onJoinGroup}:{[k:string]:any}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onEdit,onForward,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,pinConfirmOpen,onOpenPinConfirm,searchQuery,onJoinGroup}:{[k:string]:any}){
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const delLongPressRef=useRef<any>(null);
   const [bubblePos,setBubblePos]=useState<any>(null);
@@ -432,6 +514,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           )}
           {replyPreview}
           <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup} isOut={isOut}/>
+          {(()=>{const lUrl=extractFirstUrl(msg.text);return lUrl?<LinkPreview url={lUrl} isOut={isOut}/>:null;})()}
           {msg.editedAt&&<span style={{fontSize:9,color:'var(--muted)',fontFamily:'var(--mono)',marginLeft:4,opacity:.7}}>(edited)</span>}
           {meta}
         </div>
@@ -553,6 +636,15 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
                 onMouseLeave={e=>(e.currentTarget.style.background='none')}>
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span>Copy</span>
+              </button>
+            )}
+            {onForward&&(
+              <button onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();setTimeout(()=>onForward(msg),60);}}
+                style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
+                onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
+                onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
+                <span>Forward</span>
               </button>
             )}
             {onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(

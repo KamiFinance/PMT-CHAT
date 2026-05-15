@@ -146,7 +146,99 @@ async function blobToWavBase64(blob: Blob): Promise<string> {
   return 'data:audio/wav;base64,' + btoa(binary);
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg}){
+// ── Forward Modal ────────────────────────────────────────────────────────────
+function ForwardModal({msg,contacts,onForward,onClose}:{msg:any;contacts:any[];onForward:(c:any)=>void;onClose:()=>void}){
+  const [search,setSearch]=React.useState('');
+  const [forwarded,setForwarded]=React.useState<string|null>(null);
+  const filtered=contacts.filter((c:any)=>
+    c.name?.toLowerCase().includes(search.toLowerCase())||
+    c.address?.toLowerCase().includes(search.toLowerCase())
+  );
+  const handlePick=(c:any)=>{
+    if(forwarded) return; // prevent double-send
+    setForwarded(c.id);
+    onForward(c);
+    // Brief "Sent" flash then close
+    setTimeout(()=>onClose(),900);
+  };
+  // Preview snippet of what's being forwarded
+  const preview = msg.type==='voice'?'🎙 Voice message':msg.type==='image'?'🖼 Image':
+    msg.type==='file'?`📄 ${msg.fileName||'File'}`:msg.type==='video'?'🎬 Video':
+    (msg.text||'').slice(0,80)+(msg.text?.length>80?'…':'');
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.72)',
+      display:'flex',alignItems:'center',justifyContent:'center',zIndex:400,padding:16}}
+      onClick={onClose}>
+      <div style={{background:'var(--panel)',border:'1px solid var(--border)',
+        borderRadius:18,width:'100%',maxWidth:380,maxHeight:'75vh',
+        display:'flex',flexDirection:'column',overflow:'hidden',
+        animation:'slideUp .2s ease',boxShadow:'0 24px 60px rgba(0,0,0,.6)'}}
+        onClick={e=>e.stopPropagation()}>
+        {/* Header */}
+        <div style={{padding:'16px 18px 12px',borderBottom:'1px solid var(--border)',
+          display:'flex',alignItems:'center',gap:10}}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
+          <div style={{flex:1}}>
+            <div style={{fontSize:15,fontWeight:600,color:'var(--text)'}}>Forward to…</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',marginTop:1,
+              whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:260}}>
+              {preview}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',
+            color:'var(--muted)',fontSize:20,cursor:'pointer',lineHeight:1,flexShrink:0}}>×</button>
+        </div>
+        {/* Search */}
+        <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)'}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Search contacts…" autoFocus
+            style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:9,padding:'9px 13px',color:'var(--text)',fontSize:14,
+              outline:'none',fontFamily:'var(--sans)',boxSizing:'border-box'}}/>
+        </div>
+        {/* Contact list */}
+        <div style={{flex:1,overflowY:'auto',padding:'6px 0'}}>
+          {filtered.length===0&&(
+            <div style={{padding:'28px',textAlign:'center',color:'var(--muted)',fontSize:13}}>
+              No contacts found
+            </div>
+          )}
+          {filtered.map((c:any)=>(
+            <button key={c.id} onClick={()=>handlePick(c)}
+              disabled={!!forwarded}
+              style={{width:'100%',background:forwarded===c.id?'rgba(250,255,99,.08)':'none',
+                border:'none',padding:'10px 16px',display:'flex',alignItems:'center',
+                gap:12,cursor:forwarded?'default':'pointer',textAlign:'left',
+                transition:'background .12s',opacity:forwarded&&forwarded!==c.id?.toString()?0.5:1}}
+              onMouseEnter={e=>{if(!forwarded)(e.currentTarget as any).style.background='rgba(255,255,255,.05)';}}
+              onMouseLeave={e=>{if(!forwarded)(e.currentTarget as any).style.background='none';}}>
+              <ProfilePic initials={(c.avatar||c.name||'?').slice(0,2).toUpperCase()}
+                avatarUrl={c.avatarUrl} color={c.color} bg={c.bg} size={40} fs={14}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:500,color:'var(--text)',
+                  whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                  {c.name}
+                </div>
+                <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',marginTop:1}}>
+                  {c.address?.slice(0,8)}…{c.address?.slice(-4)}
+                </div>
+              </div>
+              {forwarded===c.id?.toString()&&(
+                <div style={{display:'flex',alignItems:'center',gap:4,color:'var(--accent)',
+                  fontFamily:'var(--mono)',fontSize:11,fontWeight:600,flexShrink:0}}>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Sent
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg,contacts,onForwardMsg}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
@@ -161,6 +253,11 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [delConfirmMsg,setDelConfirmMsg]=useState<any>(null); // which message needs delete confirm
   const [pickerMsgId,setPickerMsgId]=useState<string|null>(null); // which message has emoji picker open
   const [pinConfirmMsgId,setPinConfirmMsgId]=useState<string|null>(null); // which message has pin confirm open
+  const [showForward,setShowForward]=useState(false); // forward modal open
+  const [forwardMsg,setForwardMsg]=useState<any>(null); // message to forward
+  // Typing indicator state
+  const [contactTyping,setContactTyping]=useState(false);
+  const lastTypingPostRef=useRef<number>(0);
 
 
   // Lock scroll on messages container when any popup is open (web/mouse only)
@@ -175,6 +272,31 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       return ()=>{ el.removeEventListener('wheel', prevent, {capture:true} as any); };
     }
   },[ctxMenuMsg,delConfirmMsg,pickerMsgId,pinConfirmMsgId]);
+
+  // ── Typing indicator: broadcast when user types (throttled to once/2s) ──
+  useEffect(()=>{
+    if(!text||!contact?.address||contact.isGroup||contact.isAI||isDemo||!myAddress) return;
+    const now=Date.now();
+    if(now-lastTypingPostRef.current<2000) return;
+    lastTypingPostRef.current=now;
+    fetch(`/api/typing?from=${myAddress}&to=${contact.address.toLowerCase()}`,{method:'POST'}).catch(()=>{});
+  },[text]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Typing indicator: poll contact's typing status every 2.5s ──
+  useEffect(()=>{
+    if(!contact?.address||contact.isGroup||contact.isAI||isDemo||!myAddress) return;
+    let mounted=true;
+    const addr=contact.address.toLowerCase();
+    const check=()=>{
+      fetch(`/api/typing?from=${addr}&to=${myAddress}`)
+        .then(r=>r.json())
+        .then(d=>{if(mounted) setContactTyping(!!d.typing);})
+        .catch(()=>{if(mounted) setContactTyping(false);});
+    };
+    check();
+    const iv=setInterval(check,2500);
+    return ()=>{mounted=false;clearInterval(iv);setContactTyping(false);};
+  },[contact?.id,contact?.address,isDemo,myAddress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close ctx menu when clicking/touching anywhere outside
   // Delay attaching listeners so the long-press touch sequence ends first —
@@ -674,8 +796,27 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 onCloseMenus={()=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(null);setPinConfirmMsgId(null);}}
                 pickerOpen={pickerMsgId===m.id}
                 onOpenPicker={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(m.id);}}
-                onClosePicker={()=>setPickerMsgId(null)}/>
+                onClosePicker={()=>setPickerMsgId(null)}
+                onForward={onForwardMsg?(msg:any)=>{setForwardMsg(msg);setShowForward(true);}:undefined}/>
             ))}
+            {/* Typing indicator bubble */}
+            {contactTyping&&!contact.isGroup&&!contact.isAI&&(
+              <div style={{display:'flex',alignItems:'flex-end',gap:8,margin:'4px 0 2px',animation:'fadeIn .2s ease'}}>
+                <ProfilePic initials={contact.avatar} avatarUrl={contact.avatarUrl}
+                  color={contact.color} bg={contact.bg} size={26} fs={9}/>
+                <div style={{background:'var(--bubble-in)',borderRadius:14,borderBottomLeftRadius:4,
+                  padding:'10px 16px',display:'flex',gap:5,alignItems:'center',
+                  boxShadow:'0 1px 3px rgba(0,0,0,.2)'}}>
+                  {[0,1,2].map(i=>(
+                    <div key={i} style={{width:7,height:7,borderRadius:'50%',background:'var(--muted)',
+                      animation:'typingDot 1.2s ease-in-out infinite',animationDelay:(i*0.2)+'s'}}/>
+                  ))}
+                </div>
+                <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',paddingBottom:2,opacity:.7}}>
+                  {contact.name} is typing
+                </span>
+              </div>
+            )}
             <div ref={bottomRef}/>
           </div>
         </div>
@@ -978,6 +1119,19 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       {showSend&&<SendModal contact={contact} onClose={()=>setShowSend(false)}
         onSend={(amt,pwd)=>onSendETH(contact,amt,pwd)} isDemo={isDemo}
         needsPassword={!!needsPasswordToSend}/>}
+
+      {/* ── Forward modal ── */}
+      {showForward&&forwardMsg&&(
+        <ForwardModal
+          msg={forwardMsg}
+          contacts={(contacts||[]).filter((c:any)=>!c.isAI)}
+          onForward={(targetContact:any)=>{
+            onForwardMsg&&onForwardMsg(forwardMsg,targetContact);
+            setShowForward(false);setForwardMsg(null);
+          }}
+          onClose={()=>{setShowForward(false);setForwardMsg(null);}}
+        />
+      )}
     </>
   );
 }

@@ -1238,6 +1238,42 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     }
   }, [isDemo]);
 
+  const handleForwardMsg = useCallback((msg: any, targetContact: Contact) => {
+    if (!walletRef.current?.address || !targetContact?.address) return;
+    const addr = normalizeAddress(targetContact.address);
+    const myAddr = walletRef.current.address;
+    const fwdId = uid();
+    const forwarded: Message = {
+      id: fwdId,
+      out: true,
+      type: msg.type || 'text',
+      text: msg.text || '',
+      time: now(),
+      block: nextBlock(),
+      confirms: 0,
+      hash: rndHash(),
+      pending: false,
+      // Preserve media for image/file/voice forwards
+      ...(msg.type === 'image' && { b64Data: msg.b64Data, fileUrl: msg.fileUrl, ipfsCid: msg.ipfsCid, mediaMsgId: fwdId, mimeType: msg.mimeType }),
+      ...(msg.type === 'file'  && { b64Data: msg.b64Data, fileUrl: msg.fileUrl, fileName: msg.fileName, fileSize: msg.fileSize, mimeType: msg.mimeType, mediaMsgId: fwdId }),
+      ...(msg.type === 'voice' && { audioUrl: msg.audioUrl, audioB64: msg.audioB64, duration: msg.duration, waveform: msg.waveform, ipfsCid: msg.ipfsCid, ipfsUrl: msg.ipfsUrl }),
+    };
+    setMsgs(prev => ({ ...prev, [addr]: [...(prev[addr] ?? []), forwarded] }));
+    if (!isDemo && walletRef.current?.address) {
+      const inboxMsg = {
+        ...forwarded,
+        from: myAddr,
+        fromName: profileRef.current?.name || walletRef.current?.username || myAddr.slice(0, 8),
+        fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : (profileRef.current as any)?._thumbUrl ?? null; })(),
+        ts: Date.now(),
+      };
+      fetch(`/api/inbox?address=${addr}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inboxMsg),
+      }).catch(() => {});
+    }
+  }, [isDemo]);
+
   // Pin/unpin with choice: 'just_me' | 'for_both'
   // forBoth defaults to true for groups, optional for 1-on-1
   const handlePin = useCallback(async (msg: any, forBoth?: boolean) => {
@@ -1772,7 +1808,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         <div className={`sidebar-overlay${mobileSidebarOpen ? ' visible' : ''}`} onClick={() => setMobileSidebarOpen(false)} />
         <Sidebar contacts={contacts} activeId={active?.id ?? null} wallet={wallet} isDemo={isDemo} profile={profile} mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} onSelect={selectContact} onNew={() => { setShowNew(true); setMobileSidebarOpen(false); }} onNewGroup={() => { setShowGroup(true); setMobileSidebarOpen(false); }} onProfile={() => { setShowProfile(true); setMobileSidebarOpen(false); }} onSettings={() => { setShowSettings(true); setMobileSidebarOpen(false); }} onWallet={() => { setShowWallet(true); setMobileSidebarOpen(false); }} onLogout={handleLogout} onEditContact={setEditContact} onSearch={() => setShowSearch(true)} />
         <main className="chat-panel">
-          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsgs={active ? (pinnedMsgs[normalizeAddress(active.address)] || []) : []} onDelete={handleDeleteMsg} onEditMsg={handleEditMsg} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
+          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsgs={active ? (pinnedMsgs[normalizeAddress(active.address)] || []) : []} onDelete={handleDeleteMsg} onEditMsg={handleEditMsg} contacts={contacts} onForwardMsg={handleForwardMsg} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
         </main>
       </div>
       {showProfile && <ProfileModal profile={{ ...profile, address: wallet?.address ?? null }} onClose={() => setShowProfile(false)} onSave={saveProfile} />}
