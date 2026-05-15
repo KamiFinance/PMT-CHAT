@@ -460,7 +460,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
+     >
       {_wrapBubble(<VoiceBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
     {ctxMenuPortal}{picker}
@@ -486,7 +486,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
+     >
       {_wrapBubble(<ImageBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
     {ctxMenuPortal}{picker}
@@ -496,9 +496,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
-      onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
-      onTouchMove={cancelLongPress}>
+      onTouchStart={(e)=>onTouchStartSwipe(e)}
+      onTouchEnd={()=>onTouchEndSwipe()}>
       {_wrapBubble(<VideoBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
     {ctxMenuPortal}{picker}
@@ -508,7 +507,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
+     >
       {_wrapBubble(<FileBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
     {ctxMenuPortal}{picker}
@@ -518,7 +517,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
+     >
       {_wrapBubble(
         <div style={{display:'flex',alignItems:'flex-end',gap:8,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
           {!isOut&&(<div style={{flexShrink:0}}><ProfilePic initials={msg.senderName?.slice(0,2).toUpperCase()||contact?.avatar} avatarUrl={msg.senderAvatarUrl!==undefined?msg.senderAvatarUrl:contact?.avatarUrl} color={contact?.color} bg={contact?.bg} size={28} fs={10}/></div>)}
@@ -546,9 +545,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         // When lifted, keep space in layout but hide the original rendering
         ...(isLifted?{visibility:'hidden', pointerEvents:'none'}:{})}}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-      onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
-      onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
-      onTouchMove={cancelLongPress}>
+      onTouchStart={(e)=>onTouchStartSwipe(e)}
+      onTouchEnd={()=>onTouchEndSwipe()}>
     {/* Portal when lifted → root stacking context, escapes iOS Safari overflow:scroll clipping.
          Inline div when not lifted. Content defined once in _w, used in both paths. */}
     {(()=>{const _ctx=(e:any)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}};
