@@ -788,7 +788,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           className="chat-messages-area"
           style={{position:'absolute',inset:0,overflowY:'auto',
             ...(chatWallpaper && chatWallpaper !== 'none' ? {
-              backgroundImage: `url(/${chatWallpaper}.png)`,
+              backgroundImage: `url(/${chatWallpaper}.png?v=2)`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundAttachment: 'local',
