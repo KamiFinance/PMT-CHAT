@@ -80,31 +80,31 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const delLongPressRef=useRef<any>(null);
   const [bubblePos,setBubblePos]=useState<any>(null);
+  const [containerBottom,setContainerBottom]=useState<number>(0); // messages area bottom on mobile
   const updatePos=()=>{ if(bubbleRef.current) setBubblePos(bubbleRef.current.getBoundingClientRect()); };
+  // Call this to capture both the bubble pos AND the scroll container's bottom in one shot
+  const capturePos=()=>{
+    if(!bubbleRef.current) return;
+    setBubblePos(bubbleRef.current.getBoundingClientRect());
+    // Walk up to find the scrollable container so liftDelta is correct on mobile
+    let cb=window.innerHeight;
+    let el=bubbleRef.current.parentElement as HTMLElement|null;
+    while(el&&el!==document.body){
+      const oy=window.getComputedStyle(el).overflowY;
+      if(oy==='auto'||oy==='scroll'){ cb=el.getBoundingClientRect().bottom; break; }
+      el=el.parentElement;
+    }
+    setContainerBottom(cb);
+  };
 
   // Compute how many px to translateY the bubble so emoji bar above AND action menu below both fit.
-  // Uses the actual scroll-container bounds so mobile (with input bar) is handled correctly.
+  // containerBottom is captured at click time (in capturePos) — correctly accounts for mobile input bar.
   const liftDelta=React.useMemo(()=>{
     if(!ctxMenuOpen||!bubblePos) return 0;
     const EMOJI_H=64;  // reaction strip height + gap
     const ITEM_H=52;   // per action-menu row
     const PAD=8;
-
-    // Walk up to find the scrollable messages container; use its bounds as our reference.
-    // This avoids relying on window.innerHeight which ignores the input bar on mobile.
-    let ctTop=0, ctBottom=window.innerHeight;
-    if(bubbleRef.current){
-      let el=bubbleRef.current.parentElement as HTMLElement|null;
-      while(el&&el!==document.body){
-        const oy=window.getComputedStyle(el).overflowY;
-        if(oy==='auto'||oy==='scroll'){
-          const r=el.getBoundingClientRect();
-          ctTop=r.top; ctBottom=r.bottom;
-          break;
-        }
-        el=el.parentElement;
-      }
-    }
+    const ctBottom=containerBottom||window.innerHeight;
 
     const nItems=[
       onReply?1:0, msg.text?1:0, onForward?1:0,
@@ -114,12 +114,12 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     const menuH=Math.max(nItems,1)*ITEM_H+16;
 
     const ideal=Math.max(
-      ctTop+EMOJI_H+PAD,
+      EMOJI_H+PAD,
       Math.min(bubblePos.top, ctBottom-bubblePos.height-menuH-PAD)
     );
     return ideal-bubblePos.top;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[ctxMenuOpen,bubblePos?.top,bubblePos?.height]);
+  },[ctxMenuOpen,bubblePos?.top,bubblePos?.height,containerBottom]);
   const reactions=msg.reactions||{};
   // Support both formats: {emoji: {addr: 1}} (new) and {emoji: count} (old)
   const getRxnCount=(v)=>typeof v==='object'&&v!==null?Object.values(v).filter((x)=>Number(x)>0).length:Number(v)>0?Number(v):0;
@@ -174,11 +174,11 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     swipeTranslate.current=0;
   };
 
-  const handleLongPress=()=>{ if(anyPopupOpen) return; longPressRef.current=setTimeout(()=>(()=>{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);})(),500); };
-  const handleDelLongPressStart=()=>{ if(anyPopupOpen||(!onDelete&&!onPin)) return; delLongPressRef.current=setTimeout(()=>{clearTimeout(longPressRef.current);if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);},700); };
+  const handleLongPress=()=>{ if(anyPopupOpen) return; longPressRef.current=setTimeout(()=>(()=>{capturePos();onOpenPicker&&onOpenPicker(msg);})(),500); };
+  const handleDelLongPressStart=()=>{ if(anyPopupOpen||(!onDelete&&!onPin)) return; delLongPressRef.current=setTimeout(()=>{clearTimeout(longPressRef.current);capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);},700); };
   const handleDelLongPressEnd=()=>{clearTimeout(delLongPressRef.current);};
   const cancelLongPress=()=>clearTimeout(longPressRef.current);
-  const togglePicker=(e)=>{e.stopPropagation();pickerOpen?onClosePicker&&onClosePicker():(()=>{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);})();};
+  const togglePicker=(e)=>{e.stopPropagation();pickerOpen?onClosePicker&&onClosePicker():(()=>{capturePos();onOpenPicker&&onOpenPicker(msg);})();};
 
   // Scroll to and highlight the original quoted message
   const jumpToReply = () => {
@@ -364,7 +364,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   );
 
   if(msg.type==='voice') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       <VoiceBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
@@ -387,14 +387,14 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     </div>
   );
   if(msg.type==='image') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       <ImageBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
     </div>
   );
   if(msg.type==='video') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
@@ -403,14 +403,14 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     </div>
   );
   if(msg.type==='file') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       <FileBubble msg={msg} isOut={isOut} contact={contact}/>
       {reactionsBar}{picker}
     </div>
   );
   if(msg.type==='tx') return(
-    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);}}}
+    <div style={{position:'relative'}} onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={handleLongPress} onTouchEnd={()=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       <div style={{display:'flex',alignItems:'flex-end',gap:8,marginBottom:3,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
         {!isOut&&(
@@ -444,7 +444,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         willChange:'transform'
       }:{transform:'translateY(0)',willChange:'auto'})}}
       ref={bubbleRef}
-      onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);}}}
+      onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
