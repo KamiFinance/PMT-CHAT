@@ -1,5 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import InAppBrowser from './InAppBrowser';
 import Twemoji from './Twemoji';
 
@@ -77,7 +78,7 @@ function LinkPreview({ url, isOut = true }) {
           {data.description && <div style={{ fontSize: 11, color: isOut ? 'rgba(0,0,0,0.6)' : 'rgba(250,255,99,0.75)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{data.description}</div>}
         </div>
       </div>
-      {open && <InAppBrowser url={url} onClose={() => setOpen(false)} />}
+      {open && createPortal(<InAppBrowser url={url} onClose={() => setOpen(false)} />, document.body)}
     </>
   );
 }
@@ -218,7 +219,7 @@ export default function LinkifyText({ text, query, onJoinGroup, isOut = true }) 
       </span>
       {firstUrl.ref && <LinkPreview url={firstUrl.ref} isOut={isOut} />}
       {joinIds.map(id => <GroupLinkPreview key={id} linkId={id} onJoinGroup={onJoinGroup} isOut={isOut} />)}
-      {browserUrl && <InAppBrowser url={browserUrl} onClose={() => setBrowserUrl(null)} />}
+      {browserUrl && createPortal(<InAppBrowser url={browserUrl} onClose={() => setBrowserUrl(null)} />, document.body)}
     </>
   );
 }
