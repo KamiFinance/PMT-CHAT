@@ -81,6 +81,27 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   const delLongPressRef=useRef<any>(null);
   const [bubblePos,setBubblePos]=useState<any>(null);
   const updatePos=()=>{ if(bubbleRef.current) setBubblePos(bubbleRef.current.getBoundingClientRect()); };
+
+  // Compute how many px to translateY the bubble so emoji bar above AND action menu below both fit
+  const liftDelta=React.useMemo(()=>{
+    if(!ctxMenuOpen||!bubblePos) return 0;
+    const EMOJI_H=64;   // reaction strip + gap above bubble
+    const ITEM_H=52;    // per action-menu row
+    const TOP_SAFE=68;  // clearance for app topbar
+    const BOT_SAFE=14;
+    const nItems=[
+      onReply?1:0, msg.text?1:0, onForward?1:0,
+      (onEdit&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type))?1:0,
+      onPin?1:0, onDelete?1:0
+    ].reduce((a:number,b:number)=>a+b,0);
+    const menuH=Math.max(nItems,1)*ITEM_H+16;
+    const ideal=Math.max(
+      TOP_SAFE+EMOJI_H,
+      Math.min(bubblePos.top, window.innerHeight-BOT_SAFE-bubblePos.height-menuH-4)
+    );
+    return ideal-bubblePos.top;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[ctxMenuOpen,bubblePos?.top,bubblePos?.height]);
   const reactions=msg.reactions||{};
   // Support both formats: {emoji: {addr: 1}} (new) and {emoji: count} (old)
   const getRxnCount=(v)=>typeof v==='object'&&v!==null?Object.values(v).filter((x)=>Number(x)>0).length:Number(v)>0?Number(v):0;
@@ -398,7 +419,12 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   );
   return(
     <>
-    <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3,userSelect:'none',WebkitUserSelect:'none',...(isSelected?{zIndex:202,isolation:'isolate'}:{})}}
+    <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3,userSelect:'none',WebkitUserSelect:'none',
+      ...(isSelected?{zIndex:202,isolation:'isolate',
+        transform:`translateY(${liftDelta}px)`,
+        transition:'transform 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+        willChange:'transform'
+      }:{transform:'translateY(0)',willChange:'auto'})}}
       ref={bubbleRef}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{if(bubbleRef.current)setBubblePos(bubbleRef.current.getBoundingClientRect());onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
@@ -502,13 +528,13 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       {ctxMenuOpen&&(onDelete||onPin)&&bubblePos&&createPortal(
         <>
           {/* Dim backdrop — like Telegram */}
-          <div style={{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,.35)',
-            backdropFilter:'blur(1px)',WebkitBackdropFilter:'blur(1px)'}}
+          <div style={{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,.55)',
+            backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)'}}
             onClick={()=>onCloseMenus&&onCloseMenus()}
             onTouchStart={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();}}/>
           {/* Quick reactions above bubble — always shown with ctx menu */}
           <div style={{position:'fixed',zIndex:201,
-            bottom: window.innerHeight - bubblePos.top + 8,
+            bottom: window.innerHeight - (bubblePos.top+liftDelta) + 8,
             ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left})}}
             onMouseDown={(e)=>e.stopPropagation()}
             onTouchStart={(e)=>e.stopPropagation()}>
@@ -533,11 +559,9 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
               </button>
             </div>
           </div>
-          {/* Action menu — smart positioning: below bubble, or above if not enough space */}
+          {/* Action menu — always below bubble (liftDelta ensures it fits) */}
           <div style={{position:'fixed',zIndex:200,
-            ...(window.innerHeight - bubblePos.bottom > 260
-              ? {top: bubblePos.bottom + 4}
-              : {bottom: window.innerHeight - bubblePos.top + 4}),
+            top: bubblePos.bottom+liftDelta+6,
             ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left}),
             background:'var(--panel)',border:'1px solid var(--border)',borderRadius:12,
             boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:180,
