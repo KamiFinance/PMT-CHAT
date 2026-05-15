@@ -1288,7 +1288,9 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         body: JSON.stringify(inboxMsg),
       }).catch(() => {});
     }
-  }, [isDemo]);
+    // Navigate to the conversation where the message was forwarded
+    setActiveAndRef(targetContact);
+  }, [isDemo, setActiveAndRef]);
 
   // Pin/unpin with choice: 'just_me' | 'for_both'
   // forBoth defaults to true for groups, optional for 1-on-1
