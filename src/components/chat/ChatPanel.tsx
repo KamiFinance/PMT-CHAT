@@ -326,29 +326,6 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     return ()=>clearTimeout(t);
   },[contact?.id,messages.length,isDemo,myAddress]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Allow bubble transform to escape overflow containers on mobile while ctx menu is open
-  // useLayoutEffect runs before paint — prevents 1-frame clip flash on mobile
-  useLayoutEffect(()=>{
-    const outer=outerContainerRef.current;
-    const inner=messagesRef.current;
-    if(!outer||!inner) return;
-    if(ctxMenuMsg){
-      // Make both overflow containers transparent so the lifted bubble can escape
-      outer.style.overflow='visible';
-      inner.style.overflowY='visible';
-      inner.style.overflowX='visible';
-    } else {
-      outer.style.overflow='hidden';
-      inner.style.overflowY='auto';
-      inner.style.overflowX='hidden';
-    }
-    return ()=>{
-      outer.style.overflow='hidden';
-      inner.style.overflowY='auto';
-      inner.style.overflowX='hidden';
-    };
-  },[!!ctxMenuMsg]);
-
   // Close ctx menu when clicking/touching anywhere outside
   // Delay attaching listeners so the long-press touch sequence ends first —
   // otherwise the synthetic mousedown after touchend closes the popup immediately
@@ -394,6 +371,29 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const bottomRef=useRef(null);
   const messagesRef=useRef<HTMLDivElement>(null);
   const outerContainerRef=useRef<HTMLDivElement>(null); // outer overflow:hidden wrapper
+
+  // Allow bubble transform to escape overflow containers on mobile while ctx menu is open.
+  // useLayoutEffect: runs before paint so there is no 1-frame clip flash on mobile.
+  useLayoutEffect(()=>{
+    const outer=outerContainerRef.current;
+    const inner=messagesRef.current;
+    if(!outer||!inner) return;
+    if(ctxMenuMsg){
+      // Make both overflow containers transparent so the lifted bubble's transform can escape
+      outer.style.overflow='visible';
+      inner.style.overflowY='visible';
+      inner.style.overflowX='visible';
+    } else {
+      outer.style.overflow='hidden';
+      inner.style.overflowY='auto';
+      inner.style.overflowX='hidden';
+    }
+    return ()=>{
+      outer.style.overflow='hidden';
+      inner.style.overflowY='auto';
+      inner.style.overflowX='hidden';
+    };
+  },[!!ctxMenuMsg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Document-level wheel listener (capture phase) — works without any click,
   // from the moment the mouse enters the chat area.
