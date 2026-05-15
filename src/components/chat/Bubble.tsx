@@ -14,88 +14,6 @@ import FileBubble from './FileBubble';
 import ReactionPicker from './ReactionPicker';
 import HighlightText from '../ui/HighlightText';
 import LinkifyText from '../ui/LinkifyText';
-// ── Link Preview ────────────────────────────────────────────────────────────
-const _previewCache: Record<string, any> = {};
-
-function extractFirstUrl(text: string | null | undefined): string | null {
-  if (!text) return null;
-  const m = text.match(/https?:\/\/[^\s<>"{}|\\^`\[\]]{4,}/i);
-  return m ? m[0].replace(/[.,;!?)]+$/, '') : null;
-}
-
-function LinkPreview({ url, isOut }: { url: string; isOut: boolean }) {
-  const [preview, setPreview] = React.useState<any>(_previewCache[url] ?? null);
-  const [loading, setLoading]   = React.useState(!_previewCache[url]);
-
-  React.useEffect(() => {
-    if (_previewCache[url]) { setPreview(_previewCache[url]); setLoading(false); return; }
-    const ctrl = new AbortController();
-    fetch(`/api/preview?url=${encodeURIComponent(url)}`, { signal: ctrl.signal })
-      .then(r => r.json())
-      .then(d => {
-        const ok = !!(d.title || d.description || d.image);
-        const data = { ...d, _ok: ok };
-        _previewCache[url] = data;
-        setPreview(data);
-        setLoading(false);
-      })
-      .catch(() => {
-        _previewCache[url] = { _ok: false };
-        setLoading(false);
-      });
-    return () => ctrl.abort();
-  }, [url]);
-
-  if (loading || !preview?._ok) return null;
-
-  const borderAcc = isOut ? 'rgba(0,0,0,0.4)'   : 'var(--accent)';
-  const bg        = isOut ? 'rgba(0,0,0,0.12)'   : 'var(--surface)';
-  const border    = isOut ? 'rgba(0,0,0,0.18)'   : 'var(--border)';
-  const domColor  = isOut ? 'rgba(0,0,0,0.5)'    : 'var(--accent)';
-  const titleClr  = isOut ? '#0a0c14'             : 'var(--text)';
-  const descClr   = isOut ? 'rgba(0,0,0,0.65)'   : 'var(--text2)';
-
-  return (
-    <a href={url} target="_blank" rel="noopener noreferrer"
-      onClick={e => e.stopPropagation()}
-      style={{ display: 'block', textDecoration: 'none', marginTop: 7,
-        background: bg, borderRadius: 8, overflow: 'hidden',
-        border: `1px solid ${border}`, borderLeft: `3px solid ${borderAcc}` }}>
-      {preview.image && (
-        <img src={preview.image} alt=""
-          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          style={{ width: '100%', maxHeight: 130, objectFit: 'cover', display: 'block' }} />
-      )}
-      <div style={{ padding: '7px 10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-          {preview.favicon && (
-            <img src={preview.favicon} alt="" style={{ width: 12, height: 12, flexShrink: 0 }}
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-          )}
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: domColor,
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '.3px' }}>
-            {preview.domain}
-          </span>
-        </div>
-        {preview.title && (
-          <div style={{ fontSize: 12, fontWeight: 600, color: titleClr, lineHeight: 1.3,
-            marginBottom: preview.description ? 2 : 0,
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {preview.title}
-          </div>
-        )}
-        {preview.description && (
-          <div style={{ fontSize: 11, color: descClr, lineHeight: 1.35,
-            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-            overflow: 'hidden' } as any}>
-            {preview.description}
-          </div>
-        )}
-      </div>
-    </a>
-  );
-}
-
 // ── Sender Profile Card (popup when clicking avatar) ──────────────────────
 function SenderProfileCard({msg, contact, onClose}) {
   const name = msg.senderName || contact?.name || 'Unknown';
@@ -514,7 +432,6 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           )}
           {replyPreview}
           <LinkifyText text={msg.text} query={searchQuery} onJoinGroup={onJoinGroup} isOut={isOut}/>
-          {(()=>{const lUrl=extractFirstUrl(msg.text);return lUrl?<LinkPreview url={lUrl} isOut={isOut}/>:null;})()}
           {msg.editedAt&&<span style={{fontSize:9,color:'var(--muted)',fontFamily:'var(--mono)',marginLeft:4,opacity:.7}}>(edited)</span>}
           {meta}
         </div>

@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     const domain = urlObj.hostname.replace('www.', '');
 
     const get = (pattern) => { const m = html.match(pattern); return m ? m[1].trim() : ''; };
-    const decode = (s) => s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&nbsp;/g,' ');
+    const decode = (s) => s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&#x27;/g,"'").replace(/&#039;/g,"'").replace(/&nbsp;/g,' ').replace(/&apos;/g,"'");
 
     const ogTitle = decode(get(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || get(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i));
     const ogDesc  = decode(get(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) || get(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i));
