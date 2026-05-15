@@ -198,30 +198,6 @@ export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet,
         )}
 
         {/* AI Assistant */}
-        <Section icon="🤖" title="AI ASSISTANT" badge="ACTIVE">
-          <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.5}}>
-            PMT AI Assistant is built-in. Add your own Anthropic API key to use your personal quota.
-          </div>
-          <Field label="ANTHROPIC API KEY (OPTIONAL)" value={aiKey} onChange={setAiKey}
-            placeholder="sk-ant-api03-..." type="password"/>
-          <div style={{fontSize:11,color:'var(--muted)'}}>
-            Get a key at <a href="https://console.anthropic.com" target="_blank"
-              style={{color:'var(--accent)',textDecoration:'none'}}>console.anthropic.com</a>
-          </div>
-        </Section>
-
-        {/* Pinata */}
-        <Section icon="📌" title="PINATA IPFS STORAGE">
-          <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.5}}>
-            Images, files and voice messages are stored on IPFS via Pinata — accessible from any device.
-          </div>
-          <Field label="PINATA JWT TOKEN (OPTIONAL)" value={pinataJwt} onChange={setPinataJwt}
-            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." type="password"/>
-          <div style={{fontSize:11,color:'var(--muted)'}}>
-            Get your JWT at <a href="https://app.pinata.cloud" target="_blank"
-              style={{color:'var(--accent)',textDecoration:'none'}}>app.pinata.cloud</a> → API Keys
-          </div>
-        </Section>
 
         {/* Save */}
         <button onClick={save}
