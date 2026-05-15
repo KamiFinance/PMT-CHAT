@@ -426,6 +426,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         )}
         <TxCard msg={msg} isOut={isOut}/>
       </div>
+    </div>
       {reactionsBar}{picker}
     </div>
   );
@@ -435,19 +436,35 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         border:'1px solid var(--border)',borderRadius:20,padding:'3px 12px'}}>{msg.text}</span>
     </div>
   );
+  // Whether the bubble is currently "floating" above the overlay (lifted for ctx menu)
+  // Always use position:fixed when the ctx menu is open so the bubble sits above
+  // the z-index:199 backdrop regardless of liftDelta value
+  const isLifted=!!(isSelected&&ctxMenuOpen&&bubblePos);
+
   return(
     <>
-    <div id={'msg-'+msg.id} style={{position:'relative',marginBottom:3,userSelect:'none',WebkitUserSelect:'none',
-      ...(isSelected?{zIndex:202,isolation:'isolate',
-        transform:`translateY(${liftDelta}px)`,
-        transition:'transform 0.28s cubic-bezier(0.34,1.56,0.64,1)',
-        willChange:'transform'
-      }:{transform:'translateY(0)',willChange:'auto'})}}
+    {/* Outer div: always in normal flow — becomes invisible placeholder when bubble is lifted */}
+    <div id={'msg-'+msg.id}
       ref={bubbleRef}
+      style={{position:'relative',marginBottom:3,userSelect:'none',WebkitUserSelect:'none',
+        // When lifted, keep space in layout but hide the original rendering
+        ...(isLifted?{visibility:'hidden', pointerEvents:'none'}:{})}}
       onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
+    {/* Inner div: when lifted becomes position:fixed — escapes ALL overflow containers */}
+    <div style={isLifted?{
+      position:'fixed',
+      top: bubblePos.top+liftDelta,
+      // Preserve horizontal position of the bubble row
+      left: 0, right: 0,
+      zIndex:202,
+      animation:'none',
+      // Pad to match the original chat layout (20px sides)
+      padding:'0 20px',
+    }:{}}
+    onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}>
       <div style={{display:'flex',alignItems:'flex-end',gap:4,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}
        >
         {!isOut&&(
@@ -540,6 +557,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         document.body
       )}
       {reactionsBar}
+    </div>{/* end inner fixed div */}
       {picker}
 
       {/* Delete context menu — shown on right-click or long-press */}

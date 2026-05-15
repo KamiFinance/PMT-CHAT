@@ -1,6 +1,6 @@
 // @ts-nocheck
 import ProfilePic from '../ui/ProfilePic';
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { uploadToPinata, getIpfsUrl } from '../../lib/pinata';
 import { now, rndHash, uid, formatSize, currentBlock } from '../../lib/utils';
 
@@ -370,30 +370,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const silentFramesRef=useRef(0); // consecutive silent frames counter
   const bottomRef=useRef(null);
   const messagesRef=useRef<HTMLDivElement>(null);
-  const outerContainerRef=useRef<HTMLDivElement>(null); // outer overflow:hidden wrapper
 
-  // Allow bubble transform to escape overflow containers on mobile while ctx menu is open.
-  // useLayoutEffect: runs before paint so there is no 1-frame clip flash on mobile.
-  useLayoutEffect(()=>{
-    const outer=outerContainerRef.current;
-    const inner=messagesRef.current;
-    if(!outer||!inner) return;
-    if(ctxMenuMsg){
-      // Make both overflow containers transparent so the lifted bubble's transform can escape
-      outer.style.overflow='visible';
-      inner.style.overflowY='visible';
-      inner.style.overflowX='visible';
-    } else {
-      outer.style.overflow='hidden';
-      inner.style.overflowY='auto';
-      inner.style.overflowX='hidden';
-    }
-    return ()=>{
-      outer.style.overflow='hidden';
-      inner.style.overflowY='auto';
-      inner.style.overflowX='hidden';
-    };
-  },[!!ctxMenuMsg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Document-level wheel listener (capture phase) — works without any click,
   // from the moment the mouse enters the chat area.
@@ -800,7 +777,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       />
 
       {/* Outer wrapper — fills the chat-panel flex slot */}
-      <div ref={outerContainerRef} style={{flex:1,position:'relative',overflow:'hidden',minHeight:0}}>
+      <div style={{flex:1,position:'relative',overflow:'hidden',minHeight:0}}>
 
         {/* ── Messages div covers the ENTIRE area — always under the cursor ── */}
         <div ref={messagesRef}
