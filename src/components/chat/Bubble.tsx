@@ -462,6 +462,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       animation:'none',
       // Pad to match the original chat layout (20px sides)
       padding:'0 20px',
+      visibility:'visible', // override inherited visibility:hidden from the outer placeholder
     }:{}}
     onContextMenu={(e)=>{e.preventDefault();if(onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}>
       <div style={{display:'flex',alignItems:'flex-end',gap:4,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}
