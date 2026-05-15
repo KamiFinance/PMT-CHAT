@@ -548,7 +548,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       )}
       {reactionsBar}
     </>);// end _w
-    return isLifted&&bubblePos?createPortal(<div style={{position:'fixed',top:bubblePos.top+liftDelta,left:0,right:0,zIndex:202,padding:'0 20px',pointerEvents:'auto'}} onContextMenu={_ctx}>{_w}</div>,document.body):<div onContextMenu={_ctx}>{_w}</div>;
+    return isLifted&&bubblePos?createPortal(<div style={{position:'fixed',top:bubblePos.top+liftDelta,left:bubblePos.left,width:bubblePos.width,zIndex:202,pointerEvents:'auto'}} onContextMenu={_ctx}>{_w}</div>,document.body):<div onContextMenu={_ctx}>{_w}</div>;
     })()}
       {picker}
 
