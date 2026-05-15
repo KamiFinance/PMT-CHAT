@@ -528,9 +528,11 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
               </button>
             </div>
           </div>
-          {/* Action menu below bubble */}
+          {/* Action menu — smart positioning: below bubble, or above if not enough space */}
           <div style={{position:'fixed',zIndex:200,
-            top: bubblePos.bottom + 4,
+            ...(window.innerHeight - bubblePos.bottom > 260
+              ? {top: bubblePos.bottom + 4}
+              : {bottom: window.innerHeight - bubblePos.top + 4}),
             ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left}),
             background:'var(--panel)',border:'1px solid var(--border)',borderRadius:12,
             boxShadow:'0 8px 24px rgba(0,0,0,.4)',padding:'4px 0',minWidth:180,
