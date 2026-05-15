@@ -1,6 +1,7 @@
 // @ts-nocheck
 import ProfilePic from '../ui/ProfilePic';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { uploadToPinata, getIpfsUrl } from '../../lib/pinata';
 import { now, rndHash, uid, formatSize, currentBlock } from '../../lib/utils';
 
@@ -1170,8 +1171,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         onSend={(amt,pwd)=>onSendETH(contact,amt,pwd)} isDemo={isDemo}
         needsPassword={!!needsPasswordToSend}/>}
 
-      {/* ── Forward modal ── */}
-      {showForward&&forwardMsg&&(
+      {/* ── Forward modal — portal to body (escapes overflow containers on iOS Safari) ── */}
+      {showForward&&forwardMsg&&createPortal(
         <ForwardModal
           msg={forwardMsg}
           contacts={(contacts||[]).filter((c:any)=>!c.isAI)}
@@ -1180,7 +1181,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
             setShowForward(false);setForwardMsg(null);
           }}
           onClose={()=>{setShowForward(false);setForwardMsg(null);}}
-        />
+        />,
+        document.body
       )}
     </>
   );
