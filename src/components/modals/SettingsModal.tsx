@@ -118,7 +118,7 @@ export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet,
               <button onClick={()=>onSetWallpaper&&onSetWallpaper('wallpaper1')}
                 title="Wallpaper 1"
                 style={{width:56,height:56,borderRadius:10,border:`2px solid ${chatWallpaper==='wallpaper1'?'var(--accent)':'var(--border)'}`,
-                  backgroundImage:'url(/wallpaper1.png?v=2)',backgroundSize:'cover',backgroundPosition:'center',
+                  backgroundImage:'url(/wallpaper1.png?v=2)',backgroundSize:'contain',backgroundPosition:'center',backgroundRepeat:'no-repeat',
                   cursor:'pointer',flexShrink:0,transition:'border-color .15s',outline:'none',position:'relative'}}>
                 {chatWallpaper==='wallpaper1'&&<div style={{position:'absolute',inset:0,borderRadius:8,background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:16}}>✓</span></div>}
               </button>
@@ -126,7 +126,7 @@ export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet,
               <button onClick={()=>onSetWallpaper&&onSetWallpaper('wallpaper2')}
                 title="Wallpaper 2"
                 style={{width:56,height:56,borderRadius:10,border:`2px solid ${chatWallpaper==='wallpaper2'?'var(--accent)':'var(--border)'}`,
-                  backgroundImage:'url(/wallpaper2.png?v=2)',backgroundSize:'cover',backgroundPosition:'center',
+                  backgroundImage:'url(/wallpaper2.png?v=2)',backgroundSize:'contain',backgroundPosition:'center',backgroundRepeat:'no-repeat',
                   cursor:'pointer',flexShrink:0,transition:'border-color .15s',outline:'none',position:'relative'}}>
                 {chatWallpaper==='wallpaper2'&&<div style={{position:'absolute',inset:0,borderRadius:8,background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:16}}>✓</span></div>}
               </button>
@@ -134,7 +134,7 @@ export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet,
               <button onClick={()=>onSetWallpaper&&onSetWallpaper('wallpaper3')}
                 title="Wallpaper 3"
                 style={{width:56,height:56,borderRadius:10,border:`2px solid ${chatWallpaper==='wallpaper3'?'var(--accent)':'var(--border)'}`,
-                  backgroundImage:'url(/wallpaper3.png?v=2)',backgroundSize:'cover',backgroundPosition:'center',
+                  backgroundImage:'url(/wallpaper3.png?v=2)',backgroundSize:'contain',backgroundPosition:'center',backgroundRepeat:'no-repeat',
                   cursor:'pointer',flexShrink:0,transition:'border-color .15s',outline:'none',position:'relative'}}>
                 {chatWallpaper==='wallpaper3'&&<div style={{position:'absolute',inset:0,borderRadius:8,background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:16}}>✓</span></div>}
               </button>

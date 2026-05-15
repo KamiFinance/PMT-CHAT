@@ -789,7 +789,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           style={{position:'absolute',inset:0,overflowY:'auto',
             ...(chatWallpaper && chatWallpaper !== 'none' ? {
               backgroundImage: `url(/${chatWallpaper}.png?v=2)`,
-              backgroundSize: 'cover',
+              backgroundSize: 'contain',
               backgroundPosition: 'center',
               backgroundAttachment: 'local',
             } : {}),
