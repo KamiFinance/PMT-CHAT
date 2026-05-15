@@ -233,6 +233,8 @@ export default function App() {
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [profile, setProfile] = useState<Profile>({ name: '', bio: '', avatarUrl: null, address: null });
   const [darkMode, setDarkMode] = useState<boolean>(() => storage.getTheme() !== 'light');
+  const [chatWallpaper, setChatWallpaper] = useState<string>(() => { try { return localStorage.getItem('chatWallpaper') || 'none'; } catch { return 'none'; } });
+  const handleSetWallpaper = (wp: string) => { setChatWallpaper(wp); try { localStorage.setItem('chatWallpaper', wp); } catch {} };
 
   useEffect(() => {
     walletRef.current = wallet;
