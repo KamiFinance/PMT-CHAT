@@ -1538,18 +1538,28 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     if (np.avatarUrl?.startsWith('data:')) {
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 120; canvas.height = 120;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { publishProfile(); return; }
-        const s = Math.min(img.width, img.height);
-        const sx = (img.width - s) / 2, sy = (img.height - s) / 2;
-        ctx.drawImage(img, sx, sy, s, s, 0, 0, 120, 120);
-        const thumbUrl = canvas.toDataURL('image/jpeg', 0.9);
-        const updated: Profile = { ...np, _thumbUrl: thumbUrl } as any;
+        const s  = Math.min(img.width, img.height);
+        const sx = (img.width  - s) / 2;
+        const sy = (img.height - s) / 2;
+        const drawSquare = (size: number, quality: number) => {
+          const c = document.createElement('canvas');
+          c.width = size; c.height = size;
+          const ctx = c.getContext('2d');
+          if (!ctx) return null;
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+          return c.toDataURL('image/jpeg', quality);
+        };
+        // 120×120 for relay message embedding (small, fast to transfer)
+        const thumbUrl  = drawSquare(120, 0.92);
+        // 400×400 for profile API (sharp at all display sizes up to 400px)
+        const largeUrl  = drawSquare(400, 0.92);
+        const updated: Profile = { ...np, _thumbUrl: thumbUrl ?? undefined } as any;
         profileRef.current = updated;
         if (accountKey) storage.setProfile(accountKey, updated);
-        publishProfile(thumbUrl);
+        // Publish large version to profile API so other users see it sharp
+        publishProfile(largeUrl ?? thumbUrl ?? undefined);
       };
       img.onerror = () => publishProfile();
       img.src = np.avatarUrl;
