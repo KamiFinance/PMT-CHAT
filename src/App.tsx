@@ -465,8 +465,12 @@ export default function App() {
     Object.entries(currentMsgs).forEach(([a, arr]) => {
       // Keep last 200 messages per contact (was 50 — increased for better coverage)
       cleanMsgs[a] = (arr as any[]).slice(a === AI_AGENT_ADDRESS.toLowerCase() ? -100 : -200).map((m: any) => {
-        const { b64Data, audioUrl, fileUrl, imgData, fileData,
-                uploading, _toAddr, waveform, audioB64, ...keep } = m;
+        const { audioUrl, fileUrl, imgData, fileData,
+                uploading, _toAddr, audioB64, ...keep } = m;
+        // Keep waveform for voice (visualizer needs it after restore)
+        if (keep.type !== 'voice') delete keep.waveform;
+        // Keep b64Data only for small inline images/files without a Pinata CID
+        if (keep.ipfsCid || !keep.b64Data || keep.b64Data.length > 80000) delete keep.b64Data;
         return keep;
       });
     });
@@ -499,6 +503,9 @@ export default function App() {
         });
         return pm;
       })(),
+      settings: {
+        chatWallpaper: (() => { try { return localStorage.getItem('chatWallpaper') || null; } catch { return null; } })(),
+      },
     });
   }, [isDemo]);
 
@@ -574,7 +581,8 @@ export default function App() {
           restoredContacts: backup.contacts ?? [],
           restoredMessages: backup.messages ?? {},
           restoredProfile:  backup.profile  ?? {},
-          restoredPinnedMsgs: backup.pinnedMsgs ?? {} });
+          restoredPinnedMsgs: backup.pinnedMsgs ?? {},
+          restoredSettings: (backup as any).settings ?? {} });
       }).catch(e => {
         if (e?.message === 'WRONG_PASSWORD') {
           setShowWalletRestore(true);
@@ -1582,6 +1590,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     }
     if (w.restoredMessages !== undefined) {
       setMsgs(w.restoredMessages as MsgsMap);
+    }
+    if ((w as any).restoredSettings?.chatWallpaper) {
+      const wp = (w as any).restoredSettings.chatWallpaper;
+      try { localStorage.setItem('chatWallpaper', wp); } catch {}
+      setChatWallpaper(wp);
     }
     if (w.restoredProfile) {
       setProfile(w.restoredProfile as Profile);

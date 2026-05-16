@@ -100,7 +100,7 @@ export default function ImportWalletFlow({onWallet,onBack}){
           const authRes=await fetch(`/api/auth?username=${encodeURIComponent(useUsername)}`);
           const authData=await authRes.json();
           if(authData.encryptedBackup){
-            const backup=await loadCloudBackup(authData.encryptedBackup, password);
+            const backup=await loadCloudBackup(useUsername, password);
             restoredContacts=backup.contacts||[];
             restoredMessages=backup.messages||{};
             restoredProfile=backup.profile||{};
@@ -113,6 +113,7 @@ export default function ImportWalletFlow({onWallet,onBack}){
         chainId:'0x46df2',username:useUsername,sessionPassword:password,
         ...(restoredContacts.length?{restoredContacts}:{}),
         ...(Object.keys(restoredMessages).length?{restoredMessages}:{}),
+        restoredSettings: (backup as any)?.settings ?? {},
         ...(Object.keys(restoredProfile).length?{restoredProfile}:{}),
       });
     }catch(e){
