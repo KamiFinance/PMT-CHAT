@@ -423,6 +423,24 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             <span>Forward</span>
           </button>
         )}
+        {msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
+          <button onClick={(e)=>{e.stopPropagation();try{navigator.clipboard.writeText(msg.text);}catch{const t=document.createElement('textarea');t.value=msg.text;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);}onCloseMenus&&onCloseMenus();}}
+            style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
+            onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
+            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copy</span>
+          </button>
+        )}
+        {onEdit&&msg.out&&msg.text&&!['voice','image','file','video','tx','system'].includes(msg.type)&&(
+          <button onClick={(e)=>{e.stopPropagation();onEdit(msg);onCloseMenus&&onCloseMenus();}}
+            style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
+            onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
+            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span>Edit</span>
+          </button>
+        )}
         {onPin&&(
           <button onClick={(e)=>{e.stopPropagation();if(msg.pinned){onPin(msg);onCloseMenus&&onCloseMenus();}else{onCloseMenus&&onCloseMenus();onOpenPinConfirm&&onOpenPinConfirm(msg);}}}
             style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
