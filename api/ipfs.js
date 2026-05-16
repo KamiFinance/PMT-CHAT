@@ -1,4 +1,4 @@
-// IPFS proxy — streams files from Pinata, supports Range requests for video
+// IPFS proxy — fetches from Pinata, supports Range requests for video/audio
 // GET /api/ipfs?cid=bafkrei...
 
 export default async function handler(req, res) {
@@ -12,23 +12,21 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid CID' });
   }
 
-  const jwt    = process.env.PINATA_JWT;
-  const apiKey = process.env.PINATA_API_KEY;
-  const secret = process.env.PINATA_SECRET_KEY;
-  const gatewayDomain = process.env.PINATA_GATEWAY_DOMAIN || 'gateway.pinata.cloud';
-
   const rangeHeader = req.headers['range'];
 
   const tryFetch = async (url, extraHeaders = {}) => {
     const headers = { 'User-Agent': 'PMTChat/1.0', ...extraHeaders };
     if (rangeHeader) headers['Range'] = rangeHeader;
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
+    const t = setTimeout(() => ctrl.abort(), 8000); // 8s per attempt
     try {
       const r = await fetch(url, { signal: ctrl.signal, headers });
       clearTimeout(t);
       return r;
-    } catch(e) { clearTimeout(t); throw e; }
+    } catch(e) {
+      clearTimeout(t);
+      return null;
+    }
   };
 
   const pipe = async (upstream) => {
@@ -38,7 +36,7 @@ export default async function handler(req, res) {
     const ar  = upstream.headers.get('accept-ranges');
     res.setHeader('Content-Type', ct);
     res.setHeader('Accept-Ranges', ar || 'bytes');
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
     if (cl) res.setHeader('Content-Length', cl);
     if (cr) res.setHeader('Content-Range', cr);
     res.status(upstream.status);
@@ -52,29 +50,21 @@ export default async function handler(req, res) {
   };
 
   try {
-    const url = `https://${gatewayDomain}/ipfs/${cid}`;
-
-    // 1. Try with API Key+Secret headers (most reliable for public files)
-    if (apiKey && secret) {
-      const r = await tryFetch(url, { pinata_api_key: apiKey, pinata_secret_api_key: secret }).catch(() => null);
-      if (r && (r.ok || r.status === 206)) return await pipe(r);
-    }
-
-    // 2. Try with JWT (if it looks valid)
-    if (jwt && jwt.startsWith('eyJ') && jwt.length > 100) {
-      const r = await tryFetch(url, { Authorization: `Bearer ${jwt}` }).catch(() => null);
-      if (r && (r.ok || r.status === 206)) return await pipe(r);
-    }
-
-    // 3. Public Pinata gateway, no auth (works for all public IPFS files)
+    // 1. Public Pinata gateway — fastest for public IPFS files (most files)
     {
-      const r = await tryFetch(`https://gateway.pinata.cloud/ipfs/${cid}`).catch(() => null);
+      const r = await tryFetch(`https://gateway.pinata.cloud/ipfs/${cid}`);
       if (r && (r.ok || r.status === 206)) return await pipe(r);
     }
 
-    // 4. ipfs.io fallback
+    // 2. ipfs.io public gateway — universal fallback
     {
-      const r = await tryFetch(`https://ipfs.io/ipfs/${cid}`).catch(() => null);
+      const r = await tryFetch(`https://ipfs.io/ipfs/${cid}`);
+      if (r && (r.ok || r.status === 206)) return await pipe(r);
+    }
+
+    // 3. Cloudflare IPFS gateway
+    {
+      const r = await tryFetch(`https://cloudflare-ipfs.com/ipfs/${cid}`);
       if (r && (r.ok || r.status === 206)) return await pipe(r);
     }
 
