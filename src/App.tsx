@@ -1435,20 +1435,20 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   const saveProfile = useCallback((np: Profile) => {
     setProfile(np); profileRef.current = np;
     if (accountKey) storage.setProfile(accountKey, np);
-    // Generate a 40x40 thumbnail for relay messages (tiny — ~2KB base64, safe for Redis)
+    // Generate a 120x120 thumbnail for relay messages — crisp on retina, still small (~8KB)
     if (np.avatarUrl?.startsWith('data:')) {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = 40; canvas.height = 40;
+        canvas.width = 120; canvas.height = 120;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         // Crop center square then resize
         const s = Math.min(img.width, img.height);
         const sx = (img.width - s) / 2;
         const sy = (img.height - s) / 2;
-        ctx.drawImage(img, sx, sy, s, s, 0, 0, 40, 40);
-        const thumbUrl = canvas.toDataURL('image/jpeg', 0.8);
+        ctx.drawImage(img, sx, sy, s, s, 0, 0, 120, 120);
+        const thumbUrl = canvas.toDataURL('image/jpeg', 0.9);
         const updated: Profile = { ...np, _thumbUrl: thumbUrl } as any;
         profileRef.current = updated;
         if (accountKey) storage.setProfile(accountKey, updated);
