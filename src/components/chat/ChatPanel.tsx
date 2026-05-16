@@ -464,12 +464,32 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const handleCameraPhoto=(e:any)=>{
     const file=e.target.files?.[0];
     if(!file)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      const b64=ev.target?.result as string;
-      onSend({type:'image',b64Data:b64,fileName:file.name,fileSize:file.size});
+    const localUrl=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=1200;
+      let w=img.width,h=img.height;
+      if(w>MAX||h>MAX){const r=Math.min(MAX/w,MAX/h);w=Math.round(w*r);h=Math.round(h*r);}
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d')?.drawImage(img,0,0,w,h);
+      const b64=canvas.toDataURL('image/jpeg',0.75);
+      const msgId='m'+Date.now();
+      onSend({type:'image',fileUrl:b64,b64Data:b64,mediaMsgId:msgId,imgMsgId:msgId,
+        fileName:file.name,fileSize:formatSize(file.size),mimeType:'image/jpeg'});
+      if(onMediaUploaded)onMediaUploaded(msgId,null,null,b64);
+      URL.revokeObjectURL(localUrl);
     };
-    reader.readAsDataURL(file);
+    img.onerror=()=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const b64=ev.target?.result as string;
+        onSend({type:'image',b64Data:b64,fileName:file.name,
+          fileSize:formatSize(file.size),mimeType:file.type});
+      };
+      reader.readAsDataURL(file);
+    };
+    img.src=localUrl;
     e.target.value='';
   };
   const handleFileChosen=e=>{

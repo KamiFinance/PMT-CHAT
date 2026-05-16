@@ -11,7 +11,11 @@ export default function VoiceBubble({msg,isOut,contact}){
   const audioRef=useRef(null);
 
   // Try to get audioUrl — from msg directly, or reconstruct from audioMsgId
-  const [audioUrl,setAudioUrl]=useState(msg.audioUrl||null);
+  // Prefer IPFS URL over blob (blobs expire after page refresh)
+  const initAudioUrl = msg.ipfsCid
+    ? (getIpfsUrl(msg.ipfsCid) || msg.audioUrl || null)
+    : (msg.audioUrl || null);
+  const [audioUrl,setAudioUrl]=useState(initAudioUrl);
   useEffect(()=>{
     if(audioUrl)return;
     // Try audioB64 FIRST (immediate, no network) before IPFS (slow, may fail)
@@ -83,7 +87,12 @@ export default function VoiceBubble({msg,isOut,contact}){
       <div style={{maxWidth:'280px',padding:'10px 14px',borderRadius:16,
         ...(isOut?{background:'#1a2a4a',border:'1px solid rgba(99,210,255,.15)',borderBottomRightRadius:4}
                  :{background:'var(--surface2)',border:'1px solid var(--border)',borderBottomLeftRadius:4})}}>
-        {audioUrl&&<audio ref={audioRef} src={audioUrl}/>}
+        {audioUrl&&<audio ref={audioRef} src={audioUrl}
+          onError={()=>{
+            if(msg.ipfsCid && audioUrl!==getIpfsUrl(msg.ipfsCid)){
+              setAudioUrl(getIpfsUrl(msg.ipfsCid));
+            }
+          }}/>}
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           {/* Play button */}
           <button onClick={toggle}

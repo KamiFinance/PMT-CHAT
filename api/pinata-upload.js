@@ -1,3 +1,6 @@
+// Pinata file upload — tries API Key+Secret (v1, reliable) then JWT fallback
+// POST /api/pinata-upload  { data: base64, name, mimeType }
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -5,62 +8,49 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  const jwt = process.env.PINATA_JWT;
-  if (!jwt) return res.status(500).json({ error: 'PINATA_JWT not configured' });
+  const apiKey = process.env.PINATA_API_KEY;
+  const secret = process.env.PINATA_SECRET_KEY;
+  const jwt    = process.env.PINATA_JWT;
 
   try {
     const { data: base64Data, name, mimeType } = req.body || {};
     if (!base64Data) return res.status(400).json({ error: 'data required' });
 
-    // Convert base64 to binary
-    const binary = Buffer.from(base64Data, 'base64');
-
-    // Build multipart form
-    const boundary = '----PMTBoundary' + Date.now();
+    const binary   = Buffer.from(base64Data, 'base64');
     const filename = name || 'file';
+    const boundary = '----PMTBoundary' + Date.now();
 
-    const header = [
-      `--${boundary}`,
-      `Content-Disposition: form-data; name="file"; filename="${filename}"`,
-      `Content-Type: ${mimeType || 'application/octet-stream'}`,
-      '',
-    ].join('\r\n') + '\r\n';
+    const header = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimeType || 'application/octet-stream'}\r\n\r\n`,
+      'utf8'
+    );
+    const footer = Buffer.from(
+      `\r\n--${boundary}\r\nContent-Disposition: form-data; name="pinataMetadata"\r\n\r\n${JSON.stringify({ name: filename })}\r\n--${boundary}\r\nContent-Disposition: form-data; name="pinataOptions"\r\n\r\n${JSON.stringify({ cidVersion: 1 })}\r\n--${boundary}--\r\n`,
+      'utf8'
+    );
+    const body = Buffer.concat([header, binary, footer]);
 
-    const middle = [
-      '',
-      `--${boundary}`,
-      'Content-Disposition: form-data; name="pinataMetadata"',
-      '',
-      JSON.stringify({ name: filename }),
-      `--${boundary}--`,
-      '',
-    ].join('\r\n');
-
-    const body = Buffer.concat([
-      Buffer.from(header, 'utf8'),
-      binary,
-      Buffer.from(middle, 'utf8'),
-    ]);
+    // Auth: prefer API Key+Secret (more reliable), fall back to JWT
+    const authHeaders = (apiKey && secret)
+      ? { pinata_api_key: apiKey, pinata_secret_api_key: secret }
+      : { Authorization: `Bearer ${jwt}` };
 
     const upstream = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      },
+      headers: { ...authHeaders, 'Content-Type': `multipart/form-data; boundary=${boundary}` },
       body,
     });
 
     const result = await upstream.json();
     if (!upstream.ok) {
-      console.error('Pinata error:', result);
+      console.error('Pinata upload error:', JSON.stringify(result).slice(0, 200));
       return res.status(upstream.status).json({ error: result?.error?.details || result?.error || 'Pinata error' });
     }
 
     const cid = result.IpfsHash;
-    return res.json({ cid, url: `https://gateway.pinata.cloud/ipfs/${cid}` });
+    return res.json({ cid, url: `/api/ipfs?cid=${cid}` });
   } catch (e) {
-    console.error('pinata-upload error:', e);
+    console.error('pinata-upload error:', e.message);
     res.status(500).json({ error: e.message });
   }
 }

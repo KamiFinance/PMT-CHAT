@@ -6,8 +6,9 @@ export default function VideoBubble({ msg, isOut, contact }) {
   const [playing, setPlaying] = useState(false);
   const [errored, setErrored] = useState(false);
 
-  // Resolve video source: local object URL first, then IPFS
-  const src = msg.localUrl || (msg.ipfsCid ? `/api/ipfs?cid=${msg.ipfsCid}` : null) || msg.ipfsUrl || null;
+  // Prefer IPFS over blob URL (blobs expire after page refresh)
+  const ipfsSrc = msg.ipfsCid ? `/api/ipfs?cid=${msg.ipfsCid}` : (msg.ipfsUrl || null);
+  const src = ipfsSrc || msg.localUrl || null;
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -38,7 +39,11 @@ export default function VideoBubble({ msg, isOut, contact }) {
               playsInline
               style={{ display: 'block', width: '100%', maxWidth: 280, maxHeight: 200, objectFit: 'cover' }}
               onEnded={() => setPlaying(false)}
-              onError={() => setErrored(true)}
+              onError={(e)=>{
+                const t = e.target as HTMLVideoElement;
+                if(ipfsSrc && !t.src.includes('ipfs')) return; // IPFS will handle it
+                setErrored(true);
+              }}
             />
             {/* Play/pause overlay */}
             {!playing && (
