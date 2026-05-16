@@ -515,7 +515,7 @@ export default function App() {
     });
   }, [isDemo]);
 
-  // Auto cloud backup — immediate for key events, 2s debounce otherwise.
+  // Auto cloud backup — immediate for key events, 1s debounce otherwise.
   const prevContactCount = useRef(0);
   const prevMsgCount     = useRef(0);
   const prevProfileRef   = useRef<string>('');
@@ -545,7 +545,7 @@ export default function App() {
     // Debounced for other changes
     const timer = setTimeout(() => {
       runBackup(password).catch(() => {});
-    }, 2000);
+    }, 1000);
     return () => clearTimeout(timer);
   }, [contacts, msgs, profile, chatWallpaper, wallet?.address, wallet?.username, isDemo, runBackup]);
 
@@ -1456,15 +1456,45 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   const saveProfile = useCallback((np: Profile) => {
     setProfile(np); profileRef.current = np;
     if (accountKey) storage.setProfile(accountKey, np);
-    // Generate a 120x120 thumbnail for relay messages — crisp on retina, still small (~8KB)
+
+    // Broadcast profile update to all 1-on-1 contacts so they see changes immediately
+    const broadcastProfile = (thumbUrl?: string) => {
+      if (isDemo || !walletRef.current?.address) return;
+      const myAddr = walletRef.current.address;
+      const avatarForRelay = thumbUrl || (np.avatarUrl?.startsWith('http') ? np.avatarUrl : null);
+      const profileMsg = {
+        id: `prof_${Date.now()}`,
+        type: 'profile_update',
+        text: '',
+        from: myAddr,
+        fromName: np.name || walletRef.current?.username || myAddr.slice(0, 8),
+        fromAvatarUrl: avatarForRelay ?? null,
+        fromBio: np.bio ?? '',
+        ts: Date.now(),
+      };
+      const unique = [...new Set(
+        contactsRef.current
+          .filter((c: any) => !c.isAI && !c.isGroup && c.address)
+          .map((c: any) => normalizeAddress(c.address))
+          .filter((a: string) => a && a !== normalizeAddress(myAddr))
+      )];
+      unique.forEach((addr: string) => {
+        fetch(`/api/inbox?address=${addr}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(profileMsg),
+        }).catch(() => {});
+      });
+    };
+
+    // Generate 120x120 thumbnail for relay — crisp on retina, still small (~8KB)
     if (np.avatarUrl?.startsWith('data:')) {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 120; canvas.height = 120;
         const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        // Crop center square then resize
+        if (!ctx) { broadcastProfile(); return; }
         const s = Math.min(img.width, img.height);
         const sx = (img.width - s) / 2;
         const sy = (img.height - s) / 2;
@@ -1473,11 +1503,15 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         const updated: Profile = { ...np, _thumbUrl: thumbUrl } as any;
         profileRef.current = updated;
         if (accountKey) storage.setProfile(accountKey, updated);
+        broadcastProfile(thumbUrl);
       };
+      img.onerror = () => broadcastProfile();
       img.src = np.avatarUrl;
+    } else {
+      // URL-based or no avatar — broadcast immediately
+      broadcastProfile();
     }
-    // If avatar is a real URL (IPFS), no thumbnail needed — use URL directly
-  }, [accountKey, wallet?.address]);
+  }, [accountKey, isDemo]);
 
   const handleWalletConnect = async () => {
     setWcErr(null);
