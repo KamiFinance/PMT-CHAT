@@ -1,5 +1,6 @@
 // @ts-nocheck
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import Avatar from '../ui/Avatar';
 
 export default function EditContactModal({contact,onClose,onSave,onDelete}){
@@ -7,7 +8,7 @@ export default function EditContactModal({contact,onClose,onSave,onDelete}){
   const [address,setAddress]=useState(contact.address||'');
   const [confirmDel,setConfirmDel]=useState(false);
   const [tab,setTab]=useState('profile'); // 'profile' | 'edit'
-
+  const [imgFull,setImgFull]=useState(false);
   return(
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',display:'flex',alignItems:'center',
       justifyContent:'center',zIndex:200}} onClick={onClose}>
@@ -37,11 +38,30 @@ export default function EditContactModal({contact,onClose,onSave,onDelete}){
         {tab==='profile' ? (
           /* ── Profile view ── */
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
-            {/* Avatar */}
-            <div style={{width:88,height:88,borderRadius:'50%',background:contact.bg||'#1e2438',
-              display:'flex',alignItems:'center',justifyContent:'center',
-              fontSize:28,fontWeight:700,color:contact.color||'var(--accent)',
-              overflow:'hidden',flexShrink:0,border:'2px solid var(--border)'}}>
+            {/* Avatar — click to view fullscreen */}
+            {imgFull && contact.avatarUrl && createPortal(
+              <div onClick={()=>setImgFull(false)}
+                style={{position:'fixed',inset:0,background:'rgba(0,0,0,.92)',display:'flex',
+                  alignItems:'center',justifyContent:'center',zIndex:9999,cursor:'zoom-out',
+                  animation:'fadeIn .15s ease'}}>
+                <img src={contact.avatarUrl} alt={contact.name}
+                  style={{maxWidth:'90vw',maxHeight:'90vh',borderRadius:16,objectFit:'contain',
+                    boxShadow:'0 24px 80px rgba(0,0,0,.8)',animation:'slideUp .2s ease'}}/>
+                <div style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,.15)',
+                  borderRadius:'50%',width:40,height:40,display:'flex',alignItems:'center',
+                  justifyContent:'center',fontSize:20,color:'#fff',cursor:'pointer'}}>×</div>
+                <div style={{position:'absolute',bottom:28,color:'rgba(255,255,255,.85)',
+                  fontSize:15,fontWeight:600}}>{contact.name}</div>
+              </div>, document.body
+            )}
+            <div
+              onClick={()=>{ if(contact.avatarUrl) setImgFull(true); }}
+              style={{width:88,height:88,borderRadius:'50%',background:contact.bg||'#1e2438',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:28,fontWeight:700,color:contact.color||'var(--accent)',
+                overflow:'hidden',flexShrink:0,border:'2px solid var(--border)',
+                cursor:contact.avatarUrl?'zoom-in':'default',
+                boxShadow:contact.avatarUrl?'0 4px 16px rgba(0,0,0,.3)':undefined}}>
               {contact.avatarUrl
                 ? <img src={contact.avatarUrl} alt={name}
                     style={{width:'100%',height:'100%',objectFit:'cover'}}

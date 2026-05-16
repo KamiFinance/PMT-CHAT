@@ -23,23 +23,52 @@ function SenderProfileCard({msg, contact, onClose}) {
   const bg = contact?.bg || '#1e1b30';
   const bio = msg.senderBio || '';
   const address = msg.senderAddress || contact?.address || '';
+  const [showFullImg, setShowFullImg] = React.useState(false);
 
   return (
+    <>
+    {/* Fullscreen avatar lightbox */}
+    {showFullImg && avatarUrl && createPortal(
+      <div
+        onClick={() => setShowFullImg(false)}
+        style={{position:'fixed',inset:0,background:'rgba(0,0,0,.92)',display:'flex',
+          alignItems:'center',justifyContent:'center',zIndex:9999,cursor:'zoom-out',
+          animation:'fadeIn .15s ease'}}>
+        <img src={avatarUrl} alt={name}
+          style={{maxWidth:'90vw',maxHeight:'90vh',borderRadius:16,objectFit:'contain',
+            boxShadow:'0 24px 80px rgba(0,0,0,.8)',animation:'slideUp .2s ease'}}/>
+        <div style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,.15)',
+          borderRadius:'50%',width:40,height:40,display:'flex',alignItems:'center',
+          justifyContent:'center',fontSize:20,color:'#fff',cursor:'pointer'}}>×</div>
+        <div style={{position:'absolute',bottom:28,color:'rgba(255,255,255,.85)',
+          fontSize:15,fontWeight:600,letterSpacing:.3}}>{name}</div>
+      </div>, document.body
+    )}
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',display:'flex',alignItems:'center',
       justifyContent:'center',zIndex:300,animation:'fadeIn .15s ease'}}
       onClick={onClose}>
       <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:18,
         padding:'28px 24px',width:300,display:'flex',flexDirection:'column',alignItems:'center',gap:12,
         animation:'slideUp .2s ease'}} onClick={e=>e.stopPropagation()}>
-        {/* Avatar */}
-        <div style={{position:'relative'}}>
+        {/* Avatar — click to view fullscreen */}
+        <div style={{position:'relative',cursor: avatarUrl ? 'zoom-in' : 'default'}}
+          onClick={e => { e.stopPropagation(); if(avatarUrl) setShowFullImg(true); }}>
           {avatarUrl
-            ? <img src={avatarUrl} style={{width:72,height:72,borderRadius:'50%',objectFit:'cover',
-                border:'2px solid '+color}} alt={name}/>
-            : <div style={{width:72,height:72,borderRadius:'50%',background:bg,
-                border:'2px solid '+color,display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:22,fontWeight:700,color:color}}>{initials}</div>
+            ? <img src={avatarUrl} style={{width:88,height:88,borderRadius:'50%',objectFit:'cover',
+                border:'3px solid '+color,boxShadow:'0 4px 16px rgba(0,0,0,.4)'}} alt={name}/>
+            : <div style={{width:88,height:88,borderRadius:'50%',background:bg,
+                border:'3px solid '+color,display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:28,fontWeight:700,color:color}}>{initials}</div>
           }
+          {avatarUrl && <div style={{position:'absolute',inset:0,borderRadius:'50%',
+            background:'rgba(0,0,0,.0)',display:'flex',alignItems:'center',justifyContent:'center',
+            opacity:0,transition:'opacity .15s',fontSize:18,color:'#fff',fontWeight:700}}
+            onMouseEnter={e=>(e.currentTarget.style.opacity='1')}
+            onMouseLeave={e=>(e.currentTarget.style.opacity='0')}
+            onMouseOver={e=>(e.currentTarget.style.background='rgba(0,0,0,.35)')}
+            onMouseOut={e=>(e.currentTarget.style.background='rgba(0,0,0,.0)')}>
+            🔍
+          </div>}
           <div style={{position:'absolute',bottom:2,right:2,width:14,height:14,borderRadius:'50%',
             background:'var(--accent3)',border:'2px solid var(--panel)'}}/>
         </div>
@@ -73,6 +102,7 @@ function SenderProfileCard({msg, contact, onClose}) {
         </button>
       </div>
     </div>
+    </>
   );
 }
 
@@ -580,6 +610,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
               color={contact?.color}
               bg={contact?.bg}
               size={28} fs={10}
+              onClick={(e:any)=>{e.stopPropagation();setShowSenderProfile(true);}}
+              style={{cursor:'pointer'}}
             />
           </div>
         )}
