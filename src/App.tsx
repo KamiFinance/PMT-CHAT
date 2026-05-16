@@ -629,6 +629,72 @@ export default function App() {
 
   useInboxPoll({ wallet, isDemo, setMsgs, setContacts, setPinnedMsgs, pushNotif });
 
+  // ── Profile sync — pull latest profiles from /api/profile (no inbox messages) ──
+  // Applies fresh name/bio/avatar to contacts whenever the remote profile is newer.
+  const applyRemoteProfile = useCallback((addr: string, remote: any) => {
+    if (!remote || !addr) return;
+    setContacts((prev: any[]) => prev.map((c: any) => {
+      if (normalizeAddress(c.address) !== addr) return c;
+      const changed =
+        (remote.name && remote.name !== c.name) ||
+        (remote.bio  !== undefined && remote.bio !== c.bio) ||
+        (remote.avatarUrl && remote.avatarUrl !== c.avatarUrl);
+      if (!changed) return c;
+      try {
+        const key = `pmt_profile_${addr}`;
+        const ex  = JSON.parse(localStorage.getItem(key) || '{}');
+        localStorage.setItem(key, JSON.stringify({ ...ex, ...remote, address: addr }));
+      } catch {}
+      return {
+        ...c,
+        ...(remote.name      ? { name:      remote.name }      : {}),
+        ...(remote.avatarUrl ? { avatarUrl: remote.avatarUrl } : {}),
+        ...(remote.bio !== undefined ? { bio: remote.bio }     : {}),
+      };
+    }));
+  }, []);
+
+  // Fetch one contact's profile from the API and apply it
+  const fetchAndApplyProfile = useCallback((addr: string) => {
+    if (!addr || isDemo) return;
+    fetch(`/api/profile?address=${addr}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) applyRemoteProfile(addr, data); })
+      .catch(() => {});
+  }, [isDemo, applyRemoteProfile]);
+
+  // On load: fetch all contacts' profiles once
+  useEffect(() => {
+    if (!wallet?.address || isDemo) return;
+    const addrs = contactsRef.current
+      .filter((c: any) => !c.isAI && !c.isGroup && c.address)
+      .map((c: any) => normalizeAddress(c.address))
+      .filter(Boolean);
+    addrs.forEach((a: string) => fetchAndApplyProfile(a));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet?.address]);
+
+  // Refresh active contact's profile every 3 s, all contacts every 30 s
+  useEffect(() => {
+    if (!wallet?.address || isDemo) return;
+    let tick = 0;
+    const id = setInterval(() => {
+      tick++;
+      // Active contact — every tick (~3 s)
+      const active = activeRef.current;
+      if (active && !active.isAI && !active.isGroup && active.address) {
+        fetchAndApplyProfile(normalizeAddress(active.address));
+      }
+      // All contacts — every 10 ticks (~30 s)
+      if (tick % 10 === 0) {
+        contactsRef.current
+          .filter((c: any) => !c.isAI && !c.isGroup && c.address)
+          .forEach((c: any) => fetchAndApplyProfile(normalizeAddress(c.address)));
+      }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [wallet?.address, isDemo, fetchAndApplyProfile]);
+
   const handleMediaUploaded = useCallback((mediaMsgId: string, cid: string | null, ipfsUrl: string | null, fallbackB64?: string) => {
     if (!accountKey) return;
     setMsgs(prev => {
@@ -1457,59 +1523,38 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     setProfile(np); profileRef.current = np;
     if (accountKey) storage.setProfile(accountKey, np);
 
-    // Broadcast profile update to all 1-on-1 contacts so they see changes immediately
-    const broadcastProfile = (thumbUrl?: string) => {
-      if (isDemo || !walletRef.current?.address) return;
-      const myAddr = walletRef.current.address;
+    // Generate 120x120 thumbnail then publish to profile API (no inbox messages)
+    const publishProfile = (thumbUrl?: string) => {
+      const addr = walletRef.current?.address;
+      if (!addr || isDemo) return;
       const avatarForRelay = thumbUrl || (np.avatarUrl?.startsWith('http') ? np.avatarUrl : null);
-      const profileMsg = {
-        id: `prof_${Date.now()}`,
-        type: 'profile_update',
-        text: '',
-        from: myAddr,
-        fromName: np.name || walletRef.current?.username || myAddr.slice(0, 8),
-        fromAvatarUrl: avatarForRelay ?? null,
-        fromBio: np.bio ?? '',
-        ts: Date.now(),
-      };
-      const unique = [...new Set(
-        contactsRef.current
-          .filter((c: any) => !c.isAI && !c.isGroup && c.address)
-          .map((c: any) => normalizeAddress(c.address))
-          .filter((a: string) => a && a !== normalizeAddress(myAddr))
-      )];
-      unique.forEach((addr: string) => {
-        fetch(`/api/inbox?address=${addr}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(profileMsg),
-        }).catch(() => {});
-      });
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: addr, name: np.name || '', bio: np.bio || '', avatarUrl: avatarForRelay }),
+      }).catch(() => {});
     };
 
-    // Generate 120x120 thumbnail for relay — crisp on retina, still small (~8KB)
     if (np.avatarUrl?.startsWith('data:')) {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 120; canvas.height = 120;
         const ctx = canvas.getContext('2d');
-        if (!ctx) { broadcastProfile(); return; }
+        if (!ctx) { publishProfile(); return; }
         const s = Math.min(img.width, img.height);
-        const sx = (img.width - s) / 2;
-        const sy = (img.height - s) / 2;
+        const sx = (img.width - s) / 2, sy = (img.height - s) / 2;
         ctx.drawImage(img, sx, sy, s, s, 0, 0, 120, 120);
         const thumbUrl = canvas.toDataURL('image/jpeg', 0.9);
         const updated: Profile = { ...np, _thumbUrl: thumbUrl } as any;
         profileRef.current = updated;
         if (accountKey) storage.setProfile(accountKey, updated);
-        broadcastProfile(thumbUrl);
+        publishProfile(thumbUrl);
       };
-      img.onerror = () => broadcastProfile();
+      img.onerror = () => publishProfile();
       img.src = np.avatarUrl;
     } else {
-      // URL-based or no avatar — broadcast immediately
-      broadcastProfile();
+      publishProfile();
     }
   }, [accountKey, isDemo]);
 

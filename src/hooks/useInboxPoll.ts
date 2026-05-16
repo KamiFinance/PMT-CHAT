@@ -209,34 +209,6 @@ export function useInboxPoll({
           return;
         }
 
-        // ── Profile update — sender changed name/avatar/bio ──────────────
-        if ((inboxMsg as any).type === 'profile_update') {
-          const profileAddr = normalizeAddress(inboxMsg.from ?? '');
-          if (!profileAddr) return;
-          // Update contact list in real-time
-          setContacts((prev: any[]) => prev.map(c => {
-            if (normalizeAddress(c.address) !== profileAddr) return c;
-            return {
-              ...c,
-              ...(inboxMsg.fromName ? { name: inboxMsg.fromName } : {}),
-              ...(inboxMsg.fromAvatarUrl ? { avatarUrl: inboxMsg.fromAvatarUrl } : {}),
-              ...((inboxMsg as any).fromBio !== undefined ? { bio: (inboxMsg as any).fromBio } : {}),
-            };
-          }));
-          // Update localStorage profile cache
-          try {
-            const profileKey = `pmt_profile_${profileAddr}`;
-            const existing = JSON.parse(localStorage.getItem(profileKey) || '{}');
-            localStorage.setItem(profileKey, JSON.stringify({
-              ...existing,
-              ...(inboxMsg.fromName ? { name: inboxMsg.fromName } : {}),
-              ...(inboxMsg.fromAvatarUrl ? { avatarUrl: inboxMsg.fromAvatarUrl } : {}),
-              ...((inboxMsg as any).fromBio !== undefined ? { bio: (inboxMsg as any).fromBio } : {}),
-              address: profileAddr,
-            }));
-          } catch { /* ignore */ }
-          return; // never show as a chat bubble
-        }
 
         if ((inboxMsg as any).type === 'pin' || (inboxMsg as any).type === 'pin_notify') {
           if ((inboxMsg as any).type === 'pin') {
