@@ -234,7 +234,13 @@ export default function App() {
   const [profile, setProfile] = useState<Profile>({ name: '', bio: '', avatarUrl: null, address: null });
   const [darkMode, setDarkMode] = useState<boolean>(() => storage.getTheme() !== 'light');
   const [chatWallpaper, setChatWallpaper] = useState<string>(() => { try { return localStorage.getItem('chatWallpaper') || 'none'; } catch { return 'none'; } });
-  const handleSetWallpaper = (wp: string) => { setChatWallpaper(wp); try { localStorage.setItem('chatWallpaper', wp); } catch {} };
+  const handleSetWallpaper = (wp: string) => {
+    setChatWallpaper(wp);
+    try { localStorage.setItem('chatWallpaper', wp); } catch {}
+    // Immediately persist to cloud backup
+    const pwd = sessionPasswordRef.current;
+    if (pwd && !isDemo) setTimeout(() => runBackup(pwd).catch(() => {}), 500);
+  };
 
   useEffect(() => {
     walletRef.current = wallet;
@@ -541,7 +547,7 @@ export default function App() {
       runBackup(password).catch(() => {});
     }, 2000);
     return () => clearTimeout(timer);
-  }, [contacts, msgs, profile, wallet?.address, wallet?.username, isDemo, runBackup]);
+  }, [contacts, msgs, profile, chatWallpaper, wallet?.address, wallet?.username, isDemo, runBackup]);
 
   // On page load: restore sessionPassword so auto-backup works after page refresh
   useEffect(() => {
