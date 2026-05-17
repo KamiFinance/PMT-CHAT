@@ -648,6 +648,23 @@ export default function App() {
     return () => { document.body.classList.remove('modal-open'); };
   }, [anyModalOpen]);
 
+  // Freeze scroll positions of background elements while modal is open.
+  // Regardless of HOW scroll happens (native, JS, anything), reset it immediately.
+  useEffect(() => {
+    if (!anyModalOpen) return;
+    const els = [
+      document.querySelector('.chat-messages-area'),
+      document.querySelector('.sidebar-contacts-list'),
+    ].filter(Boolean) as HTMLElement[];
+    const saved = els.map(el => el.scrollTop);
+    const freezers = els.map((el, i) => {
+      const fn = () => { el.scrollTop = saved[i]; };
+      el.addEventListener('scroll', fn, { passive: true });
+      return fn;
+    });
+    return () => { els.forEach((el, i) => el.removeEventListener('scroll', freezers[i])); };
+  }, [anyModalOpen]);
+
   // Native non-passive wheel blocker — capture phase, always prevent background scroll
   useEffect(() => {
     const handler = (e: WheelEvent) => {
