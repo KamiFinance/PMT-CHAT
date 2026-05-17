@@ -214,7 +214,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   const label = { fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: '1px', marginBottom: 5 };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={onClose} onWheel={e => e.stopPropagation()}>
       <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 18, padding: 28, width: 440, maxWidth: '95vw', display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '90vh', overflow: 'hidden', animation: 'slideUp .25s ease' }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -235,7 +235,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
           </div>
         )}
 
-        <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14, overscrollBehavior: 'contain' }}>
 
           {/* INFO TAB */}
           {tab === 'info' && (
