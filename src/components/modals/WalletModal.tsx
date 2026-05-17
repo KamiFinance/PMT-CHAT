@@ -80,7 +80,7 @@ export default function WalletModal({wallet,isDemo,onClose}){
 
   return(
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',display:'flex',alignItems:'center',
-      justifyContent:'center',zIndex:200}} onClick={onClose}>
+      justifyContent:'center',zIndex:1000}} onClick={onClose}>
       <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:20,
         width:360,maxHeight:'85vh',display:'flex',flexDirection:'column',
         animation:'slideUp .25s ease',overflow:'hidden'}} onClick={e=>e.stopPropagation()}>

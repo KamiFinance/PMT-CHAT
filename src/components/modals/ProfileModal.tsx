@@ -4,12 +4,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import ProfilePic from '../ui/ProfilePic';
 export default function ProfileModal({profile,onClose,onSave}){
-  // Lock scroll behind modal
-  React.useEffect(() => {
-    const prev = document.body.style.overflowY;
-    document.body.style.overflowY = 'hidden';
-    return () => { document.body.style.overflowY = prev; };
-  }, []);
 
 
 
@@ -38,7 +32,7 @@ export default function ProfileModal({profile,onClose,onSave}){
 
   return(
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',display:'flex',alignItems:'center',
-      justifyContent:'center',zIndex:200,overflowY:'auto',padding:'12px 0'}} onClick={onClose} onWheel={e=>e.stopPropagation()}>
+      justifyContent:'center',zIndex:1000,overflowY:'auto',padding:'12px 0'}} onClick={onClose} onWheel={e=>e.stopPropagation()}>
       <div className="modal-inner" style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:18,padding:28,
         width:400,display:'flex',flexDirection:'column',gap:18,margin:'auto'}} onClick={e=>e.stopPropagation()}>
 

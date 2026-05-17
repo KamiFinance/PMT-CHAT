@@ -635,6 +635,19 @@ export default function App() {
 
   useInboxPoll({ wallet, isDemo, setMsgs, setContacts, setPinnedMsgs, pushNotif });
 
+  // ── Modal scroll lock — single source of truth ────────────────────────────
+  // Adds .modal-open to <body> which CSS uses to lock all background scroll
+  const anyModalOpen = !!(showProfile||showSettings||showWallet||showNew||showGroup||
+                          manageGroupContact||editContact||showSearch);
+  useEffect(() => {
+    if (anyModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => { document.body.classList.remove('modal-open'); };
+  }, [anyModalOpen]);
+
   // ── Fetch fresh group roles when a group chat is opened ──────────────────
   // Ensures promoted admin/mod users see their own role immediately without
   // needing to send a message first.

@@ -209,3 +209,8 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 
 /* ── iOS safe area spacer (CSS env() more reliable than inline style on iOS WebKit) ── */
 /* ios-safe-top removed — using status-bar-style:black instead */
+
+/* ── Modal scroll lock — prevents all background scroll while any modal is open ── */
+body.modal-open { overflow: hidden !important; }
+body.modal-open .chat-messages-area { overflow-y: hidden !important; }
+body.modal-open .sidebar-panel > div:last-of-type { overflow-y: hidden !important; }
