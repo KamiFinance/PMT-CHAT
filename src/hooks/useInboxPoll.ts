@@ -110,6 +110,7 @@ export function useInboxPoll({
     if (msg.type === 'voice') return '🎙 Voice message';
     if (msg.type === 'image') return '🖼 Image';
     if (msg.type === 'file')  return `📄 ${msg.fileName ?? 'File'}`;
+    if (msg.type === 'gif')   return (msg as any).isSticker ? '✨ Sticker' : '🎞 GIF';
     return msg.text;
   };
 
@@ -301,6 +302,13 @@ export function useInboxPoll({
           fileName: (inboxMsg as any).fileName,
           fileSize: (inboxMsg as any).fileSize,
           mimeType: (inboxMsg as any).mimeType,
+        };
+        if (inboxMsg.type === 'gif') extra = {
+          gifUrl: (inboxMsg as any).gifUrl ?? null,
+          gifWidth: (inboxMsg as any).gifWidth ?? null,
+          gifHeight: (inboxMsg as any).gifHeight ?? null,
+          isSticker: (inboxMsg as any).isSticker ?? false,
+          title: (inboxMsg as any).title ?? '',
         };
         if (inboxMsg.type === 'tx') extra = {
           amount: (inboxMsg as any).amount,
