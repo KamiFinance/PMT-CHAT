@@ -107,8 +107,9 @@ export default function LoginScreen({onLogin,onBack}){
       setErr('Restoring your account…');
       let contacts: any[]=[], messages: any={}, profile: any={};
       let backupLoaded=false;
+      let bk: any = null;
       try {
-        const bk=await loadCloudBackup(uname,password);
+        bk=await loadCloudBackup(uname,password);
         if(bk){
           // Use backup wallet if local decrypt didn't work
           if(!privateKey){
@@ -171,7 +172,9 @@ export default function LoginScreen({onLogin,onBack}){
         sessionPassword:password,
         restoredContacts:contacts,
         restoredMessages:messages,
-        restoredProfile:profile});
+        restoredProfile:profile,
+        ...(bk?.pinnedMsgs&&Object.keys(bk.pinnedMsgs).length?{restoredPinnedMsgs:bk.pinnedMsgs}:{}),
+        restoredSettings:(bk as any)?.settings??{}});
 
     }catch(e:any){
       if(e.message==='WRONG_PASSWORD'||e.message?.includes('decrypt')||e.name==='OperationError')

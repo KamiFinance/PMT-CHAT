@@ -94,19 +94,23 @@ export default function ImportWalletFlow({onWallet,onBack}){
         }catch{ /* auto-backup will retry */ }
       }
       // Restore cloud backup if existing account has one
-      let restoredContacts=[], restoredMessages={}, restoredProfile={}, restoredSettings={};
+      let restoredContacts=[], restoredMessages={}, restoredProfile={}, restoredSettings={}, restoredPinnedMsgs={};
       if(existingAccount?.hasBackup){
         try{
-          const authRes=await fetch(`/api/auth?username=${encodeURIComponent(useUsername)}`);
-          const authData=await authRes.json();
-          if(authData.encryptedBackup){
-            const backup=await loadCloudBackup(useUsername, password);
+          const backup=await loadCloudBackup(useUsername, password);
+          if(backup){
             restoredContacts=backup.contacts||[];
             restoredMessages=backup.messages||{};
             restoredProfile=backup.profile||{};
-            restoredSettings=(backup as any)?.settings ?? {};
+            restoredSettings=(backup as any)?.settings??{};
+            restoredPinnedMsgs=(backup as any)?.pinnedMsgs??{};
           }
-        }catch(e){ /* backup restore failed, continue without */ }
+        }catch(e:any){
+          setFinishing(false);
+          if(e?.message==='WRONG_PASSWORD'||e?.name==='OperationError')
+            return setPwdErr('Incorrect password — your account exists but this password is wrong.');
+          return setPwdErr('Backup restore failed: '+(e?.message||'unknown error'));
+        }
       }
       // Mark as internal wallet permanently — never needs verify screen
       localStorage.setItem(`pmt_wallet_internal_${wallet.address.toLowerCase()}`, '1');
@@ -114,6 +118,7 @@ export default function ImportWalletFlow({onWallet,onBack}){
         chainId:'0x46df2',username:useUsername,sessionPassword:password,
         ...(restoredContacts.length?{restoredContacts}:{}),
         ...(Object.keys(restoredMessages).length?{restoredMessages}:{}),
+        ...(Object.keys(restoredPinnedMsgs).length?{restoredPinnedMsgs}:{}),
         restoredSettings,
         ...(Object.keys(restoredProfile).length?{restoredProfile}:{}),
       });
