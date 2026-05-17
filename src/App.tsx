@@ -665,8 +665,8 @@ export default function App() {
         node = node.parentElement;
       }
     };
-    document.addEventListener('wheel', handler, { passive: false });
-    return () => document.removeEventListener('wheel', handler);
+    document.addEventListener('wheel', handler, { passive: false, capture: true });
+    return () => document.removeEventListener('wheel', handler, { capture: true } as any);
   }, []);
 
   // ── Fetch fresh group roles when a group chat is opened ──────────────────

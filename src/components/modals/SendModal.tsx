@@ -27,7 +27,7 @@ export default function SendModal({contact, onClose, onSend, isDemo, needsPasswo
 
   if (txHash) return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',display:'flex',alignItems:'center',
-      justifyContent:'center',zIndex:1000}} onClick={onClose} onWheel={e=>e.stopPropagation()}>
+      justifyContent:'center',zIndex:1000}} onClick={onClose}>
       <div className="modal-inner" style={{background:'var(--panel)',border:'1px solid var(--border)',
         borderRadius:16,padding:'28px',width:340,display:'flex',flexDirection:'column',
         gap:14,alignItems:'center',textAlign:'center',animation:'slideUp .25s ease'}}
@@ -49,7 +49,7 @@ export default function SendModal({contact, onClose, onSend, isDemo, needsPasswo
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',display:'flex',alignItems:'center',
-      justifyContent:'center',zIndex:1000}} onClick={onClose} onWheel={e=>e.stopPropagation()}>
+      justifyContent:'center',zIndex:1000}} onClick={onClose}>
       <div className="modal-inner" style={{background:'var(--panel)',border:'1px solid var(--border)',
         borderRadius:16,padding:'28px',width:340,display:'flex',flexDirection:'column',
         gap:14,animation:'slideUp .25s ease'}} onClick={e=>e.stopPropagation()}>
