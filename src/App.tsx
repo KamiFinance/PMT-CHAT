@@ -1252,7 +1252,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
             setMsgs(prev => {
               if ((prev[addr] || []).length > 0) return prev; // messages arrived in the meantime
               const history = d.messages.map((m: any) => ({
-                ...m, out: m.from?.toLowerCase() === myAddr?.toLowerCase(), read: true
+                ...m, out: m.from?.toLowerCase() === myAddr?.toLowerCase(), confirms: 3, pending: false, read: true
               }));
               return { ...prev, [addr]: history };
             });

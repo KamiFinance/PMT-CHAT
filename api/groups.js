@@ -178,15 +178,41 @@ export default async function handler(req, res) {
     if (action === 'getMyGroups') {
       const { address: userAddr } = body;
       if (!userAddr) return res.status(400).json({ error: 'address required' });
-      const groupIds = await redis('SMEMBERS', `pmt:user:groups:${userAddr.toLowerCase()}`);
-      if (!groupIds || !groupIds.length) return res.json({ ok: true, groups: [] });
-      const groups = await Promise.all(groupIds.map(async gid => {
-        const d = await redis('GET', `pmt:group:${gid}`);
-        return d ? JSON.parse(d) : null;
-      }));
-      // Filter out null and groups the user is no longer a member of
-      const myGroups = groups.filter(g => g && (g.members || []).some(m => m.toLowerCase() === userAddr.toLowerCase()));
-      return res.json({ ok: true, groups: myGroups });
+      const addr = userAddr.toLowerCase();
+
+      // Primary: indexed lookup via user→groups set
+      const groupIds = await redis('SMEMBERS', `pmt:user:groups:${addr}`);
+      let groups = [];
+      if (groupIds?.length) {
+        const raw = await Promise.all(groupIds.map(gid => redis('GET', `pmt:group:${gid}`)));
+        groups = raw.filter(Boolean).map(d => JSON.parse(d))
+                    .filter(g => (g.members || []).some(m => m.toLowerCase() === addr));
+      }
+
+      // Fallback: if nothing found via index, scan all pmt:group:* keys
+      // (handles groups seeded without SADD, or Redis failures at join time)
+      if (!groups.length) {
+        let cursor = '0';
+        const allKeys = [];
+        do {
+          const result = await redis('SCAN', cursor, 'MATCH', 'pmt:group:*', 'COUNT', '200');
+          cursor = result[0];
+          allKeys.push(...(result[1] || []).filter(k => !k.includes(':history:')));
+        } while (cursor !== '0');
+
+        const allRaw = await Promise.all(allKeys.map(k => redis('GET', k)));
+        groups = allRaw.filter(Boolean).map(d => JSON.parse(d))
+                       .filter(g => g && (g.members || []).some(m => m.toLowerCase() === addr));
+
+        // Repair the index so future calls use the fast path
+        if (groups.length) {
+          await Promise.all(groups.map(g =>
+            redis('SADD', `pmt:user:groups:${addr}`, g.id)
+          ));
+        }
+      }
+
+      return res.json({ ok: true, groups });
     }
 
     // Get members + banned list
