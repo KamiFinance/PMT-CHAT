@@ -41,12 +41,6 @@ export default function ImageBubble({msg,isOut,contact}){
           <div style={{position:'absolute',bottom:0,left:0,right:0,
             background:'linear-gradient(transparent,rgba(0,0,0,.5))',
             padding:'20px 10px 8px',display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'rgba(255,255,255,.7)'}}>
-              {msg.fileName||'image'}
-            </span>
-            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'rgba(255,255,255,.5)'}}>
-              {msg.fileSize}
-            </span>
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:6,marginTop:4,flexWrap:'wrap',

@@ -70,9 +70,6 @@ export default function VideoBubble({ msg, isOut, contact }) {
             justifyContent: 'center', gap: 6, padding: 12,
           }}>
             <span style={{ fontSize: 28 }}>🎬</span>
-            <span style={{ fontSize: 11, color: isOut ? 'rgba(0,0,0,0.6)' : 'var(--muted)', textAlign: 'center' }}>
-              {msg.fileName || 'Video'}
-            </span>
             {msg.ipfsCid && (
               <a href={`/api/ipfs?cid=${msg.ipfsCid}`} download={msg.fileName || 'video'}
                 style={{ fontSize: 11, color: isOut ? '#0a0c14' : 'var(--accent)', textDecoration: 'underline' }}>
@@ -84,12 +81,8 @@ export default function VideoBubble({ msg, isOut, contact }) {
         {/* Meta row */}
         <div style={{
           padding: '4px 8px 6px',
-          display: 'flex', alignItems: 'center', gap: 6,
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6,
         }}>
-          <span style={{ fontSize: 11, color: isOut ? 'rgba(0,0,0,0.55)' : 'var(--text2)', flex: 1, minWidth: 0,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            🎬 {msg.fileName || 'Video'}{msg.fileSize ? ` · ${msg.fileSize}` : ''}
-          </span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: isOut ? 'rgba(0,0,0,0.45)' : 'var(--muted)', flexShrink: 0 }}>
             {msg.time}
           </span>
