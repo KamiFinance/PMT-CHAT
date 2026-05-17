@@ -415,8 +415,11 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         container.scrollTop = divider.offsetTop - 10;
       }));
     } else {
+      const scrollToBottom = () => { container.scrollTop = container.scrollHeight; };
+      // Double rAF for desktop; extra 150ms timeout for mobile (images may still be loading)
       requestAnimationFrame(()=>requestAnimationFrame(()=>{
-        container.scrollTop = container.scrollHeight;
+        scrollToBottom();
+        setTimeout(scrollToBottom, 150);
       }));
     }
   },[messages]);
