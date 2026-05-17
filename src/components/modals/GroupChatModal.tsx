@@ -23,13 +23,12 @@ function formatExpiry(expiresAt) {
 }
 
 export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup, onRolesUpdated }) {
-  // Lock chat scroll while modal is open — simplest & most reliable approach
+  // Prevent chat/page scroll while modal is open
   useEffect(() => {
-    // Lock the chat messages area so it can't scroll behind the modal
-    const chatArea = document.querySelector('.chat-messages-area');
-    const prev = chatArea ? chatArea.style.overflowY : '';
-    if (chatArea) chatArea.style.overflowY = 'hidden';
-    return () => { if (chatArea) chatArea.style.overflowY = prev || ''; };
+    const els = [document.body, document.querySelector('.chat-messages-area')].filter(Boolean);
+    const prevs = els.map((el: any) => el.style.overflow);
+    els.forEach((el: any) => { el.style.overflow = 'hidden'; });
+    return () => { els.forEach((el: any, i: number) => { el.style.overflow = prevs[i]; }); };
   }, []);
   // If existingGroup passed, start in manage mode (links tab)
   const [tab, setTab] = useState(existingGroup ? 'links' : 'info');
