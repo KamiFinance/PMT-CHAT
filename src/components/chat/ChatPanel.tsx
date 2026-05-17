@@ -417,7 +417,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         container.scrollTop += offset - 10;
       });
     } else {
-      bottomRef.current?.scrollIntoView({behavior:'smooth'});
+      bottomRef.current?.scrollIntoView({behavior:'auto'});
     }
   },[messages]);
   useEffect(()=>{setText('');setReplyingTo(null);setEditingMsg(null);
