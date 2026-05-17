@@ -648,19 +648,22 @@ export default function App() {
     return () => { document.body.classList.remove('modal-open'); };
   }, [anyModalOpen]);
 
-  // Native non-passive wheel blocker — the definitive scroll lock when modal is open
-  // This works where CSS pointer-events fails (e.g. some browser/OS scroll implementations)
+  // Native non-passive wheel blocker — always preventDefault when modal open, manually scroll modal content
   useEffect(() => {
     const handler = (e: WheelEvent) => {
       if (!document.body.classList.contains('modal-open')) return;
-      // Allow scroll only if target is INSIDE a modal (z-index >= 1000)
+      // Always prevent browser native scroll when modal is open
+      e.preventDefault();
+      // Manually scroll the innermost scrollable element under the cursor (modal content)
       let node = e.target as Element | null;
-      while (node) {
-        const z = parseInt(getComputedStyle(node).zIndex || '0');
-        if (z >= 1000) return; // inside modal — allow
+      while (node && node !== document.body) {
+        const s = getComputedStyle(node);
+        if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && node.scrollHeight > node.clientHeight + 2) {
+          (node as HTMLElement).scrollTop += e.deltaY;
+          return;
+        }
         node = node.parentElement;
       }
-      e.preventDefault();
     };
     document.addEventListener('wheel', handler, { passive: false });
     return () => document.removeEventListener('wheel', handler);
