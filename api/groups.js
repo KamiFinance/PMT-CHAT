@@ -78,7 +78,7 @@ export default async function handler(req, res) {
       // Add to group's link list
       grp.inviteLinks = [...(grp.inviteLinks||[]), linkId];
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
-      return res.json({ ok: true, linkId, url: `https://pmt-chat3.vercel.app/?join=${linkId}` });
+      return res.json({ ok: true, linkId, url: `https://${req.headers.host}/?join=${linkId}` });
     }
 
     // Delete invite link

@@ -205,7 +205,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   };
 
   const copyLink = (linkId) => {
-    const url = `https://pmt-chat3.vercel.app/?join=${linkId}`;
+    const url = `${window.location.origin}/?join=${linkId}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(linkId);
       setTimeout(() => setCopied(''), 2500);
@@ -374,7 +374,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                   : links.length === 0
                   ? <div style={{ textAlign: 'center', color: 'var(--muted)', padding: 16, fontSize: 12, border: '1px dashed var(--border)', borderRadius: 9 }}>No invite links yet. Create one above.</div>
                   : links.map(l => {
-                    const url = `https://pmt-chat3.vercel.app/?join=${l.linkId}`;
+                    const url = `${window.location.origin}/?join=${l.linkId}`;
                     const expired = l.expiresAt && Date.now() > l.expiresAt;
                     return (
                       <div key={l.linkId} style={{ background: 'var(--surface)', border: `1px solid ${expired ? 'rgba(248,113,113,.3)' : 'var(--border)'}`, borderRadius: 10, padding: '12px', marginBottom: 8, opacity: expired ? 0.6 : 1 }}>
