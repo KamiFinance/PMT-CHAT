@@ -27,21 +27,12 @@ function Field({label, value, onChange, placeholder, type='text'}) {
 }
 
 export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet, isDemo, onChangePassword, chatWallpaper='none', onSetWallpaper}) {
-  const _overlayRef = React.useRef(null);
+  // Lock chat scroll while modal is open
   React.useEffect(() => {
-    const el = _overlayRef.current;
-    if (!el) return;
-    const h = (e) => {
-      let n = e.target;
-      while (n && n !== el) {
-        const s = getComputedStyle(n);
-        if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && n.scrollHeight > n.clientHeight) return;
-        n = n.parentElement;
-      }
-      e.preventDefault();
-    };
-    el.addEventListener('wheel', h, { passive: false });
-    return () => el.removeEventListener('wheel', h);
+    const chatArea = document.querySelector('.chat-messages-area');
+    const prev = chatArea ? chatArea.style.overflowY : '';
+    if (chatArea) chatArea.style.overflowY = 'hidden';
+    return () => { if (chatArea) chatArea.style.overflowY = prev || ''; };
   }, []);
 
   const [pinataJwt, setPinataJwt] = useState(storage.getPinataJwt() || '');

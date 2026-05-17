@@ -4,21 +4,12 @@ import { createPortal } from 'react-dom';
 import Avatar from '../ui/Avatar';
 
 export default function EditContactModal({contact,onClose,onSave,onDelete}){
-  const _overlayRef = React.useRef(null);
+  // Lock chat scroll while modal is open
   React.useEffect(() => {
-    const el = _overlayRef.current;
-    if (!el) return;
-    const h = (e) => {
-      let n = e.target;
-      while (n && n !== el) {
-        const s = getComputedStyle(n);
-        if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && n.scrollHeight > n.clientHeight) return;
-        n = n.parentElement;
-      }
-      e.preventDefault();
-    };
-    el.addEventListener('wheel', h, { passive: false });
-    return () => el.removeEventListener('wheel', h);
+    const chatArea = document.querySelector('.chat-messages-area');
+    const prev = chatArea ? chatArea.style.overflowY : '';
+    if (chatArea) chatArea.style.overflowY = 'hidden';
+    return () => { if (chatArea) chatArea.style.overflowY = prev || ''; };
   }, []);
 
   const [name,setName]=useState(contact.name||'');
