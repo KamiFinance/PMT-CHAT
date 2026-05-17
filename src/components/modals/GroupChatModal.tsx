@@ -23,13 +23,7 @@ function formatExpiry(expiresAt) {
 }
 
 export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup, onRolesUpdated }) {
-  // Prevent chat/page scroll while modal is open
-  useEffect(() => {
-    const els = [document.body, document.querySelector('.chat-messages-area')].filter(Boolean);
-    const prevs = els.map((el: any) => el.style.overflow);
-    els.forEach((el: any) => { el.style.overflow = 'hidden'; });
-    return () => { els.forEach((el: any, i: number) => { el.style.overflow = prevs[i]; }); };
-  }, []);
+
   // If existingGroup passed, start in manage mode (links tab)
   const [tab, setTab] = useState(existingGroup ? 'links' : 'info');
   const [name, setName] = useState(existingGroup?.name || '');

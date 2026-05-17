@@ -4,13 +4,7 @@ import { createPortal } from 'react-dom';
 import Avatar from '../ui/Avatar';
 
 export default function EditContactModal({contact,onClose,onSave,onDelete}){
-  // Prevent chat/page scroll while modal is open
-  React.useEffect(() => {
-    const els = [document.body, document.querySelector('.chat-messages-area')].filter(Boolean);
-    const prevs = els.map(el => el.style.overflow);
-    els.forEach(el => { el.style.overflow = 'hidden'; });
-    return () => { els.forEach((el, i) => { el.style.overflow = prevs[i]; }); };
-  }, []);
+
 
   const [name,setName]=useState(contact.name||'');
   const [address,setAddress]=useState(contact.address||'');

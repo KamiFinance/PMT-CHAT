@@ -4,13 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import ProfilePic from '../ui/ProfilePic';
 export default function ProfileModal({profile,onClose,onSave}){
-  // Prevent chat/page scroll while modal is open
-  React.useEffect(() => {
-    const els = [document.body, document.querySelector('.chat-messages-area')].filter(Boolean);
-    const prevs = els.map(el => el.style.overflow);
-    els.forEach(el => { el.style.overflow = 'hidden'; });
-    return () => { els.forEach((el, i) => { el.style.overflow = prevs[i]; }); };
-  }, []);
+
 
   const [name,setName]=useState(profile.name||'');
   const [bio,setBio]=useState(profile.bio||'');

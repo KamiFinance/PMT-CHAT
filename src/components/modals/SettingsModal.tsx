@@ -27,13 +27,7 @@ function Field({label, value, onChange, placeholder, type='text'}) {
 }
 
 export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet, isDemo, onChangePassword, chatWallpaper='none', onSetWallpaper}) {
-  // Prevent chat/page scroll while modal is open
-  React.useEffect(() => {
-    const els = [document.body, document.querySelector('.chat-messages-area')].filter(Boolean);
-    const prevs = els.map(el => el.style.overflow);
-    els.forEach(el => { el.style.overflow = 'hidden'; });
-    return () => { els.forEach((el, i) => { el.style.overflow = prevs[i]; }); };
-  }, []);
+
 
   const [pinataJwt, setPinataJwt] = useState(storage.getPinataJwt() || '');
   const [aiKey, setAiKey] = useState(localStorage.getItem('pmt_anthropic_key') || '');
