@@ -27,6 +27,23 @@ function Field({label, value, onChange, placeholder, type='text'}) {
 }
 
 export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet, isDemo, onChangePassword, chatWallpaper='none', onSetWallpaper}) {
+  const _overlayRef = React.useRef(null);
+  React.useEffect(() => {
+    const el = _overlayRef.current;
+    if (!el) return;
+    const h = (e) => {
+      let n = e.target;
+      while (n && n !== el) {
+        const s = getComputedStyle(n);
+        if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && n.scrollHeight > n.clientHeight) return;
+        n = n.parentElement;
+      }
+      e.preventDefault();
+    };
+    el.addEventListener('wheel', h, { passive: false });
+    return () => el.removeEventListener('wheel', h);
+  }, []);
+
   const [pinataJwt, setPinataJwt] = useState(storage.getPinataJwt() || '');
   const [aiKey, setAiKey] = useState(localStorage.getItem('pmt_anthropic_key') || '');
   const [saved, setSaved] = useState(false);
@@ -71,7 +88,7 @@ export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet,
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',display:'flex',alignItems:'center',
-      justifyContent:'center',zIndex:200}} onClick={onClose} onWheel={e=>e.stopPropagation()}>
+      justifyContent:'center',zIndex:200}} ref={_overlayRef} onClick={onClose} onWheel={e=>e.stopPropagation()}>
       <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:18,
         padding:'24px 22px',width:340,maxHeight:'85vh',overflowY:'auto',display:'flex',flexDirection:'column',gap:16,
         animation:'slideUp .25s ease',overscrollBehavior:'contain'}} onClick={e => e.stopPropagation()}>

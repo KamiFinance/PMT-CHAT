@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ProfilePic from '../ui/ProfilePic';
 
 const EXPIRY_OPTIONS = [
@@ -23,6 +23,25 @@ function formatExpiry(expiresAt) {
 }
 
 export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup, onRolesUpdated }) {
+  // Lock scroll behind modal using native (non-passive) wheel listener
+  const overlayRef = useRef(null);
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return;
+    const handler = (e) => {
+      // Walk up from the event target — if we hit a scrollable element
+      // inside the modal, let it scroll; otherwise block the event.
+      let node = e.target;
+      while (node && node !== el) {
+        const s = getComputedStyle(node);
+        if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return;
+        node = node.parentElement;
+      }
+      e.preventDefault();
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []);
   // If existingGroup passed, start in manage mode (links tab)
   const [tab, setTab] = useState(existingGroup ? 'links' : 'info');
   const [name, setName] = useState(existingGroup?.name || '');
@@ -214,7 +233,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   const label = { fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: '1px', marginBottom: 5 };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={onClose} onWheel={e => e.stopPropagation()}>
+    <div ref={overlayRef} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={onClose} onWheel={e => e.stopPropagation()}>
       <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 18, padding: 28, width: 440, maxWidth: '95vw', display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '90vh', overflow: 'hidden', animation: 'slideUp .25s ease' }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
