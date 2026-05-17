@@ -720,9 +720,14 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     : messages;
 
   // Unread divider: index of first unread incoming message since lastSeenTs
+  // m.ts may be missing on older messages — fall back to timestamp embedded in id (u{ms}{random})
   const firstUnreadIdx = React.useMemo(()=>{
     if(!lastSeenTs||lastSeenTs<=0) return -1;
-    return filteredMessages.findIndex(m=>!m.out&&!m.isTyping&&(m.ts||0)>lastSeenTs);
+    return filteredMessages.findIndex(m=>{
+      if(m.out||m.isTyping) return false;
+      const msgTs = m.ts || (m.id ? parseInt(m.id.replace(/^[a-z]/,'').slice(0,13)) : 0);
+      return msgTs > lastSeenTs;
+    });
   },[filteredMessages,lastSeenTs]);
   const unreadCount = firstUnreadIdx>=0 ? filteredMessages.length-firstUnreadIdx : 0;
   const matchCount = searchTerm ? filteredMessages.length : 0;
