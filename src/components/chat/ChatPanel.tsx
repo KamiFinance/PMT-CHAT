@@ -382,6 +382,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     const handler=(e:WheelEvent)=>{
       // Skip when any modal is open — the App-level handler manages scroll then
       if(document.body.classList.contains('modal-open')) return;
+      // Skip when scrolling inside the GIF/sticker picker
+      if((e.target as Element)?.closest?.('[data-gif-picker]')) return;
       const msgs=messagesRef.current;
       if(!msgs) return;
       // Check mouse is inside the chat panel

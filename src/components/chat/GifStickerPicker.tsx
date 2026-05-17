@@ -95,6 +95,7 @@ export default function GifStickerPicker({ onSelect, onClose }: Props) {
       background: 'var(--panel)', border: '1px solid var(--border)',
       boxShadow: '0 8px 32px rgba(0,0,0,.5)',
       display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 400,
+      pointerEvents: 'auto',
     }}>
       {/* Tab bar */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
@@ -130,7 +131,7 @@ export default function GifStickerPicker({ onSelect, onClose }: Props) {
       <div
         ref={containerRef}
         onScroll={onScroll}
-        style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: 6, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gridAutoRows: '100px', gap: 4, alignContent: 'start', overscrollBehavior: 'contain' }}
+        style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: 6, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gridAutoRows: '100px', gap: 4, alignContent: 'start', overscrollBehavior: 'contain', pointerEvents: 'auto' }}
       >
         {items.map(item => (
           <div key={item.id}
