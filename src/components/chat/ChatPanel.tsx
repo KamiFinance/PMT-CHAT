@@ -402,16 +402,21 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const onSendRef=useRef(onSend);
   useEffect(()=>{onSendRef.current=onSend;},[onSend]);
 
-  // Smart scroll: on contact open → scroll to unread divider; on new message → scroll to bottom
+  // Smart scroll: on contact open → jump instantly to unread divider; on new message → scroll to bottom
   const prevContactIdRef=useRef<any>(null);
   useEffect(()=>{
     const contactChanged = contact?.id !== prevContactIdRef.current;
     prevContactIdRef.current = contact?.id;
-    if(contactChanged && firstUnreadIdx >= 0 && unreadDividerRef.current) {
-      // New contact with unread messages — scroll to the divider
-      setTimeout(()=>unreadDividerRef.current?.scrollIntoView({behavior:'smooth',block:'start'}),50);
+    if(contactChanged && firstUnreadIdx >= 0 && unreadDividerRef.current && messagesRef.current) {
+      // New contact with unread — jump instantly (no animation) so divider is at top of view
+      const divider = unreadDividerRef.current;
+      const container = messagesRef.current;
+      // Use rAF to ensure DOM has rendered the divider before scrolling
+      requestAnimationFrame(()=>{
+        const offset = divider.getBoundingClientRect().top - container.getBoundingClientRect().top;
+        container.scrollTop += offset - 10;
+      });
     } else {
-      // Same contact new message, or no unread — scroll to bottom
       bottomRef.current?.scrollIntoView({behavior:'smooth'});
     }
   },[messages]);
