@@ -429,7 +429,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                         const r = await fetch('/api/groups?action=setRole', { method:'POST', headers:{'Content-Type':'application/json'},
                           body: JSON.stringify({ groupId: group.id||group.groupId, address: addr, role, requestedBy: myAddress }) });
                         const d = await r.json();
-                        if (d.ok) setGroupRoles(d.roles || {});
+                        if (d.ok) { setGroupRoles(d.roles || {}); onRolesUpdated && onRolesUpdated(d.roles || {}); }
                         else alert(d.error);
                       } catch(e: any) { alert(e.message); }
                     };

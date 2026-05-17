@@ -629,6 +629,29 @@ export default function App() {
 
   useInboxPoll({ wallet, isDemo, setMsgs, setContacts, setPinnedMsgs, pushNotif });
 
+  // ── Fetch fresh group roles when a group chat is opened ──────────────────
+  // Ensures promoted admin/mod users see their own role immediately without
+  // needing to send a message first.
+  useEffect(() => {
+    if (!active?.isGroup || !active.groupId || isDemo) return;
+    const gid = active.groupId;
+    fetch(`/api/groups?id=${gid}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        const fresh: Partial<any> = {};
+        if (d.roles)   fresh.roles   = d.roles;
+        if (d.members) fresh.members = d.members;
+        if (d.bannedMembers) fresh.bannedMembers = d.bannedMembers;
+        if (!Object.keys(fresh).length) return;
+        setContacts(p => p.map(c => (c.groupId === gid || c.id === gid) ? { ...c, ...fresh } : c));
+        setActiveAndRef((a: any) => a ? { ...a, ...fresh } : a);
+      })
+      .catch(() => {});
+  // Re-run whenever the active group changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.groupId]);
+
   // ── Profile sync — pull latest profiles from /api/profile (no inbox messages) ──
   // Applies fresh name/bio/avatar to contacts whenever the remote profile is newer.
   const applyRemoteProfile = useCallback((addr: string, remote: any) => {
@@ -2081,7 +2104,11 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       {showWallet && <WalletModal wallet={wallet} isDemo={isDemo} onClose={() => setShowWallet(false)} />}
       {showNew && <NewChatModal onClose={() => setShowNew(false)} onAdd={(c) => { setContacts(p => p.find(x => normalizeAddress(x.address) === normalizeAddress(c.address)) ? p : [...p, c]); selectContact(c); setShowNew(false); }} />}
       {showGroup && <GroupChatModal contacts={contacts.filter(c => !c.isAI && !c.isGroup)} myAddress={wallet?.address ?? ''} onClose={() => setShowGroup(false)} onCreate={(g) => { setContacts(p => [g, ...p]); selectContact(g); }} />}
-      {manageGroupContact && <GroupChatModal contacts={contacts.filter(c => !c.isAI)} myAddress={wallet?.address ?? ''} existingGroup={manageGroupContact} onClose={() => setManageGroupContact(null)} onCreate={() => {}} />}
+      {manageGroupContact && <GroupChatModal contacts={contacts.filter(c => !c.isAI)} myAddress={wallet?.address ?? ''} existingGroup={manageGroupContact} onClose={() => setManageGroupContact(null)} onCreate={() => {}} onRolesUpdated={(newRoles: Record<string,string>) => {
+        const gid = manageGroupContact.id || manageGroupContact.groupId;
+        setContacts(p => p.map(c => (c.groupId === gid || c.id === gid) ? { ...c, roles: newRoles } : c));
+        if (active && (active.groupId === gid || active.id === gid)) setActiveAndRef((a: any) => a ? { ...a, roles: newRoles } : a);
+      }} />}
       {editContact && <EditContactModal contact={editContact} onClose={() => setEditContact(null)} onSave={(u) => { setContacts(p => p.map(c => c.id === editContact.id ? { ...c, ...u } : c)); if (active?.id === editContact.id) setActiveAndRef({ ...active, ...u }); setEditContact(null); }} onDelete={() => { setContacts(p => p.filter(c => c.id !== editContact.id)); if (active?.id === editContact.id) setActiveAndRef(null); setEditContact(null); }} />}
       {showSearch && <SearchOverlay contacts={contacts} msgs={msgs} onClose={() => setShowSearch(false)} onNavigate={(cId) => { const c = contacts.find(x => x.id === cId); if (c) { selectContact(c); setShowSearch(false); }}} />}
       <NotificationToast notifs={notifs} onDismiss={(id) => setNotifs(p => p.filter(n => n.id !== id))} onSelect={(n) => { selectContact(n.contact); setNotifs(p => p.filter(x => x.id !== n.id)); }} />
