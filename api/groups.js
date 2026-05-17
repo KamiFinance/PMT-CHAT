@@ -127,7 +127,8 @@ export default async function handler(req, res) {
       grp.members.push(address);
       inv.usedBy.push(address);
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
-      await redis('SET', `pmt:invite:${linkId}`, JSON.stringify(inv));\n      // Index: user → groups for recovery
+      await redis('SET', `pmt:invite:${linkId}`, JSON.stringify(inv));
+      // Index: user → groups for recovery
       await redis('SADD', `pmt:user:groups:${address.toLowerCase()}`, grp.id);
       return res.json({ ok: true, group: grp });
     }
