@@ -4,6 +4,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import ProfilePic from '../ui/ProfilePic';
 export default function ProfileModal({profile,onClose,onSave}){
+  // Lock scroll behind modal
+  React.useEffect(() => {
+    const prev = document.body.style.overflowY;
+    document.body.style.overflowY = 'hidden';
+    return () => { document.body.style.overflowY = prev; };
+  }, []);
+
 
 
   const [name,setName]=useState(profile.name||'');

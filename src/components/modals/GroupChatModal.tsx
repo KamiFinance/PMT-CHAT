@@ -23,6 +23,13 @@ function formatExpiry(expiresAt) {
 }
 
 export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup, onRolesUpdated }) {
+  // Lock scroll behind modal
+  useEffect(() => {
+    const prev = document.body.style.overflowY;
+    document.body.style.overflowY = 'hidden';
+    return () => { document.body.style.overflowY = prev; };
+  }, []);
+
 
   // If existingGroup passed, start in manage mode (links tab)
   const [tab, setTab] = useState(existingGroup ? 'links' : 'info');

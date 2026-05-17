@@ -4,6 +4,13 @@ import { createPortal } from 'react-dom';
 import Avatar from '../ui/Avatar';
 
 export default function EditContactModal({contact,onClose,onSave,onDelete}){
+  // Lock scroll behind modal
+  React.useEffect(() => {
+    const prev = document.body.style.overflowY;
+    document.body.style.overflowY = 'hidden';
+    return () => { document.body.style.overflowY = prev; };
+  }, []);
+
 
 
   const [name,setName]=useState(contact.name||'');

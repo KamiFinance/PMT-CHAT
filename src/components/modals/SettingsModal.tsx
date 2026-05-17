@@ -27,6 +27,13 @@ function Field({label, value, onChange, placeholder, type='text'}) {
 }
 
 export default function SettingsModal({onClose, darkMode, onToggleTheme, wallet, isDemo, onChangePassword, chatWallpaper='none', onSetWallpaper}) {
+  // Lock scroll behind modal
+  React.useEffect(() => {
+    const prev = document.body.style.overflowY;
+    document.body.style.overflowY = 'hidden';
+    return () => { document.body.style.overflowY = prev; };
+  }, []);
+
 
 
   const [pinataJwt, setPinataJwt] = useState(storage.getPinataJwt() || '');
