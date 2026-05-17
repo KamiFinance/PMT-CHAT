@@ -48,7 +48,9 @@ export default async function handler(req, res) {
     }
 
     const cid = result.IpfsHash;
-    return res.json({ cid, url: `/api/ipfs?cid=${cid}` });
+    // Return direct Pinata gateway URL — browser fetches video/audio straight from Pinata
+    // Proxy (/api/ipfs) adds a Vercel hop and slows playback start significantly
+    return res.json({ cid, url: `https://gateway.pinata.cloud/ipfs/${cid}` });
   } catch (e) {
     console.error('pinata-upload error:', e.message);
     res.status(500).json({ error: e.message });

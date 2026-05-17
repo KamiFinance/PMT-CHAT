@@ -6,8 +6,9 @@ export default function VideoBubble({ msg, isOut, contact }) {
   const [playing, setPlaying] = useState(false);
   const [errored, setErrored] = useState(false);
 
-  // Prefer IPFS over blob URL (blobs expire after page refresh)
-  const ipfsSrc = msg.ipfsCid ? `/api/ipfs?cid=${msg.ipfsCid}` : (msg.ipfsUrl || null);
+  // Prefer direct gateway URL (ipfsUrl) — avoids Vercel proxy hop for faster start
+  // Fall back to proxy only if direct URL not available
+  const ipfsSrc = msg.ipfsUrl || (msg.ipfsCid ? `/api/ipfs?cid=${msg.ipfsCid}` : null);
   const src = ipfsSrc || msg.localUrl || null;
 
   const togglePlay = () => {
@@ -35,7 +36,7 @@ export default function VideoBubble({ msg, isOut, contact }) {
             <video
               ref={videoRef}
               src={src}
-              preload="metadata"
+              preload="auto"
               playsInline
               style={{ display: 'block', width: '100%', maxWidth: 280, maxHeight: 200, objectFit: 'cover' }}
               onEnded={() => setPlaying(false)}

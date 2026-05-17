@@ -16,9 +16,11 @@ export default async function handler(req, res) {
 
   const tryFetch = async (url, extraHeaders = {}) => {
     const headers = { 'User-Agent': 'PMTChat/1.0', ...extraHeaders };
+    const pinataJwt = process.env.PINATA_JWT || process.env.VITE_PINATA_JWT;
+    if (pinataJwt) headers['pinata_gateway_token'] = pinataJwt;
     if (rangeHeader) headers['Range'] = rangeHeader;
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 8000); // 8s per attempt
+    const t = setTimeout(() => ctrl.abort(), 20000); // 20s for large video files
     try {
       const r = await fetch(url, { signal: ctrl.signal, headers });
       clearTimeout(t);
