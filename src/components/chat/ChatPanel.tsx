@@ -1219,7 +1219,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                   </button>
                   {showGif&&<GifStickerPicker
                     onSelect={(item,isSticker)=>{
-                      onSend({type:'gif',gifUrl:item.url,gifWidth:item.width,gifHeight:item.height,
+                      onSend({type:'gif',gifUrl:item.url||item.preview,gifWidth:item.width,gifHeight:item.height,
                         isSticker,title:item.title,text:''});
                       setShowGif(false);
                     }}

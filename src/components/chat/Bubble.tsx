@@ -555,9 +555,16 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           onContextMenu={(e)=>{e.preventDefault();onOpenCtxMenu&&onOpenCtxMenu(msg);}}
           onTouchStart={(e)=>{handleLongPress(e);}}
           onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
-          <img src={msg.gifUrl} alt={msg.title||'GIF'}
-            style={{display:'block',width:w,height:h,borderRadius:msg.isSticker?0:12,
-              objectFit:'cover',border:msg.isSticker?'none':'1px solid var(--border)'}}/>
+          {msg.gifUrl
+            ? <img src={msg.gifUrl} alt={msg.title||'GIF'}
+                style={{display:'block',width:w,height:h,borderRadius:msg.isSticker?0:12,
+                  objectFit:'cover',border:msg.isSticker?'none':'1px solid var(--border)'}}/>
+            : <div style={{width:w,height:h,borderRadius:12,background:'var(--surface2)',
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,
+                border:'1px solid var(--border)'}}>
+                {msg.isSticker?'✨':'🎞'}
+              </div>
+          }
           {!msg.isSticker&&(
             <span style={{position:'absolute',bottom:6,left:6,background:'rgba(0,0,0,.65)',
               color:'#fff',fontSize:9,padding:'2px 5px',borderRadius:4,

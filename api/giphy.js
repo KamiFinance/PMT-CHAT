@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     const d = await r.json();
     const items = (d.data || []).map(g => ({
       id: g.id,
-      url: g.images?.fixed_height?.url || g.images?.original?.url || '',
+      url: g.images?.fixed_height?.url || g.images?.downsized?.url || g.images?.fixed_height_downsampled?.url || g.images?.original?.url || '',
       width: parseInt(g.images?.fixed_height?.width || g.images?.original?.width || '200'),
       height: parseInt(g.images?.fixed_height?.height || g.images?.original?.height || '200'),
       preview: g.images?.fixed_height_small?.url || g.images?.fixed_height?.url || '',
