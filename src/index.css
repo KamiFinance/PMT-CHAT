@@ -211,9 +211,7 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 /* ios-safe-top removed — using status-bar-style:black instead */
 
 /* ── Modal scroll lock — prevents all background interaction while modal is open ── */
-/* pointer-events:none stops wheel/touch/scroll on everything behind the modal overlay */
 body.modal-open .sidebar-panel,
 body.modal-open .chat-panel { pointer-events: none; }
-/* overflow-y:hidden is the definitive scroll lock — prevents scroll regardless of events */
-body.modal-open .chat-messages-area { overflow-y: hidden !important; }
-body.modal-open .sidebar-panel { overflow: hidden !important; }
+body.modal-open .chat-messages-area,
+body.modal-open .sidebar-contacts-list { overflow-y: hidden !important; }

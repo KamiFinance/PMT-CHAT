@@ -158,7 +158,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
         CONTACTS ({contacts.length})
       </div>
       {/* List */}
-      <div style={{flex:1,overflowY:'auto'}}>
+      <div className="sidebar-contacts-list" style={{flex:1,overflowY:'auto'}}>
         {/* Group context menu portal */}
         {groupCtxMenu && createPortal(
           <div onClick={()=>setGroupCtxMenu(null)}
