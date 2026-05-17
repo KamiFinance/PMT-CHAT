@@ -479,6 +479,8 @@ export default function App() {
         if (keep.type !== 'voice') delete keep.waveform;
         // Keep b64Data only for small inline images/files without a Pinata CID
         if (keep.ipfsCid || !keep.b64Data || keep.b64Data.length > 80000) delete keep.b64Data;
+        // Blob URLs expire on reload — video plays via ipfsCid/ipfsUrl after restore
+        if (keep.type === 'video') delete keep.localUrl;
         return keep;
       });
     });
@@ -799,7 +801,7 @@ export default function App() {
         updated[addr] = (updated[addr] ?? []).map(m => {
           const mId = m.mediaMsgId ?? m.imgMsgId ?? '';
           if (mId !== mediaMsgId) return m;
-          if (cid) return { ...m, ipfsCid: cid, fileUrl: ipfsUrl ?? getIpfsUrl(cid), uploading: false, b64Data: undefined };
+          if (cid) return { ...m, ipfsCid: cid, ipfsUrl: ipfsUrl ?? null, fileUrl: ipfsUrl ?? getIpfsUrl(cid), localUrl: null, uploading: false, b64Data: undefined };
           if (fallbackB64) return { ...m, fileUrl: fallbackB64, b64Data: fallbackB64, uploading: false };
           return m;
         });

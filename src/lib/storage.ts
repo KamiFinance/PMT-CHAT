@@ -63,6 +63,7 @@ export const storage = {
       saveable[addr] = list.map((m) => {
         if (m.type === 'voice') return { ...m, audioUrl: null }; // keep audioB64 for reload reconstruction
         if (m.type === 'image' || m.type === 'file') return { ...m, fileUrl: null };
+        if (m.type === 'video') return { ...m, localUrl: null }; // blob URLs die on reload; ipfsCid/ipfsUrl survive
         return m;
       });
     }
