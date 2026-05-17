@@ -865,7 +865,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 onJoinGroup={onJoinGroup}
                 onReply={(msg)=>{setReplyingTo(msg);setTimeout(()=>inputRef.current?.focus(),50);}}
                 onPin={canPin?(msg:any,forBoth?:boolean)=>onPin&&onPin(msg,forBoth):undefined}
-                onDelete={onDelete&&(m.out||m.from?.toLowerCase()===myAddress?.toLowerCase()||(contact.isGroup&&canPin))
+                onDelete={onDelete&&(contact.isGroup ? canPin : (m.out||m.from?.toLowerCase()===myAddress?.toLowerCase()))
                   ?(msg:any,forAll:boolean)=>onDelete(msg,forAll):undefined}
                 onEdit={(m.out||m.from?.toLowerCase()===myAddress?.toLowerCase())
                   ?(msg:any)=>{setEditingMsg(msg);setText(msg.text||'');setTimeout(()=>inputRef.current?.focus(),50);}
