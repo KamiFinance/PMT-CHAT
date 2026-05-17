@@ -540,6 +540,39 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     {ctxMenuPortal}{picker}
     </>
   );
+  if(msg.type==='gif') {
+    const maxW = msg.isSticker ? 160 : 240;
+    const ratio = msg.gifHeight && msg.gifWidth ? msg.gifHeight/msg.gifWidth : 1;
+    const w = Math.min(msg.gifWidth||200, maxW);
+    const h = Math.round(w * ratio);
+    return(
+      <div ref={bubbleRef} style={{marginBottom:3,display:'flex',
+        flexDirection:isOut?'row-reverse':'row',alignItems:'flex-end',gap:8,
+        ...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}>
+        {!isOut&&<ProfilePic initials={contact?.avatar} avatarUrl={contact?.avatarUrl}
+          color={contact?.color} bg={contact?.bg} size={26} fs={10}/>}
+        <div style={{position:'relative',cursor:'pointer'}}
+          onContextMenu={(e)=>{e.preventDefault();onOpenCtxMenu&&onOpenCtxMenu(msg);}}
+          onTouchStart={(e)=>{handleLongPress(e);}}
+          onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
+          <img src={msg.gifUrl} alt={msg.title||'GIF'}
+            style={{display:'block',width:w,height:h,borderRadius:msg.isSticker?0:12,
+              objectFit:'cover',border:msg.isSticker?'none':'1px solid var(--border)'}}/>
+          {!msg.isSticker&&(
+            <span style={{position:'absolute',bottom:6,left:6,background:'rgba(0,0,0,.65)',
+              color:'#fff',fontSize:9,padding:'2px 5px',borderRadius:4,
+              fontFamily:'var(--mono)',fontWeight:700,letterSpacing:'0.5px'}}>GIF</span>
+          )}
+          <span style={{position:'absolute',bottom:6,right:6,
+            background:'rgba(0,0,0,.45)',color:'rgba(255,255,255,.85)',
+            fontSize:9,padding:'2px 4px',borderRadius:3,fontFamily:'var(--mono)'}}>
+            {msg.time}
+          </span>
+        </div>
+        {ctxMenuPortal}
+      </div>
+    );
+  }
   if(msg.type==='video') return(
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}

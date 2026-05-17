@@ -1060,11 +1060,12 @@ export default function App() {
     const isImage = typeof input === 'object' && input.type === 'image';
     const isFile  = typeof input === 'object' && input.type === 'file';
     const isVideo = typeof input === 'object' && input.type === 'video';
+    const isGif   = typeof input === 'object' && input.type === 'gif';
     // Text can be plain string OR {type:'text', text:'...', replyTo:...} when replying
     const textContent: string = typeof input === 'string' ? input : ((input as Message).text ?? '');
     const block = nextBlock();
     const inputReplyTo = typeof input === 'string' ? null : (input as Message).replyTo ?? null;
-    const msg: Message = (isVoice || isImage || isFile || isVideo)
+    const msg: Message = (isVoice || isImage || isFile || isVideo || isGif)
       ? { id: uid(), out: true, ...(input as object), type: (input as Message).type, text: '', time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) }
       : { id: uid(), out: true, type: 'text', text: textContent, time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) };
     const addr = normalizeAddress(activeRef.current.address);
@@ -1076,7 +1077,7 @@ export default function App() {
     if (typeof input === 'object' && (input as Message).uploading) {
       // Still add to local state (handled above) but do NOT relay
     }
-    const preview = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : isVideo ? '🎬 Video' : textContent;
+    const preview = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : isVideo ? '🎬 Video' : isGif ? ((input as any).isSticker ? '✨ Sticker' : '🎞 GIF') : textContent;
     // Update preview and bubble the active contact to top of sidebar
     setContacts(p => {
       const id = activeRef.current?.id;
@@ -1162,7 +1163,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       const w = walletRef.current;
       const toAddr = normalizeAddress(activeRef.current.address);
       if ((input as Message).uploading) return; // local preview only — don't relay
-      const msgContent = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : isVideo ? '🎬 Video' : textContent;
+      const msgContent = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : isVideo ? '🎬 Video' : isGif ? ((input as any).isSticker ? '✨ Sticker' : '🎞 GIF') : textContent;
       const msgType = isVoice ? 'voice' : isImage ? 'image' : isFile ? 'file' : isVideo ? 'video' : 'text';
       const replyTo = typeof input === 'string' ? null : (input as Message).replyTo ?? null;
       try {
@@ -1172,7 +1173,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
           const audioB64 = (!vi.ipfsCid && vi.audioMsgId) ? (() => { try { return storage.getAudio(vi.audioMsgId!); } catch { return null; } })() : null;
           const b64 = (vi as any).audioB64 || audioB64; // prefer direct b64 from message
           return { duration: vi.duration, waveform: vi.waveform, audioMsgId: vi.audioMsgId, ipfsCid: vi.ipfsCid, ipfsUrl: vi.ipfsUrl, ...(b64 ? { audioB64: b64 } : {}) };
-        })()), ...((isImage || isFile) && { ipfsCid: (input as Message).ipfsCid ?? null, b64Data: (input as Message).b64Data ?? null, mediaMsgId: (input as Message).mediaMsgId, imgMsgId: (input as Message).imgMsgId, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }), ...(isVideo && { ipfsCid: (input as Message).ipfsCid ?? null, ipfsUrl: (input as Message).ipfsUrl ?? null, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }), from: w.address, fromName: profileRef.current?.name || w.username || w.address.slice(0, 8), fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : profileRef.current?._thumbUrl ?? null; })(), fromBio: profileRef.current?.bio ?? '', time: now(), block, hash: msg.hash, confirms: 0, ts: Date.now() };
+        })()), ...((isImage || isFile) && { ipfsCid: (input as Message).ipfsCid ?? null, b64Data: (input as Message).b64Data ?? null, mediaMsgId: (input as Message).mediaMsgId, imgMsgId: (input as Message).imgMsgId, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }), ...(isVideo && { ipfsCid: (input as Message).ipfsCid ?? null, ipfsUrl: (input as Message).ipfsUrl ?? null, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }), ...(isGif && { gifUrl: (input as Message).gifUrl ?? null, gifWidth: (input as Message).gifWidth ?? null, gifHeight: (input as Message).gifHeight ?? null, isSticker: (input as Message).isSticker ?? false, title: (input as Message).title ?? '' }), ...(isGif && { gifUrl: (input as Message).gifUrl ?? null, gifWidth: (input as Message).gifWidth ?? null, gifHeight: (input as Message).gifHeight ?? null, isSticker: (input as Message).isSticker ?? false, title: (input as Message).title ?? '' }), from: w.address, fromName: profileRef.current?.name || w.username || w.address.slice(0, 8), fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : profileRef.current?._thumbUrl ?? null; })(), fromBio: profileRef.current?.bio ?? '', time: now(), block, hash: msg.hash, confirms: 0, ts: Date.now() };
         const existing: object[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.inbox(toAddr)) ?? '[]');
         localStorage.setItem(STORAGE_KEYS.inbox(toAddr), JSON.stringify([...existing, inboxMsg]));
         // Also deliver via cross-device API relay (fire-and-forget)
@@ -1218,7 +1219,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       const inboxMsg = {
         id: msg.id, type: msg.type, text: msgContent,
         ...((isImage || isFile) && { ipfsCid: (input as Message).ipfsCid ?? null, b64Data: (input as Message).b64Data ?? null, mediaMsgId: (input as Message).mediaMsgId, imgMsgId: (input as Message).imgMsgId, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }),
-        ...(isVideo && { ipfsCid: (input as Message).ipfsCid ?? null, ipfsUrl: (input as Message).ipfsUrl ?? null, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }),
+        ...(isVideo && { ipfsCid: (input as Message).ipfsCid ?? null, ipfsUrl: (input as Message).ipfsUrl ?? null, fileName: (input as Message).fileName, fileSize: (input as Message).fileSize, mimeType: (input as Message).mimeType }), ...(isGif && { gifUrl: (input as Message).gifUrl ?? null, gifWidth: (input as Message).gifWidth ?? null, gifHeight: (input as Message).gifHeight ?? null, isSticker: (input as Message).isSticker ?? false, title: (input as Message).title ?? '' }),
         ...(isVoice && (() => { const vi = input as Message; const audioB64 = (!vi.ipfsCid && vi.audioMsgId) ? (() => { try { return storage.getAudio(vi.audioMsgId!); } catch { return null; } })() : null; return { duration: vi.duration, waveform: vi.waveform, audioMsgId: vi.audioMsgId, ipfsCid: vi.ipfsCid, ipfsUrl: vi.ipfsUrl, ...(audioB64 ? { audioB64 } : {}) }; })()),
         from: w.address, fromName: profileRef.current?.name || w.username || w.address.slice(0, 8),
         fromAvatarUrl: (() => { const av = profileRef.current?.avatarUrl; return av?.startsWith('http') ? av : profileRef.current?._thumbUrl ?? null; })(),

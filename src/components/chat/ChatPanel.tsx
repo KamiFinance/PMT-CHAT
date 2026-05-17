@@ -10,6 +10,7 @@ import Bubble from './Bubble';
 import Twemoji from '../ui/Twemoji';
 import EmojiInput from './EmojiInput';
 import AttachMenu from './AttachMenu';
+import GifStickerPicker from './GifStickerPicker';
 import MobileTopbar from '../ui/MobileTopbar';
 import BlockStrip from '../ui/BlockStrip';
 import SendModal from '../modals/SendModal';
@@ -244,6 +245,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
   const [showEmoji,setShowEmoji]=useState(false);
+  const [showGif,setShowGif]=useState(false);
   const [replyingTo,setReplyingTo]=useState(null); // message being replied to
   const [editingMsg,setEditingMsg]=useState<any>(null); // message being edited
   const [localSearch,setLocalSearch]=useState(''); // in-chat search query
@@ -1194,7 +1196,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                     onClose={()=>setShowAttach(false)}/>}
                 </div>
                 <div style={{position:'relative'}}>
-                  <button onClick={()=>{setShowEmoji(v=>!v);setShowAttach(false);}}
+                  <button onClick={()=>{setShowEmoji(v=>!v);setShowAttach(false);setShowGif(false);}}
                     style={{width:44,height:44,background:showEmoji?'var(--surface2)':'var(--surface)',
                       border:`1px solid ${showEmoji?'var(--accent)':'var(--border)'}`,
                       borderRadius:9,fontSize:20,display:'flex',alignItems:'center',
@@ -1202,6 +1204,24 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                     😊
                   </button>
                   {showEmoji&&<EmojiPicker onSelect={e=>{insertEmoji(e);}} onClose={()=>setShowEmoji(false)}/>}
+                </div>
+                <div style={{position:'relative'}}>
+                  <button onClick={()=>{setShowGif(v=>!v);setShowEmoji(false);setShowAttach(false);}}
+                    style={{width:44,height:44,background:showGif?'var(--surface2)':'var(--surface)',
+                      border:`1px solid ${showGif?'var(--accent)':'var(--border)'}`,
+                      borderRadius:9,fontSize:11,fontWeight:700,fontFamily:'var(--mono)',
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      flexShrink:0,cursor:'pointer',transition:'all .15s',
+                      color:showGif?'var(--accent)':'var(--text)'}}>
+                    GIF
+                  </button>
+                  {showGif&&<GifStickerPicker
+                    onSelect={(item,isSticker)=>{
+                      onSend({type:'gif',gifUrl:item.url,gifWidth:item.width,gifHeight:item.height,
+                        isSticker,title:item.title,text:''});
+                      setShowGif(false);
+                    }}
+                    onClose={()=>setShowGif(false)}/>}
                 </div>
                 <div style={{flex:1,background:'var(--surface)',border:'0.5px solid var(--border)',
                   borderRadius:22,display:'flex',alignItems:'flex-end',padding:'0 12px'}}>
