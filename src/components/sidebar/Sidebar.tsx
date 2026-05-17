@@ -2,6 +2,7 @@
 import { onInstallAvailable, triggerInstallPrompt, isRunningAsPWA,
          requestPushPermission, getPushPermissionState } from '../../lib/pwa';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Avatar from '../ui/Avatar';
 import { shortAddress } from '../../lib/utils';
 import ProfilePic from '../ui/ProfilePic';
@@ -10,11 +11,14 @@ import SwitchNetworkButton from '../ui/SwitchNetworkButton';
 
 
 
-export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onProfile,onSettings,onWallet,onLogout,wallet,isDemo,profile,onEditContact,onSearch,mobileOpen,onMobileClose}){
+export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onProfile,onSettings,onWallet,onLogout,wallet,isDemo,profile,onEditContact,onSearch,mobileOpen,onMobileClose,onLeaveGroup,onToggleMute,mutedGroupIds}){
   const [q,setQ]=useState('');
   const [canInstall,setCanInstall]=useState(false);
   const [pushState,setPushState]=useState<string>('default');
   const [showIosHint,setShowIosHint]=useState(false);
+  // Group context menu (right-click / long-press)
+  const [groupCtxMenu,setGroupCtxMenu]=useState<{contact:any,x:number,y:number}|null>(null);
+  const groupLongPressRef=useRef<any>(null);
 
   const isIos=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
   const isInStandaloneMode=()=>(window.navigator as any).standalone===true||window.matchMedia('(display-mode: standalone)').matches;
@@ -155,20 +159,60 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
       </div>
       {/* List */}
       <div style={{flex:1,overflowY:'auto'}}>
-        {filtered.map(c=>(
+        {/* Group context menu portal */}
+        {groupCtxMenu && createPortal(
+          <div onClick={()=>setGroupCtxMenu(null)}
+            style={{position:'fixed',inset:0,zIndex:9999}}>
+            <div onClick={e=>e.stopPropagation()}
+              style={{position:'fixed',left:Math.min(groupCtxMenu.x,window.innerWidth-180),
+                top:Math.min(groupCtxMenu.y,window.innerHeight-110),
+                background:'var(--panel)',border:'1px solid var(--border)',
+                borderRadius:10,padding:'6px 0',minWidth:180,
+                boxShadow:'0 8px 32px rgba(0,0,0,.45)',zIndex:10000,
+                animation:'fadeIn .12s ease'}}>
+              <button onClick={()=>{onToggleMute&&onToggleMute(groupCtxMenu.contact);setGroupCtxMenu(null);}}
+                style={{display:'flex',alignItems:'center',gap:10,width:'100%',
+                  padding:'10px 16px',background:'none',border:'none',
+                  color:'var(--text)',fontSize:13,cursor:'pointer',textAlign:'left'}}>
+                {mutedGroupIds?.has(groupCtxMenu.contact.groupId||groupCtxMenu.contact.id) ? '🔔 Unmute group' : '🔕 Mute group'}
+              </button>
+              <div style={{height:1,background:'var(--border)',margin:'4px 0'}}/>
+              <button onClick={()=>{
+                  if(window.confirm(`Leave "${groupCtxMenu.contact.name}"? You will no longer receive messages from this group.`)){
+                    onLeaveGroup&&onLeaveGroup(groupCtxMenu.contact);
+                  }
+                  setGroupCtxMenu(null);
+                }}
+                style={{display:'flex',alignItems:'center',gap:10,width:'100%',
+                  padding:'10px 16px',background:'none',border:'none',
+                  color:'#ff6b6b',fontSize:13,cursor:'pointer',textAlign:'left'}}>
+                🚪 Leave group
+              </button>
+            </div>
+          </div>, document.body
+        )}
+        {filtered.map(c=>{
+          const isMuted = c.isGroup && mutedGroupIds?.has(c.groupId||c.id);
+          const openCtxMenu = c.isGroup ? (x,y) => setGroupCtxMenu({contact:c,x,y}) : null;
+          return (
           <div key={c.id}
             className="contact-row"
             style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer',
               borderLeft:`2px solid ${activeId===c.id?'var(--accent)':'transparent'}`,
               background:activeId===c.id?'var(--surface)':'transparent',transition:'background .12s',
               position:'relative'}}
-            onClick={()=>{onSelect(c);onMobileClose&&onMobileClose();}}>
+            onClick={()=>{onSelect(c);onMobileClose&&onMobileClose();}}
+            onContextMenu={openCtxMenu?(e)=>{e.preventDefault();openCtxMenu(e.clientX,e.clientY);}:undefined}
+            onTouchStart={openCtxMenu?(e)=>{const t=e.touches[0];groupLongPressRef.current=setTimeout(()=>openCtxMenu(t.clientX,t.clientY),600);}:undefined}
+            onTouchEnd={openCtxMenu?()=>{clearTimeout(groupLongPressRef.current);}:undefined}
+            onTouchMove={openCtxMenu?()=>{clearTimeout(groupLongPressRef.current);}:undefined}>
             <ProfilePic initials={c.isGroup?'#':c.avatar} avatarUrl={c.avatarUrl} color={c.isGroup?'var(--accent2)':c.color} bg={c.isGroup?'#1e1b30':c.bg} online={c.online}/>
             <div style={{flex:1,minWidth:0}}>
               <div style={{display:'flex',alignItems:'center',gap:4}}>
                 {c.isGroup&&<span style={{fontFamily:'var(--mono)',fontSize:8,background:'rgba(167,139,250,.2)',
                   border:'1px solid rgba(167,139,250,.3)',borderRadius:4,padding:'0 4px',color:'var(--accent2)'}}>GROUP</span>}
                 <div style={{fontSize:13,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
+                {isMuted&&<span style={{fontSize:10,color:'var(--muted)',flexShrink:0}}>🔕</span>}
               </div>
               <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:2}}>{c.preview||shortAddress(c.address)}</div>
             </div>
@@ -191,7 +235,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
               </button>
             )}
           </div>
-        ))}
+        );})}
       </div>
       {/* Footer */}
       <div className="sidebar-footer" style={{padding:'10px',borderTop:'1px solid var(--border)',display:'flex',gap:6,flexShrink:0}}>

@@ -127,10 +127,29 @@ export default async function handler(req, res) {
       grp.members.push(address);
       inv.usedBy.push(address);
       await redis('SET', `pmt:group:${grp.id}`, JSON.stringify(grp));
-      await redis('SET', `pmt:invite:${linkId}`, JSON.stringify(inv));
-      // Index: user → groups for recovery
+      await redis('SET', `pmt:invite:${linkId}`, JSON.stringify(inv));\n      // Index: user → groups for recovery
       await redis('SADD', `pmt:user:groups:${address.toLowerCase()}`, grp.id);
       return res.json({ ok: true, group: grp });
+    }
+
+    // Leave group (self-initiated)
+    if (action === 'leave') {
+      const { groupId, address } = body;
+      if (!groupId || !address) return res.status(400).json({ error: 'groupId and address required' });
+      const data = await redis('GET', `pmt:group:${groupId}`);
+      if (!data) return res.status(404).json({ error: 'Group not found' });
+      const grp = JSON.parse(data);
+      // Owner cannot leave — they must delete the group
+      if (grp.createdBy?.toLowerCase() === address.toLowerCase())
+        return res.status(403).json({ error: 'Owner cannot leave. Delete the group instead.' });
+      // Remove from members list
+      grp.members = (grp.members || []).filter(m => m.toLowerCase() !== address.toLowerCase());
+      // Remove any role
+      if (grp.roles) delete grp.roles[address.toLowerCase()];
+      await redis('SET', `pmt:group:${groupId}`, JSON.stringify(grp));
+      // Remove from user's group index
+      await redis('SREM', `pmt:user:groups:${address.toLowerCase()}`, groupId);
+      return res.json({ ok: true });
     }
 
     // Ban a member

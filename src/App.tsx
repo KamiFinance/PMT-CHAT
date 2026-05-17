@@ -620,6 +620,12 @@ export default function App() {
   }, [wallet?.address, isDemo, runBackup]);
 
   const pushNotif = useCallback((contact: Contact, text: string) => {
+    // Skip notification for muted groups
+    try {
+      const muted: string[] = JSON.parse(localStorage.getItem('pmt_muted_groups') || '[]');
+      const gid = (contact as any).groupId || (contact as any).id;
+      if (gid && muted.includes(gid)) return;
+    } catch {}
     const id = uid();
     const n: Notif = { id, contact, text, ts: Date.now() };
     setNotifs(p => [...p.slice(-4), n]);
@@ -1310,6 +1316,44 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       .catch(() => alert('Could not fetch invite link info.'));
   }, [wallet?.address, setContacts, selectContact]);
 
+  // ── Muted groups — stored in localStorage, checked before push notifications ──
+  const [mutedGroupIds, setMutedGroupIds] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('pmt_muted_groups') || '[]')); }
+    catch { return new Set(); }
+  });
+  const handleToggleMute = useCallback((contact: any) => {
+    const gid = contact.groupId || contact.id;
+    setMutedGroupIds(prev => {
+      const next = new Set(prev);
+      if (next.has(gid)) next.delete(gid); else next.add(gid);
+      try { localStorage.setItem('pmt_muted_groups', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }, []);
+
+  // ── Leave group ────────────────────────────────────────────────────────────
+  const handleLeaveGroup = useCallback(async (contact: any) => {
+    if (!wallet?.address) return;
+    const groupId = contact.groupId || contact.id;
+    if (!groupId) return;
+    try {
+      const r = await fetch('/api/groups?action=leave', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId, address: wallet.address }),
+      });
+      const d = await r.json();
+      if (!d.ok) { alert(d.error || 'Could not leave group'); return; }
+    } catch (e: any) { alert('Could not leave group: ' + e.message); return; }
+    // Navigate away if currently in this group
+    if (active && (active.id === contact.id || active.groupId === groupId)) setActiveAndRef(null);
+    // Remove from contacts + messages
+    setContacts(p => p.filter(c => c.id !== contact.id));
+    const addr = normalizeAddress(contact.address);
+    setMsgs(p => { const n = { ...p }; delete n[addr]; return n; });
+    // Remove from muted list if muted
+    setMutedGroupIds(prev => { const next = new Set(prev); next.delete(groupId); return next; });
+  }, [wallet?.address, active, setActiveAndRef, setContacts, setMsgs]);
+
   const handleDeleteMsg = useCallback((msg: any, forAll: boolean) => {
     if (!activeRef.current) return;
     const addr = normalizeAddress(activeRef.current.address);
@@ -1999,7 +2043,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     <AppContext.Provider value={{ wallet, profile, isDemo, darkMode, toggleTheme }}>
       <div className="app-grid">
         <div className={`sidebar-overlay${mobileSidebarOpen ? ' visible' : ''}`} onClick={() => setMobileSidebarOpen(false)} />
-        <Sidebar contacts={contacts} activeId={active?.id ?? null} wallet={wallet} isDemo={isDemo} profile={profile} mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} onSelect={selectContact} onNew={() => { setShowNew(true); setMobileSidebarOpen(false); }} onNewGroup={() => { setShowGroup(true); setMobileSidebarOpen(false); }} onProfile={() => { setShowProfile(true); setMobileSidebarOpen(false); }} onSettings={() => { setShowSettings(true); setMobileSidebarOpen(false); }} onWallet={() => { setShowWallet(true); setMobileSidebarOpen(false); }} onLogout={handleLogout} onEditContact={setEditContact} onSearch={() => setShowSearch(true)} />
+        <Sidebar contacts={contacts} activeId={active?.id ?? null} wallet={wallet} isDemo={isDemo} profile={profile} mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} onSelect={selectContact} onNew={() => { setShowNew(true); setMobileSidebarOpen(false); }} onNewGroup={() => { setShowGroup(true); setMobileSidebarOpen(false); }} onProfile={() => { setShowProfile(true); setMobileSidebarOpen(false); }} onSettings={() => { setShowSettings(true); setMobileSidebarOpen(false); }} onWallet={() => { setShowWallet(true); setMobileSidebarOpen(false); }} onLogout={handleLogout} onEditContact={setEditContact} onSearch={() => setShowSearch(true)} onLeaveGroup={handleLeaveGroup} onToggleMute={handleToggleMute} mutedGroupIds={mutedGroupIds} />
         <main className="chat-panel">
           {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} chatWallpaper={chatWallpaper} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsgs={active ? (pinnedMsgs[normalizeAddress(active.address)] || []) : []} onDelete={handleDeleteMsg} onEditMsg={handleEditMsg} contacts={contacts} onForwardMsg={handleForwardMsg} lastSeenTs={active ? (lastSeenRef.current[normalizeAddress(active.address)] ?? (()=>{ try { return parseInt(localStorage.getItem(`pmt_lastseen_${normalizeAddress(active.address)}`) || '0'); } catch { return 0; } })()) : 0} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
         </main>
