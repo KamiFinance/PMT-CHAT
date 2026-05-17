@@ -91,7 +91,7 @@ export default function GifStickerPicker({ onSelect, onClose }: Props) {
       left: '50%',
       transform: 'translateX(-50%)',
       width: 'min(320px, calc(100vw - 16px))',
-      height: 400, borderRadius: 14,
+      height: 'min(400px, calc(100dvh - 160px))', borderRadius: 14,
       background: 'var(--panel)', border: '1px solid var(--border)',
       boxShadow: '0 8px 32px rgba(0,0,0,.5)',
       display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 400,
@@ -130,14 +130,14 @@ export default function GifStickerPicker({ onSelect, onClose }: Props) {
       <div
         ref={containerRef}
         onScroll={onScroll}
-        style={{ flex: 1, overflowY: 'auto', padding: 6, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 4, alignContent: 'start' }}
+        style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: 6, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gridAutoRows: '100px', gap: 4, alignContent: 'start', overscrollBehavior: 'contain' }}
       >
         {items.map(item => (
           <div key={item.id}
             onClick={() => { onSelect(item, tab === 'sticker'); onClose(); }}
             style={{
               cursor: 'pointer', borderRadius: 8, overflow: 'hidden',
-              aspectRatio: '1', background: 'var(--surface2)',
+              height: '100%', background: 'var(--surface2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'transform .1s, opacity .1s',
             }}
@@ -154,7 +154,7 @@ export default function GifStickerPicker({ onSelect, onClose }: Props) {
         ))}
         {loading && Array.from({ length: 9 }).map((_, i) => (
           <div key={'sk-'+i} style={{
-            aspectRatio: '1', borderRadius: 8,
+            height: '100%', borderRadius: 8,
             background: 'linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%)',
             backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite',
           }}/>
