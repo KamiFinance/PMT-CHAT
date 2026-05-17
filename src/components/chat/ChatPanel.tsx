@@ -581,7 +581,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
           // Update local message with IPFS cid + relay to recipient
           if(onMediaUploaded) onMediaUploaded(tmpId,cid,url,null);
           onSendRef.current({type:'video',ipfsCid:cid,ipfsUrl:url,
-            fileName:file.name,fileSize:formatSize(file.size),mimeType:file.type});
+            fileName:file.name,fileSize:formatSize(file.size),mimeType:file.type,skipLocal:true});
         }catch(e){console.warn('Video upload failed',e);}
       };
       reader2.readAsDataURL(file);

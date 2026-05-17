@@ -1062,14 +1062,17 @@ export default function App() {
     const textContent: string = typeof input === 'string' ? input : ((input as Message).text ?? '');
     const block = nextBlock();
     const inputReplyTo = typeof input === 'string' ? null : (input as Message).replyTo ?? null;
-    const msg: Message = (isVoice || isImage || isFile)
+    const msg: Message = (isVoice || isImage || isFile || isVideo)
       ? { id: uid(), out: true, ...(input as object), type: (input as Message).type, text: '', time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) }
       : { id: uid(), out: true, type: 'text', text: textContent, time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) };
     const addr = normalizeAddress(activeRef.current.address);
-    setMsgs(p => ({ ...p, [addr]: [...(p[addr] ?? []), { ...msg, _toAddr: addr }] }));
+    // skipLocal: relay-only calls (after media upload) — temp message already in state
+    if (!(typeof input === 'object' && (input as any).skipLocal)) {
+      setMsgs(p => ({ ...p, [addr]: [...(p[addr] ?? []), { ...msg, _toAddr: addr }] }));
+    }
     // Skip relay for uploading:true messages — local-only previews
     if (typeof input === 'object' && (input as Message).uploading) {
-      // Still add to local state (handled below) but do NOT relay
+      // Still add to local state (handled above) but do NOT relay
     }
     const preview = isVoice ? '🎙 Voice message' : isImage ? '🖼 Image' : isFile ? `📄 ${(input as Message).fileName ?? 'File'}` : isVideo ? '🎬 Video' : textContent;
     // Update preview and bubble the active contact to top of sidebar
