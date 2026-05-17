@@ -648,6 +648,24 @@ export default function App() {
     return () => { document.body.classList.remove('modal-open'); };
   }, [anyModalOpen]);
 
+  // Native non-passive wheel blocker — the definitive scroll lock when modal is open
+  // This works where CSS pointer-events fails (e.g. some browser/OS scroll implementations)
+  useEffect(() => {
+    const handler = (e: WheelEvent) => {
+      if (!document.body.classList.contains('modal-open')) return;
+      // Allow scroll only if target is INSIDE a modal (z-index >= 1000)
+      let node = e.target as Element | null;
+      while (node) {
+        const z = parseInt(getComputedStyle(node).zIndex || '0');
+        if (z >= 1000) return; // inside modal — allow
+        node = node.parentElement;
+      }
+      e.preventDefault();
+    };
+    document.addEventListener('wheel', handler, { passive: false });
+    return () => document.removeEventListener('wheel', handler);
+  }, []);
+
   // ── Fetch fresh group roles when a group chat is opened ──────────────────
   // Ensures promoted admin/mod users see their own role immediately without
   // needing to send a message first.
