@@ -239,7 +239,7 @@ function ForwardModal({msg,contacts,onForward,onClose}:{msg:any;contacts:any[];o
   );
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg,contacts,onForwardMsg,lastSeenTs=0,chatWallpaper='none',chatScrollLocked=false}){
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg,contacts,onForwardMsg,lastSeenTs=0,chatWallpaper='none'}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
@@ -817,7 +817,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         {/* ── Messages div covers the ENTIRE area — always under the cursor ── */}
         <div ref={messagesRef}
           className="chat-messages-area"
-          style={{position:'absolute',inset:0,overflowY:chatScrollLocked?'hidden':'auto',
+          style={{position:'absolute',inset:0,overflowY:'auto',
             zIndex:1,background:'transparent',
             paddingTop:searchActive?(pinnedMsgs?.length?138:102):(pinnedMsgs?.length?94:62),paddingBottom:95,
             display:'flex',flexDirection:'column'}}>
