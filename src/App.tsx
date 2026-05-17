@@ -645,7 +645,7 @@ export default function App() {
         if (d.bannedMembers) fresh.bannedMembers = d.bannedMembers;
         if (!Object.keys(fresh).length) return;
         setContacts(p => p.map(c => (c.groupId === gid || c.id === gid) ? { ...c, ...fresh } : c));
-        setActiveAndRef((a: any) => a ? { ...a, ...fresh } : a);
+        if (active?.groupId === gid || active?.id === gid) setActiveAndRef({ ...active, ...fresh });
       })
       .catch(() => {});
   // Re-run whenever the active group changes
@@ -2107,7 +2107,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       {manageGroupContact && <GroupChatModal contacts={contacts.filter(c => !c.isAI)} myAddress={wallet?.address ?? ''} existingGroup={manageGroupContact} onClose={() => setManageGroupContact(null)} onCreate={() => {}} onRolesUpdated={(newRoles: Record<string,string>) => {
         const gid = manageGroupContact.id || manageGroupContact.groupId;
         setContacts(p => p.map(c => (c.groupId === gid || c.id === gid) ? { ...c, roles: newRoles } : c));
-        if (active && (active.groupId === gid || active.id === gid)) setActiveAndRef((a: any) => a ? { ...a, roles: newRoles } : a);
+        if (active && (active.groupId === gid || active.id === gid)) setActiveAndRef({ ...active, roles: newRoles });
       }} />}
       {editContact && <EditContactModal contact={editContact} onClose={() => setEditContact(null)} onSave={(u) => { setContacts(p => p.map(c => c.id === editContact.id ? { ...c, ...u } : c)); if (active?.id === editContact.id) setActiveAndRef({ ...active, ...u }); setEditContact(null); }} onDelete={() => { setContacts(p => p.filter(c => c.id !== editContact.id)); if (active?.id === editContact.id) setActiveAndRef(null); setEditContact(null); }} />}
       {showSearch && <SearchOverlay contacts={contacts} msgs={msgs} onClose={() => setShowSearch(false)} onNavigate={(cId) => { const c = contacts.find(x => x.id === cId); if (c) { selectContact(c); setShowSearch(false); }}} />}

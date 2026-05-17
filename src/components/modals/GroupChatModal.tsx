@@ -22,7 +22,7 @@ function formatExpiry(expiresAt) {
   return `Expires in ${h}h ${m}m`;
 }
 
-export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup }) {
+export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup, onRolesUpdated }) {
   // If existingGroup passed, start in manage mode (links tab)
   const [tab, setTab] = useState(existingGroup ? 'links' : 'info');
   const [name, setName] = useState(existingGroup?.name || '');
