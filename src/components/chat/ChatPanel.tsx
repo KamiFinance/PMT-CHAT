@@ -370,6 +370,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const [micMuted,setMicMuted]=useState(false);
   const silentFramesRef=useRef(0); // consecutive silent frames counter
   const bottomRef=useRef(null);
+  const unreadDividerRef=useRef<HTMLDivElement>(null);
   const messagesRef=useRef<HTMLDivElement>(null);
 
 
@@ -377,6 +378,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   // from the moment the mouse enters the chat area.
   useEffect(()=>{
     const handler=(e:WheelEvent)=>{
+      // Skip when any modal is open — the App-level handler manages scroll then
+      if(document.body.classList.contains('modal-open')) return;
       const msgs=messagesRef.current;
       if(!msgs) return;
       // Check mouse is inside the chat panel
@@ -399,7 +402,19 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const onSendRef=useRef(onSend);
   useEffect(()=>{onSendRef.current=onSend;},[onSend]);
 
-  useEffect(()=>bottomRef.current?.scrollIntoView({behavior:'smooth'}),[messages]);
+  // Smart scroll: on contact open → scroll to unread divider; on new message → scroll to bottom
+  const prevContactIdRef=useRef<any>(null);
+  useEffect(()=>{
+    const contactChanged = contact?.id !== prevContactIdRef.current;
+    prevContactIdRef.current = contact?.id;
+    if(contactChanged && firstUnreadIdx >= 0 && unreadDividerRef.current) {
+      // New contact with unread messages — scroll to the divider
+      setTimeout(()=>unreadDividerRef.current?.scrollIntoView({behavior:'smooth',block:'start'}),50);
+    } else {
+      // Same contact new message, or no unread — scroll to bottom
+      bottomRef.current?.scrollIntoView({behavior:'smooth'});
+    }
+  },[messages]);
   useEffect(()=>{setText('');setReplyingTo(null);setEditingMsg(null);
     // Only auto-focus on desktop — on mobile this triggers the virtual keyboard immediately
     if(!('ontouchstart' in window)) inputRef.current?.focus();
@@ -849,7 +864,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
               <React.Fragment key={m.id}>
                 {/* Unread messages divider */}
                 {idx===firstUnreadIdx&&firstUnreadIdx>=0&&(
-                  <div style={{display:'flex',alignItems:'center',gap:10,margin:'10px 0',
+                  <div ref={unreadDividerRef} style={{display:'flex',alignItems:'center',gap:10,margin:'10px 0',
                     fontFamily:'var(--mono)',fontSize:9,color:'var(--accent2)',letterSpacing:'1px'}}>
                     <div style={{flex:1,height:1,background:'rgba(99,210,255,.25)'}}/>
                     <span style={{background:'rgba(99,210,255,.08)',border:'1px solid rgba(99,210,255,.22)',
