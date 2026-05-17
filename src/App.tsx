@@ -648,17 +648,25 @@ export default function App() {
     return () => { document.body.classList.remove('modal-open'); };
   }, [anyModalOpen]);
 
-  // Native non-passive wheel blocker — always preventDefault when modal open, manually scroll modal content
+  // Native non-passive wheel blocker — capture phase, always prevent background scroll
   useEffect(() => {
     const handler = (e: WheelEvent) => {
       if (!document.body.classList.contains('modal-open')) return;
-      // Always prevent browser native scroll when modal is open
       e.preventDefault();
-      // Manually scroll the innermost scrollable element under the cursor (modal content)
+      // Only manually scroll elements that are inside the modal (z-index >= 1000)
+      // First verify cursor is inside modal
+      let scan = e.target as Element | null;
+      while (scan && scan !== document.body) {
+        if (parseInt(getComputedStyle(scan).zIndex || '0') >= 1000) break;
+        scan = scan.parentElement;
+      }
+      if (!scan || scan === document.body) return; // outside modal — blocked, no scroll
+      // Find nearest scrollable ancestor and scroll it manually
       let node = e.target as Element | null;
       while (node && node !== document.body) {
         const s = getComputedStyle(node);
-        if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && node.scrollHeight > node.clientHeight + 2) {
+        if ((s.overflowY === 'auto' || s.overflowY === 'scroll') &&
+            (node as HTMLElement).scrollHeight > (node as HTMLElement).clientHeight + 2) {
           (node as HTMLElement).scrollTop += e.deltaY;
           return;
         }
