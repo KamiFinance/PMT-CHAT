@@ -94,7 +94,7 @@ export default function ImportWalletFlow({onWallet,onBack}){
         }catch{ /* auto-backup will retry */ }
       }
       // Restore cloud backup if existing account has one
-      let restoredContacts=[], restoredMessages={}, restoredProfile={};
+      let restoredContacts=[], restoredMessages={}, restoredProfile={}, restoredSettings={};
       if(existingAccount?.hasBackup){
         try{
           const authRes=await fetch(`/api/auth?username=${encodeURIComponent(useUsername)}`);
@@ -104,6 +104,7 @@ export default function ImportWalletFlow({onWallet,onBack}){
             restoredContacts=backup.contacts||[];
             restoredMessages=backup.messages||{};
             restoredProfile=backup.profile||{};
+            restoredSettings=(backup as any)?.settings ?? {};
           }
         }catch(e){ /* backup restore failed, continue without */ }
       }
@@ -113,7 +114,7 @@ export default function ImportWalletFlow({onWallet,onBack}){
         chainId:'0x46df2',username:useUsername,sessionPassword:password,
         ...(restoredContacts.length?{restoredContacts}:{}),
         ...(Object.keys(restoredMessages).length?{restoredMessages}:{}),
-        restoredSettings: (backup as any)?.settings ?? {},
+        restoredSettings,
         ...(Object.keys(restoredProfile).length?{restoredProfile}:{}),
       });
     }catch(e){

@@ -1887,7 +1887,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                         restoredContacts: backup.contacts ?? [],
                         restoredMessages: backup.messages ?? {},
                         restoredPinnedMsgs: backup.pinnedMsgs ?? {},
-                        restoredProfile:  backup.profile  ?? {} });
+                        restoredProfile:  backup.profile  ?? {},
+                        restoredSettings: (backup as any).settings ?? {} });
                     }).catch((e) => {
                       // WRONG_PASSWORD = old backup saved with user-set password → show migration modal
                       if (e?.message === 'WRONG_PASSWORD') {
@@ -1926,7 +1927,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                             restoredContacts: backup.contacts ?? [],
                             restoredMessages: backup.messages ?? {},
                             restoredPinnedMsgs: backup.pinnedMsgs ?? {},
-                            restoredProfile:  backup.profile  ?? {} });
+                            restoredProfile:  backup.profile  ?? {},
+                            restoredSettings: (backup as any).settings ?? {} });
                         }).catch((e) => {
                           if (e?.message === 'WRONG_PASSWORD') {
                             setShowWalletRestore(true);
@@ -1985,7 +1987,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         restoredContacts: backup.contacts ?? [],
         restoredMessages: backup.messages ?? {},
         restoredPinnedMsgs: backup.pinnedMsgs ?? {},
-        restoredProfile:  backup.profile  ?? {} });
+        restoredProfile:  backup.profile  ?? {},
+        restoredSettings: (backup as any).settings ?? {} });
       setShowWalletRestore(false); setWalletRestorePwd(''); setWalletRestoreMigrate(null);
     } catch(e:any) {
       setWalletRestoreErr(e.message === 'WRONG_PASSWORD' ? 'Incorrect password.' : 'Migration failed: '+(e.message||'error'));
