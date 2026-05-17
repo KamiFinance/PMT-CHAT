@@ -75,17 +75,23 @@ export default function GifStickerPicker({ onSelect, onClose }: Props) {
   // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current?.closest('[data-gif-picker]') &&
-          !(e.target as Element).closest('[data-gif-picker]')) onClose();
+      if (!(e.target as Element).closest('[data-gif-picker]') &&
+          !(e.target as Element).closest('[data-gif-btn]')) {
+        onClose();
+      }
     };
-    setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    setTimeout(() => document.addEventListener('mousedown', handler), 50);
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
   return (
     <div data-gif-picker="1" style={{
-      position: 'absolute', bottom: '54px', right: 0,
-      width: 320, height: 400, borderRadius: 14,
+      position: 'fixed',
+      bottom: 'calc(env(safe-area-inset-bottom, 0px) + 70px)',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: 'min(320px, calc(100vw - 16px))',
+      height: 400, borderRadius: 14,
       background: 'var(--panel)', border: '1px solid var(--border)',
       boxShadow: '0 8px 32px rgba(0,0,0,.5)',
       display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 400,

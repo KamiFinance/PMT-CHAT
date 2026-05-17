@@ -1206,7 +1206,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                   {showEmoji&&<EmojiPicker onSelect={e=>{insertEmoji(e);}} onClose={()=>setShowEmoji(false)}/>}
                 </div>
                 <div style={{position:'relative'}}>
-                  <button onClick={()=>{setShowGif(v=>!v);setShowEmoji(false);setShowAttach(false);}}
+                  <button data-gif-btn="1" onClick={()=>{setShowGif(v=>!v);setShowEmoji(false);setShowAttach(false);}}
                     style={{width:44,height:44,background:showGif?'var(--surface2)':'var(--surface)',
                       border:`1px solid ${showGif?'var(--accent)':'var(--border)'}`,
                       borderRadius:9,fontSize:11,fontWeight:700,fontFamily:'var(--mono)',
