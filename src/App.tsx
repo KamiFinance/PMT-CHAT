@@ -423,7 +423,27 @@ export default function App() {
           return m;
         })];
       });
-      setMsgs(normalized);
+      setMsgs(prev => {
+        // Merge: normalized has reconstructed URLs (audio/image), but prev may have
+        // messages already added by inbox poll (e.g. gifs received between init and this effect).
+        // Strategy: use normalized as base, append any messages in prev not already covered.
+        const merged: MsgsMap = {};
+        const allKeys = new Set([...Object.keys(prev), ...Object.keys(normalized)]);
+        allKeys.forEach(addr => {
+          const normList = normalized[addr] ?? [];
+          const prevList = prev[addr] ?? [];
+          const normIds = new Set(normList.map((m: any) => m.id));
+          // Normalized messages first (have reconstructed blob URLs), then any
+          // extra messages from prev that arrived after the last storage save.
+          const extra = prevList.filter((m: any) => !normIds.has(m.id));
+          const seen = new Set<string>();
+          merged[addr] = [...normList, ...extra].filter((m: any) => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id); return true;
+          });
+        });
+        return merged;
+      });
     } else if (isDemo) {
       setMsgs(buildInitMsgs());
     }
@@ -458,7 +478,22 @@ export default function App() {
         return true;
       });
     });
-    storage.setMsgs(accountKey, clean);
+    // Merge with what's already in storage to avoid overwriting messages
+    // added in another tab or window (multi-tab safety)
+    const stored = storage.getMsgs(accountKey) ?? {};
+    const merged: MsgsMap = { ...clean };
+    Object.entries(stored).forEach(([addr, storedList]) => {
+      const cleanIds = new Set((clean[addr] ?? []).map((m: any) => m.id));
+      const extra = (storedList ?? []).filter((m: any) => !cleanIds.has(m.id));
+      if (extra.length > 0) {
+        const seen = new Set<string>((clean[addr] ?? []).map((m: any) => m.id));
+        merged[addr] = [...(clean[addr] ?? []), ...extra.filter((m: any) => {
+          if (seen.has(m.id)) return false;
+          seen.add(m.id); return true;
+        })];
+      }
+    });
+    storage.setMsgs(accountKey, merged);
   }, [msgs, accountKey]);
 
   // ── Shared backup helper — called by both auto-backup and login-backup effects ──
