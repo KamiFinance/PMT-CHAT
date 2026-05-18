@@ -516,6 +516,14 @@ export default function App() {
         if (keep.ipfsCid || !keep.b64Data || keep.b64Data.length > 80000) delete keep.b64Data;
         // Blob URLs expire on reload — video plays via ipfsCid/ipfsUrl after restore
         if (keep.type === 'video') delete keep.localUrl;
+        // Explicitly ensure gif/sticker URL fields survive the backup
+        if (m.type === 'gif') {
+          keep.gifUrl    = m.gifUrl    ?? null;
+          keep.gifWidth  = m.gifWidth  ?? null;
+          keep.gifHeight = m.gifHeight ?? null;
+          keep.isSticker = m.isSticker ?? false;
+          keep.title     = m.title     ?? '';
+        }
         return keep;
       });
     });

@@ -405,6 +405,23 @@ export function useInboxPoll({
           if ((prev[senderAddr] ?? []).some(m => m.id === newMsg.id)) return prev;
           return { ...prev, [senderAddr]: [...(prev[senderAddr] ?? []), newMsg] };
         });
+
+        // ── Immediately persist to localStorage ───────────────────────────
+        // React's save useEffect fires after render — if the page reloads
+        // between setMsgs and that effect, the message is lost. Writing
+        // directly here ensures durability for gifs, stickers and all media.
+        try {
+          const ak = wallet!.address.toLowerCase();
+          const stored = storage.getMsgs(ak) ?? {};
+          const dest = inboxMsg.groupId
+            ? normalizeAddress(`group_${inboxMsg.groupId}`)
+            : senderAddr;
+          const existing = stored[dest] ?? [];
+          if (!existing.some((m: any) => m.id === newMsg.id)) {
+            stored[dest] = [...existing, newMsg];
+            storage.setMsgs(ak, stored);
+          }
+        } catch { /* storage quota or parse error — non-fatal */ }
       });
     } catch { /* ignore poll errors */ }
   }, [wallet?.address, setMsgs, setContacts, pushNotif]);
