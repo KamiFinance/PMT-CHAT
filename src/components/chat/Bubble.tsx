@@ -545,17 +545,11 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     const ratio = msg.gifHeight && msg.gifWidth ? msg.gifHeight/msg.gifWidth : 1;
     const w = Math.min(msg.gifWidth||200, maxW);
     const h = Math.round(w * ratio);
-    return(
-      <div ref={bubbleRef} style={{marginBottom:3,display:'flex',
-        flexDirection:isOut?'row-reverse':'row',alignItems:'flex-end',gap:8,
-        ...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}>
+    const gifInner = (
+      <div style={{display:'flex',flexDirection:isOut?'row-reverse':'row',alignItems:'flex-end',gap:8}}>
         {!isOut&&<ProfilePic initials={contact?.avatar} avatarUrl={contact?.avatarUrl}
           color={contact?.color} bg={contact?.bg} size={26} fs={10}/>}
-        <div style={{position:'relative',cursor:'pointer'}}
-          onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
-          onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}}
-          onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}}
-          onTouchMove={cancelLongPress}>
+        <div style={{position:'relative'}}>
           {msg.gifUrl
             ? <img src={msg.gifUrl} alt={msg.title||'GIF'}
                 draggable={false} onContextMenu={(e)=>e.preventDefault()}
@@ -579,8 +573,19 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             {msg.time}
           </span>
         </div>
-        {ctxMenuPortal}{picker}
       </div>
+    );
+    return(
+      <>
+      <div ref={bubbleRef} style={{marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
+        onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+        onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}}
+        onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}}
+        onTouchMove={cancelLongPress}>
+        {_wrapBubble(gifInner)}
+      </div>
+      {ctxMenuPortal}{picker}
+      </>
     );
   }
   if(msg.type==='video') return(
