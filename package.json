@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@imgly/background-removal": "^1.7.0",
     "@types/qrcode": "^1.5.6",
     "@walletconnect/ethereum-provider": "^2.10.0",
     "ethers": "^6.16.0",

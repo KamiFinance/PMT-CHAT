@@ -161,7 +161,7 @@ export default function EmojiGifPanel({ onSelectEmoji, onSelectGif, onClose, def
             <button onClick={()=>setShowCreator(true)}
               title="Create your own sticker"
               style={{ flexShrink:0, width:34, height:34, background:'var(--accent)', border:'none',
-                borderRadius:17, color:'#fff', fontSize:18, display:'flex', alignItems:'center',
+                borderRadius:17, color:'#000', fontSize:18, display:'flex', alignItems:'center',
                 justifyContent:'center', cursor:'pointer', fontWeight:700 }}>+</button>
           )}
         </div>

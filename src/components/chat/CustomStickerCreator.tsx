@@ -1,204 +1,182 @@
 // @ts-nocheck
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { removeBackground } from '@imgly/background-removal';
 
-interface CustomSticker {
-  id: string;
-  url: string;
-  title: string;
-  createdAt: number;
-}
-
+interface CustomSticker { id:string; url:string; title:string; createdAt:number; }
 const STORAGE_KEY = 'pmt_custom_stickers';
-
 export function loadCustomStickers(): CustomSticker[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); } catch { return []; }
 }
-
 function saveCustomSticker(s: CustomSticker) {
   const all = loadCustomStickers();
-  const updated = [s, ...all].slice(0, 50); // max 50 custom stickers
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([s,...all].slice(0,50)));
+}
+export function deleteCustomSticker(id:string) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(loadCustomStickers().filter(s=>s.id!==id)));
 }
 
-export function deleteCustomSticker(id: string) {
-  const all = loadCustomStickers().filter(s => s.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-}
-
-interface Props {
-  onDone: (sticker: CustomSticker) => void;
-  onClose: () => void;
-}
+interface Props { onDone:(s:CustomSticker)=>void; onClose:()=>void; }
 
 export default function CustomStickerCreator({ onDone, onClose }: Props) {
-  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const [stage, setStage] = useState<'upload'|'processing'|'edit'>('upload');
+  const [processedBlob, setProcessedBlob] = useState<Blob|null>(null);
   const [caption, setCaption] = useState('');
-  const [shape, setShape] = useState<'square' | 'circle'>('square');
+  const [shape, setShape] = useState<'square'|'circle'>('square');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [progress, setProgress] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Draw image on canvas whenever img/shape/caption changes
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !img) return;
-    const SIZE = 512;
-    canvas.width = SIZE; canvas.height = SIZE;
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, SIZE, SIZE);
+    if (!canvas || !processedBlob) return;
+    const img = new Image();
+    img.onload = () => {
+      const SIZE = 512;
+      canvas.width = SIZE; canvas.height = SIZE;
+      const ctx = canvas.getContext('2d')!;
+      ctx.clearRect(0,0,SIZE,SIZE);
+      ctx.save();
+      if (shape==='circle') {
+        ctx.beginPath(); ctx.arc(SIZE/2,SIZE/2,SIZE/2,0,Math.PI*2); ctx.clip();
+      } else {
+        ctx.beginPath(); ctx.roundRect(0,0,SIZE,SIZE,48); ctx.clip();
+      }
+      const s = Math.min(img.naturalWidth,img.naturalHeight);
+      const sx = (img.naturalWidth-s)/2, sy = (img.naturalHeight-s)/2;
+      ctx.drawImage(img,sx,sy,s,s,0,0,SIZE,SIZE);
+      ctx.restore();
+      if (caption.trim()) {
+        const fSize = Math.max(28,Math.min(48,SIZE/(caption.length*0.6)));
+        ctx.font = `bold ${fSize}px -apple-system,sans-serif`;
+        ctx.textAlign = 'center';
+        const tw = ctx.measureText(caption).width+32, th = fSize+20, ty = SIZE-28;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath(); ctx.roundRect(SIZE/2-tw/2,ty-th+8,tw,th,th/2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillText(caption,SIZE/2,ty);
+      }
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(processedBlob);
+  }, [processedBlob, shape, caption]);
 
-    // Clip shape
-    ctx.save();
-    if (shape === 'circle') {
-      ctx.beginPath();
-      ctx.arc(SIZE/2, SIZE/2, SIZE/2, 0, Math.PI*2);
-      ctx.clip();
-    } else {
-      ctx.beginPath();
-      ctx.roundRect(0, 0, SIZE, SIZE, 48);
-      ctx.clip();
-    }
+  useEffect(() => { if(stage==='edit') draw(); }, [draw, stage]);
 
-    // Center-crop image to square
-    const s = Math.min(img.naturalWidth, img.naturalHeight);
-    const sx = (img.naturalWidth - s) / 2;
-    const sy = (img.naturalHeight - s) / 2;
-    ctx.drawImage(img, sx, sy, s, s, 0, 0, SIZE, SIZE);
-    ctx.restore();
-
-    // Caption overlay
-    if (caption.trim()) {
-      const fSize = Math.max(28, Math.min(48, SIZE / (caption.length * 0.6)));
-      ctx.font = `bold ${fSize}px -apple-system, sans-serif`;
-      ctx.textAlign = 'center';
-      const metrics = ctx.measureText(caption);
-      const tw = metrics.width + 32;
-      const th = fSize + 20;
-      const ty = SIZE - 28;
-      // Semi-transparent pill background
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      const rx = SIZE/2 - tw/2;
-      ctx.beginPath();
-      ctx.roundRect(rx, ty - th + 8, tw, th, th/2);
-      ctx.fill();
-      // Text
-      ctx.fillStyle = '#fff';
-      ctx.fillText(caption, SIZE/2, ty);
-    }
-  }, [img, shape, caption]);
-
-  useEffect(() => { draw(); }, [draw]);
-
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFile = async (e:React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setError('');
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => setImg(image);
-    image.onerror = () => setError('Could not load image.');
-    image.src = url;
+    setError(''); setStage('processing');
+    setProgress('Removing background…');
+    try {
+      const blob = await removeBackground(file, {
+        publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/',
+        progress: (key:string, cur:number, tot:number) => {
+          if (key==='compute:inference') setProgress(`Processing… ${Math.round(cur/tot*100)}%`);
+        },
+      });
+      setProcessedBlob(blob);
+      setStage('edit');
+    } catch(e:any) {
+      setError('Background removal failed. Try a clearer image.');
+      setStage('upload');
+    }
   };
 
   const handleCreate = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !img) return;
+    if (!canvasRef.current) return;
     setUploading(true); setError('');
     try {
-      // Export canvas as blob
-      const blob: Blob = await new Promise((res, rej) =>
-        canvas.toBlob(b => b ? res(b) : rej(new Error('Canvas export failed')), 'image/png', 0.92)
-      );
-      // Read as base64
-      const b64: string = await new Promise((res, rej) => {
-        const reader = new FileReader();
-        reader.onload = () => res((reader.result as string).split(',')[1]);
-        reader.onerror = () => rej(new Error('Read failed'));
-        reader.readAsDataURL(blob);
+      const blob:Blob = await new Promise((res,rej) =>
+        canvasRef.current!.toBlob(b=>b?res(b):rej(),'image/png',0.92));
+      const b64:string = await new Promise((res,rej)=>{
+        const r=new FileReader();
+        r.onload=()=>res((r.result as string).split(',')[1]);
+        r.onerror=rej; r.readAsDataURL(blob);
       });
-      // Upload to Pinata
-      const r = await fetch('/api/pinata-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: b64, name: `sticker-${Date.now()}.png`, mimeType: 'image/png' }),
+      const resp = await fetch('/api/pinata-upload',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({data:b64,name:`sticker-${Date.now()}.png`,mimeType:'image/png'}),
       });
-      if (!r.ok) throw new Error('Upload failed');
-      const { url } = await r.json();
-      const sticker: CustomSticker = { id: 'cs-' + Date.now(), url, title: caption || 'My Sticker', createdAt: Date.now() };
+      if(!resp.ok) throw new Error('Upload failed');
+      const {url} = await resp.json();
+      const sticker:CustomSticker={id:'cs-'+Date.now(),url,title:caption||'My Sticker',createdAt:Date.now()};
       saveCustomSticker(sticker);
       onDone(sticker);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to create sticker.');
-    } finally {
-      setUploading(false);
-    }
+    } catch(e:any) { setError(e?.message||'Failed.'); }
+    finally { setUploading(false); }
   };
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', padding:'12px 14px', gap:10, overflowY:'auto' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
-        <span style={{ fontFamily:'var(--sans)', fontSize:14, fontWeight:700, color:'var(--text)' }}>Create Sticker</span>
-        <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer',
-          color:'var(--muted)', fontSize:18, padding:0, lineHeight:1 }}>✕</button>
+    <div style={{display:'flex',flexDirection:'column',height:'100%',padding:'12px 14px',gap:10,overflowY:'auto'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+        <span style={{fontFamily:'var(--sans)',fontSize:14,fontWeight:700,color:'var(--text)'}}>Create Sticker</span>
+        <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted)',fontSize:18,padding:0}}>✕</button>
       </div>
 
-      {/* Upload / Preview area */}
-      <div
-        onClick={() => !img && fileRef.current?.click()}
-        style={{ flexShrink:0, width:'100%', aspectRatio:'1', maxHeight:200, borderRadius:16,
-          border: img ? 'none' : '2px dashed var(--border)', background:'var(--surface2)',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          cursor: img ? 'default' : 'pointer', overflow:'hidden', position:'relative' }}>
-        {img
-          ? <canvas ref={canvasRef} style={{ width:'100%', height:'100%', display:'block', borderRadius:14 }}/>
-          : <div style={{ textAlign:'center', color:'var(--muted)', fontFamily:'var(--sans)', fontSize:13 }}>
-              <div style={{ fontSize:32, marginBottom:6 }}>🖼</div>
-              Tap to upload image
-            </div>
-        }
-        {img && (
-          <button onClick={e=>{e.stopPropagation();fileRef.current?.click();}}
-            style={{ position:'absolute', top:6, right:6, background:'rgba(0,0,0,.55)',
-              border:'none', borderRadius:20, color:'#fff', fontSize:11, fontFamily:'var(--sans)',
-              padding:'3px 10px', cursor:'pointer' }}>Change</button>
-        )}
-      </div>
-      <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={onFile}/>
-
-      {img && (<>
-        {/* Shape toggle */}
-        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
-          {(['square','circle'] as const).map(s=>(
-            <button key={s} onClick={()=>setShape(s)}
-              style={{ flex:1, padding:'7px 0', borderRadius:20, border:'none', cursor:'pointer',
-                fontFamily:'var(--sans)', fontSize:12, fontWeight:600, transition:'all .15s',
-                background: shape===s ? 'var(--accent)' : 'var(--surface)',
-                color: shape===s ? '#fff' : 'var(--muted)' }}>
-              {s==='square' ? '⬛ Square' : '⬤ Circle'}
-            </button>
-          ))}
+      {stage==='upload' && (
+        <div onClick={()=>fileRef.current?.click()}
+          style={{flex:1,minHeight:160,borderRadius:16,border:'2px dashed var(--border)',
+            background:'var(--surface2)',display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center',cursor:'pointer',gap:10}}>
+          <div style={{fontSize:40}}>🖼</div>
+          <div style={{fontFamily:'var(--sans)',fontSize:13,color:'var(--muted)',textAlign:'center',lineHeight:1.5}}>
+            Tap to upload image<br/>
+            <span style={{fontSize:11,opacity:.7}}>Background removed automatically</span>
+          </div>
         </div>
+      )}
 
-        {/* Caption */}
-        <input value={caption} onChange={e=>setCaption(e.target.value)}
-          placeholder="Add caption (optional)"
-          maxLength={30}
-          style={{ flexShrink:0, background:'var(--surface)', border:'1px solid var(--border)',
-            borderRadius:20, padding:'8px 14px', color:'var(--text)',
-            fontFamily:'var(--sans)', fontSize:13, outline:'none' }}/>
+      {stage==='processing' && (
+        <div style={{flex:1,minHeight:160,borderRadius:16,background:'var(--surface2)',
+          display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12}}>
+          <div style={{width:36,height:36,border:'3px solid var(--accent)',borderTopColor:'transparent',
+            borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+          <div style={{fontFamily:'var(--sans)',fontSize:13,color:'var(--muted)'}}>{progress||'Processing…'}</div>
+        </div>
+      )}
 
-        {/* Create button */}
-        <button onClick={handleCreate} disabled={uploading}
-          style={{ flexShrink:0, padding:'10px 0', background: uploading?'var(--surface)':'var(--accent)',
-            border:'none', borderRadius:22, color: uploading?'var(--muted)':'#fff',
-            fontFamily:'var(--sans)', fontSize:13, fontWeight:700, cursor: uploading?'not-allowed':'pointer',
-            transition:'all .15s' }}>
-          {uploading ? '⏳ Creating…' : '✨ Create Sticker'}
-        </button>
-      </>)}
+      {stage==='edit' && (
+        <>
+          <div style={{flexShrink:0,display:'flex',justifyContent:'center'}}>
+            <canvas ref={canvasRef}
+              style={{width:180,height:180,borderRadius:shape==='circle'?'50%':14,
+                border:'1px solid var(--border)',background:'repeating-conic-gradient(#808080 0% 25%,transparent 0% 50%) 0 0/10px 10px'}}/>
+          </div>
+          <div style={{display:'flex',gap:8,flexShrink:0}}>
+            {(['square','circle'] as const).map(s=>(
+              <button key={s} onClick={()=>setShape(s)}
+                style={{flex:1,padding:'7px 0',borderRadius:20,border:'none',cursor:'pointer',
+                  fontFamily:'var(--sans)',fontSize:12,fontWeight:600,transition:'all .15s',
+                  background:shape===s?'var(--accent)':'var(--surface)',
+                  color:shape===s?'#fff':'var(--muted)'}}>
+                {s==='square'?'⬛ Square':'⬤ Circle'}
+              </button>
+            ))}
+          </div>
+          <input value={caption} onChange={e=>setCaption(e.target.value)}
+            placeholder="Add caption (optional)" maxLength={30}
+            style={{flexShrink:0,background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:20,padding:'8px 14px',color:'var(--text)',
+              fontFamily:'var(--sans)',fontSize:13,outline:'none'}}/>
+          <div style={{display:'flex',gap:8,flexShrink:0}}>
+            <button onClick={()=>{setStage('upload');setProcessedBlob(null);if(fileRef.current)fileRef.current.value='';}}
+              style={{flex:1,padding:'10px 0',background:'var(--surface)',border:'1px solid var(--border)',
+                borderRadius:22,color:'var(--muted)',fontFamily:'var(--sans)',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+              ↩ Redo
+            </button>
+            <button onClick={handleCreate} disabled={uploading}
+              style={{flex:2,padding:'10px 0',background:uploading?'var(--surface)':'var(--accent)',
+                border:'none',borderRadius:22,color:uploading?'var(--muted)':'#fff',
+                fontFamily:'var(--sans)',fontSize:13,fontWeight:700,cursor:uploading?'not-allowed':'pointer'}}>
+              {uploading?'⏳ Creating…':'✨ Create Sticker'}
+            </button>
+          </div>
+        </>
+      )}
 
-      {error && <span style={{ color:'var(--danger)', fontFamily:'var(--sans)', fontSize:12, flexShrink:0 }}>{error}</span>}
+      <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={onFile}/>
+      {error&&<span style={{color:'var(--danger)',fontFamily:'var(--sans)',fontSize:12,flexShrink:0}}>{error}</span>}
     </div>
   );
 }
