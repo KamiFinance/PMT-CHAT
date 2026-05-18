@@ -1231,7 +1231,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                     isMobile={'ontouchstart' in window}
                     onSelectEmoji={e=>{insertEmoji(e);}}
                     onSelectGif={(item,isSticker)=>{
-                      onSend({type:'gif',gifUrl:item.url||item.preview,gifWidth:item.width,gifHeight:item.height,
+                      onSend({type:'gif',gifId:item.id,gifUrl:item.url||item.preview,gifWidth:item.width,gifHeight:item.height,
                         isSticker,title:item.title,text:''});
                       setShowPanel(null);
                     }}

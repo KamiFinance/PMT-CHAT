@@ -303,13 +303,21 @@ export function useInboxPoll({
           fileSize: (inboxMsg as any).fileSize,
           mimeType: (inboxMsg as any).mimeType,
         };
-        if (inboxMsg.type === 'gif') extra = {
-          gifUrl: (inboxMsg as any).gifUrl ?? null,
-          gifWidth: (inboxMsg as any).gifWidth ?? null,
-          gifHeight: (inboxMsg as any).gifHeight ?? null,
-          isSticker: (inboxMsg as any).isSticker ?? false,
-          title: (inboxMsg as any).title ?? '',
-        };
+        if (inboxMsg.type === 'gif') {
+          const gifId  = (inboxMsg as any).gifId  ?? null;
+          const rawUrl = (inboxMsg as any).gifUrl ?? null;
+          // If gifUrl is missing but we have the Giphy ID, reconstruct a working URL.
+          // Senders running older code may omit gifUrl; gifId lets us recover it.
+          const gifUrl = rawUrl || (gifId ? `https://media.giphy.com/media/${gifId}/giphy.gif` : null);
+          extra = {
+            gifId,
+            gifUrl,
+            gifWidth:  (inboxMsg as any).gifWidth  ?? null,
+            gifHeight: (inboxMsg as any).gifHeight ?? null,
+            isSticker: (inboxMsg as any).isSticker ?? false,
+            title:     (inboxMsg as any).title     ?? '',
+          };
+        }
         if (inboxMsg.type === 'tx') extra = {
           amount: (inboxMsg as any).amount,
           coin: (inboxMsg as any).coin ?? 'PMT',

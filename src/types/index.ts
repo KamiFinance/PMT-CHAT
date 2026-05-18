@@ -59,6 +59,7 @@ export interface Message {
   ts?: number;
 
   // GIF / Sticker
+  gifId?: string | null;
   gifUrl?: string | null;
   gifWidth?: number | null;
   gifHeight?: number | null;
@@ -108,6 +109,7 @@ export interface InboxMessage {
   fileSize?: string;
   mimeType?: string;
   // GIF / Sticker
+  gifId?: string | null;
   gifUrl?: string | null;
   gifWidth?: number | null;
   gifHeight?: number | null;
