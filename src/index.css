@@ -164,7 +164,10 @@ input,textarea,select{font-size:16px!important}
 .chat-passthrough .chat-clickable *,
 .chat-passthrough [data-gif-picker],
 .chat-passthrough [data-gif-picker] *,
-.chat-passthrough [data-gif-btn] { pointer-events: auto !important; }
+.chat-passthrough [data-gif-btn],
+.chat-passthrough [data-emoji-gif-panel],
+.chat-passthrough [data-emoji-gif-panel] *,
+.chat-passthrough [data-emoji-gif-btn] { pointer-events: auto !important; }
 
 /* Emoji contenteditable input placeholder */
 [contenteditable][data-placeholder]:empty::before {
