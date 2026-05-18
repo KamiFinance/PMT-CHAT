@@ -70,7 +70,7 @@ export default function CustomStickerCreator({ onDone, onClose }: Props) {
     setProgress('Removing background…');
     try {
       const blob = await removeBackground(file, {
-        publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/',
+        publicPath: 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',
         progress: (key:string, cur:number, tot:number) => {
           if (key==='compute:inference') setProgress(`Processing… ${Math.round(cur/tot*100)}%`);
         },
