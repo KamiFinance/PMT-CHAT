@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Twemoji from '../ui/Twemoji';
+import CustomStickerCreator, { loadCustomStickers, deleteCustomSticker } from './CustomStickerCreator';
 
 // ── Emoji categories (copied from ChatPanel) ──────────────────────────────────
 const EMOJI_CATEGORIES = [
@@ -37,6 +38,8 @@ export default function EmojiGifPanel({ onSelectEmoji, onSelectGif, onClose, def
   const [gifPage, setGifPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [panelH, setPanelH] = useState(0);
+  const [showCreator, setShowCreator] = useState(false);
+  const [customStickers, setCustomStickers] = useState(() => loadCustomStickers());
   const gridRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController|null>(null);
   const searchTimer = useRef<any>(null);
@@ -147,13 +150,20 @@ export default function EmojiGifPanel({ onSelectEmoji, onSelectGif, onClose, def
       </div>
 
       {/* Search (GIF + Sticker only) */}
-      {(tab==='gif'||tab==='sticker') && (
-        <div style={{ padding:'7px 10px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
+      {(tab==='gif'||tab==='sticker') && !showCreator && (
+        <div style={{ padding:'7px 10px', borderBottom:'1px solid var(--border)', flexShrink:0, display:'flex', gap:6 }}>
           <input value={query} onChange={e=>setQuery(e.target.value)}
             placeholder={tab==='gif' ? 'Search GIFs…' : 'Search Stickers…'}
-            style={{ width:'100%', background:'var(--surface)', border:'1px solid var(--border)',
+            style={{ flex:1, background:'var(--surface)', border:'1px solid var(--border)',
               borderRadius:20, padding:'6px 14px', color:'var(--text)',
               fontFamily:'var(--sans)', fontSize:13, outline:'none', boxSizing:'border-box' }}/>
+          {tab==='sticker' && (
+            <button onClick={()=>setShowCreator(true)}
+              title="Create your own sticker"
+              style={{ flexShrink:0, width:34, height:34, background:'var(--accent)', border:'none',
+                borderRadius:17, color:'#fff', fontSize:18, display:'flex', alignItems:'center',
+                justifyContent:'center', cursor:'pointer', fontWeight:700 }}>+</button>
+          )}
         </div>
       )}
 
@@ -198,34 +208,74 @@ export default function EmojiGifPanel({ onSelectEmoji, onSelectGif, onClose, def
 
         {/* GIF / Sticker tab */}
         {(tab==='gif'||tab==='sticker') && (
+          showCreator ? (
+            <CustomStickerCreator
+              onDone={s=>{ setCustomStickers(loadCustomStickers()); setShowCreator(false); }}
+              onClose={()=>setShowCreator(false)}/>
+          ) : (
           <div ref={gridRef} onScroll={onScroll}
-            style={{ height:'100%', overflowY:'auto', padding:6, display:'grid',
-              gridTemplateColumns:'repeat(3,1fr)', gridAutoRows:'100px',
-              gap:4, alignContent:'start', overscrollBehavior:'contain', pointerEvents:'auto' }}>
-            {gifItems.map(item => (
-              <div key={item.id}
-                onClick={()=>{ onSelectGif(item, tab==='sticker'); onClose(); }}
-                style={{ cursor:'pointer', borderRadius:8, overflow:'hidden',
-                  background:'var(--surface2)', display:'flex',
-                  alignItems:'center', justifyContent:'center', transition:'transform .1s' }}
-                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.transform='scale(1.04)'}
-                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.transform='scale(1)'}>
-                <img src={item.preview||item.url} alt={item.title}
-                  loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
-              </div>
-            ))}
-            {loading && Array.from({length:6}).map((_,i)=>(
-              <div key={'sk'+i} style={{ borderRadius:8,
-                background:'linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%)',
-                backgroundSize:'200% 100%', animation:'shimmer 1.2s infinite' }}/>
-            ))}
-            {!loading && gifItems.length===0 && (
-              <div style={{gridColumn:'1/-1',textAlign:'center',padding:'30px 20px',
-                color:'var(--muted)',fontFamily:'var(--sans)',fontSize:13}}>
-                {query ? `No results for "${query}"` : 'Nothing to show'}
+            style={{ height:'100%', overflowY:'auto', padding:6,
+              overscrollBehavior:'contain', pointerEvents:'auto' }}>
+
+            {/* My Stickers (custom) — only shown in sticker tab */}
+            {tab==='sticker' && customStickers.length > 0 && (
+              <div style={{ marginBottom:8 }}>
+                <div style={{ fontFamily:'var(--mono)', fontSize:10, color:'var(--muted)',
+                  padding:'4px 4px 6px', letterSpacing:'0.5px' }}>MY STICKERS</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)',
+                  gridAutoRows:'100px', gap:4 }}>
+                  {customStickers.map(s => (
+                    <div key={s.id} style={{ position:'relative', cursor:'pointer', borderRadius:8,
+                      overflow:'hidden', background:'var(--surface2)', display:'flex',
+                      alignItems:'center', justifyContent:'center', transition:'transform .1s' }}
+                      onClick={()=>{ onSelectGif({id:s.id,url:s.url,width:512,height:512,preview:s.url,title:s.title}, true); onClose(); }}
+                      onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.04)')}
+                      onMouseLeave={e=>(e.currentTarget.style.transform='scale(1)')}>
+                      <img src={s.url} alt={s.title} loading="lazy"
+                        style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                      <button
+                        onClick={e=>{ e.stopPropagation(); deleteCustomSticker(s.id); setCustomStickers(loadCustomStickers()); }}
+                        style={{ position:'absolute', top:3, right:3, width:18, height:18,
+                          background:'rgba(0,0,0,.6)', border:'none', borderRadius:9,
+                          color:'#fff', fontSize:10, cursor:'pointer', display:'flex',
+                          alignItems:'center', justifyContent:'center', lineHeight:1 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontFamily:'var(--mono)', fontSize:10, color:'var(--muted)',
+                  padding:'8px 4px 4px', letterSpacing:'0.5px' }}>TRENDING STICKERS</div>
               </div>
             )}
+
+            {/* Giphy sticker/gif grid */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)',
+              gridAutoRows:'100px', gap:4 }}>
+              {gifItems.map(item => (
+                <div key={item.id}
+                  onClick={()=>{ onSelectGif(item, tab==='sticker'); onClose(); }}
+                  style={{ cursor:'pointer', borderRadius:8, overflow:'hidden',
+                    background:'var(--surface2)', display:'flex',
+                    alignItems:'center', justifyContent:'center', transition:'transform .1s' }}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.transform='scale(1.04)'}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.transform='scale(1)'}>
+                  <img src={item.preview||item.url} alt={item.title}
+                    loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                </div>
+              ))}
+              {loading && Array.from({length:6}).map((_,i)=>(
+                <div key={'sk'+i} style={{ borderRadius:8,
+                  background:'linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%)',
+                  backgroundSize:'200% 100%', animation:'shimmer 1.2s infinite' }}/>
+              ))}
+              {!loading && gifItems.length===0 && (
+                <div style={{gridColumn:'1/-1',textAlign:'center',padding:'30px 20px',
+                  color:'var(--muted)',fontFamily:'var(--sans)',fontSize:13}}>
+                  {query ? `No results for "${query}"` : 'Nothing to show'}
+                </div>
+              )}
+            </div>
           </div>
+          )
         )}
       </div>
 
