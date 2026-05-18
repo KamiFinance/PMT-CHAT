@@ -66,10 +66,14 @@ export const storage = {
       // causing received messages to silently disappear. 100 messages ≈ 40 KB
       // per conversation which is well within the reliable flush range.
       saveable[addr] = list.slice(-100).map((m) => {
-        if (m.type === 'voice') return { ...m, audioUrl: null }; // keep audioB64 for reload reconstruction
-        if (m.type === 'image' || m.type === 'file') return { ...m, fileUrl: null };
-        if (m.type === 'video') return { ...m, localUrl: null }; // blob URLs die on reload; ipfsCid/ipfsUrl survive
-        return m;
+        // Strip large embedded fields that blow up localStorage:
+        // senderAvatarUrl / fromAvatarUrl can be 100 KB base64 avatars stored
+        // in every incoming message — they're already in contacts/profiles storage.
+        const { senderAvatarUrl, fromAvatarUrl, imgData, fileData, ...rest } = m as any;
+        if (rest.type === 'voice') return { ...rest, audioUrl: null }; // keep audioB64 for reload reconstruction
+        if (rest.type === 'image' || rest.type === 'file') return { ...rest, fileUrl: null };
+        if (rest.type === 'video') return { ...rest, localUrl: null }; // blob URLs die on reload; ipfsCid/ipfsUrl survive
+        return rest;
       });
     }
     set(STORAGE_KEYS.msgs(account), saveable);

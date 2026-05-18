@@ -426,7 +426,11 @@ export function useInboxPoll({
             : senderAddr;
           const existing = stored[dest] ?? [];
           if (!existing.some((m: any) => m.id === newMsg.id)) {
-            stored[dest] = [...existing, newMsg];
+            // Strip large avatar base64 fields before persisting — they are
+            // already in contacts/profiles storage and can bloat localStorage
+            // to the point where Chrome won't flush writes before page reload.
+            const { senderAvatarUrl, fromAvatarUrl, imgData, fileData, ...lean } = newMsg as any;
+            stored[dest] = [...existing, lean];
             storage.setMsgs(ak, stored);
           }
         } catch { /* storage quota or parse error — non-fatal */ }
