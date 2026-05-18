@@ -552,9 +552,10 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         {!isOut&&<ProfilePic initials={contact?.avatar} avatarUrl={contact?.avatarUrl}
           color={contact?.color} bg={contact?.bg} size={26} fs={10}/>}
         <div style={{position:'relative',cursor:'pointer'}}
-          onContextMenu={(e)=>{e.preventDefault();onOpenCtxMenu&&onOpenCtxMenu(msg);}}
-          onTouchStart={(e)=>{handleLongPress(e);}}
-          onTouchEnd={cancelLongPress} onTouchMove={cancelLongPress}>
+          onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+          onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}}
+          onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}}
+          onTouchMove={cancelLongPress}>
           {msg.gifUrl
             ? <img src={msg.gifUrl} alt={msg.title||'GIF'}
                 style={{display:'block',width:w,height:h,borderRadius:msg.isSticker?0:12,
@@ -576,7 +577,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             {msg.time}
           </span>
         </div>
-        {ctxMenuPortal}
+        {ctxMenuPortal}{picker}
       </div>
     );
   }
