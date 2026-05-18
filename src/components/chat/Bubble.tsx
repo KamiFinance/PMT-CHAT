@@ -558,8 +558,10 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           onTouchMove={cancelLongPress}>
           {msg.gifUrl
             ? <img src={msg.gifUrl} alt={msg.title||'GIF'}
+                draggable={false} onContextMenu={(e)=>e.preventDefault()}
                 style={{display:'block',width:w,height:h,borderRadius:msg.isSticker?0:12,
-                  objectFit:'cover',border:msg.isSticker?'none':'1px solid var(--border)'}}/>
+                  objectFit:'cover',border:msg.isSticker?'none':'1px solid var(--border)',
+                  WebkitTouchCallout:'none',WebkitUserSelect:'none',userSelect:'none'}}/>
             : <div style={{width:w,height:h,borderRadius:12,background:'var(--surface2)',
                 display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,
                 border:'1px solid var(--border)'}}>

@@ -222,3 +222,10 @@ body.modal-open .sidebar-panel,
 body.modal-open .chat-panel { pointer-events: none; }
 body.modal-open .chat-messages-area,
 body.modal-open .sidebar-contacts-list { overflow-y: hidden !important; }
+
+/* Prevent native browser callout (Save/Share popup) on long-press for media bubbles */
+.chat-messages-area img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

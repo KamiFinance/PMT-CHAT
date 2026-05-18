@@ -29,7 +29,9 @@ export default function ImageBubble({msg,isOut,contact}){
           onClick={()=>setOpen(true)}>
           {fileUrl
             ? <img src={fileUrl} alt={msg.fileName||'image'}
-                style={{display:'block',maxWidth:'100%',maxHeight:280,objectFit:'cover',width:'100%'}}/>
+                draggable={false} onContextMenu={(e)=>e.preventDefault()}
+                style={{display:'block',maxWidth:'100%',maxHeight:280,objectFit:'cover',width:'100%',
+                  WebkitTouchCallout:'none',WebkitUserSelect:'none',userSelect:'none'}}/>
             : <div style={{width:'100%',height:120,display:'flex',alignItems:'center',justifyContent:'center',
                 color:'var(--muted)',fontSize:12,fontFamily:'var(--mono)',flexDirection:'column',gap:6}}>
                 {msg.uploading
