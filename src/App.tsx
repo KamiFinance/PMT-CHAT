@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Wallet, Profile, Contact, MsgsMap, Message, Screen } from './types';
 import { STORAGE_KEYS } from './types';
-import { storage } from './lib/storage';
+import { storage, pruneLocalStorage } from './lib/storage';
 import { AppContext } from './lib/context';
 import { now, rndHash, uid, normalizeAddress, shortHash, nextBlock, b64ToObjectUrl } from './lib/utils';
 import { getWalletProvider, ensurePMTchain } from './lib/wallet';
@@ -369,6 +369,9 @@ export default function App() {
 
   useEffect(() => {
     if (!accountKey) return;
+    // Clean up orphaned media/inbox keys to keep localStorage small
+    // (large keys prevent reliable disk-flush before page reload)
+    pruneLocalStorage(accountKey);
     const savedContacts = storage.getContacts(accountKey);
     if (savedContacts.length > 0) {
       savedContacts.forEach(c => { if (c && c.address) c.address = c.address.toLowerCase(); });

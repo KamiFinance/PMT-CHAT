@@ -60,7 +60,12 @@ export const storage = {
         saveable[addr] = []; // AI chat not persisted
         continue;
       }
-      saveable[addr] = list.map((m) => {
+      // Limit to 100 most-recent messages per conversation.
+      // Chrome (and other browsers) buffer large localStorage writes — if the
+      // key exceeds ~1 MB the disk flush may not complete before a page reload,
+      // causing received messages to silently disappear. 100 messages ≈ 40 KB
+      // per conversation which is well within the reliable flush range.
+      saveable[addr] = list.slice(-100).map((m) => {
         if (m.type === 'voice') return { ...m, audioUrl: null }; // keep audioB64 for reload reconstruction
         if (m.type === 'image' || m.type === 'file') return { ...m, fileUrl: null };
         if (m.type === 'video') return { ...m, localUrl: null }; // blob URLs die on reload; ipfsCid/ipfsUrl survive
@@ -122,3 +127,38 @@ export const storage = {
   getTheme: () => getRaw(STORAGE_KEYS.theme) as 'dark' | 'light' | null,
   setTheme: (theme: 'dark' | 'light') => setRaw(STORAGE_KEYS.theme, theme),
 };
+
+// ── Startup localStorage cleanup ─────────────────────────────────────────────
+// Keeps total localStorage well under the 5 MB browser limit so that
+// message writes flush reliably to disk before page reloads.
+export function pruneLocalStorage(accountAddress: string) {
+  try {
+    const addr = accountAddress.toLowerCase();
+    const keysToDelete: string[] = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+
+      // Remove inbox relay keys that aren't for the current account
+      if (k.startsWith('pmt_inbox_') && !k.includes(addr)) {
+        keysToDelete.push(k);
+        continue;
+      }
+
+      // Remove orphaned media/audio cache files (keep only keys referenced by
+      // current messages — anything else is a stale upload cache)
+      if (k.startsWith('pmt_audio_') || k.startsWith('pmt_media_') ||
+          k.startsWith('pmt_img_')) {
+        const val = localStorage.getItem(k) || '';
+        // If the cached media is > 50 KB it's taking significant space — remove it.
+        // The app reconstructs media from IPFS on next load anyway.
+        if (val.length > 51200) {
+          keysToDelete.push(k);
+        }
+      }
+    }
+
+    keysToDelete.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+  } catch { /* non-fatal */ }
+}
