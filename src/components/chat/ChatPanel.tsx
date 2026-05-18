@@ -1211,10 +1211,16 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                   <button data-emoji-gif-btn="1"
                     onClick={()=>setShowPanel(p=>p?null:'emoji')}
                     style={{flexShrink:0,width:32,height:32,background:'none',border:'none',
-                      borderRadius:16,fontSize:18,display:'flex',alignItems:'center',
+                      borderRadius:16,display:'flex',alignItems:'center',
                       justifyContent:'center',cursor:'pointer',transition:'color .15s',
                       color:showPanel?'var(--accent)':'var(--muted)',padding:0}}>
-                    😊
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+                      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                      <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="2.5" strokeLinecap="round"/>
+                      <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="2.5" strokeLinecap="round"/>
+                    </svg>
                   </button>
                   <span style={{fontFamily:'var(--sans)',fontSize:10,color:'var(--muted)',
                     opacity:.8,fontWeight:500,flexShrink:0,paddingRight:4}}>🔒 E2E</span>
