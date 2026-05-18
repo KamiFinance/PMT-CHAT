@@ -1,6 +1,6 @@
 // ── Core Domain Types ──────────────────────────────────────────────────────
 
-export type MessageType = 'text' | 'voice' | 'image' | 'file' | 'video' | 'tx' | 'reaction';
+export type MessageType = 'text' | 'voice' | 'image' | 'file' | 'video' | 'tx' | 'reaction' | 'gif';
 
 export interface Reaction {
   // Format: {[emoji]: {[reactorAddress]: 1}} for ownership tracking
@@ -58,6 +58,14 @@ export interface Message {
   fromName?: string;
   ts?: number;
 
+  // GIF / Sticker
+  gifUrl?: string | null;
+  gifWidth?: number | null;
+  gifHeight?: number | null;
+  isSticker?: boolean;
+  title?: string;
+  localUrl?: string | null;
+
   // Sender profile (attached when message received)
   senderName?: string;
   senderRole?: string | null;
@@ -99,6 +107,12 @@ export interface InboxMessage {
   fileName?: string;
   fileSize?: string;
   mimeType?: string;
+  // GIF / Sticker
+  gifUrl?: string | null;
+  gifWidth?: number | null;
+  gifHeight?: number | null;
+  isSticker?: boolean;
+  title?: string;
 }
 
 export interface Contact {
