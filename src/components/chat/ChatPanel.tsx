@@ -1201,39 +1201,36 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                     onClose={()=>setShowAttach(false)}/>}
                 </div>
 
+                {/* Text input box — emoji button sits inside like Telegram/WhatsApp */}
                 <div style={{flex:1,background:'var(--surface)',border:'0.5px solid var(--border)',
-                  borderRadius:22,display:'flex',alignItems:'flex-end',padding:'0 12px'}}>
+                  borderRadius:22,display:'flex',alignItems:'center',padding:'0 6px 0 12px'}}>
                   <EmojiInput ref={inputRef} value={text}
                     onChange={setText} onKeyDown={key}
                     onFocus={()=>setShowPanel(null)}
                     placeholder="(encrypted on-chain)"/>
-                  <span style={{fontFamily:'var(--sans)',fontSize:10,color:'var(--muted)',
-                    opacity:.8,paddingBottom:0,fontWeight:500}}>🔒 E2E</span>
-                </div>
-                {/* Unified emoji/gif/sticker button — right side */}
-                <div style={{position:'relative',flexShrink:0}}>
                   <button data-emoji-gif-btn="1"
                     onClick={()=>setShowPanel(p=>p?null:'emoji')}
-                    style={{width:38,height:38,background:showPanel?'var(--surface2)':'var(--surface)',
-                      border:`1px solid ${showPanel?'var(--accent)':'var(--border)'}`,
-                      borderRadius:19,fontSize:18,display:'flex',alignItems:'center',
-                      justifyContent:'center',cursor:'pointer',transition:'all .15s',
-                      color:showPanel?'var(--accent)':'var(--muted)'}}>
+                    style={{flexShrink:0,width:32,height:32,background:'none',border:'none',
+                      borderRadius:16,fontSize:18,display:'flex',alignItems:'center',
+                      justifyContent:'center',cursor:'pointer',transition:'color .15s',
+                      color:showPanel?'var(--accent)':'var(--muted)',padding:0}}>
                     😊
                   </button>
-                  {showPanel&&(
-                    <EmojiGifPanel
-                      defaultTab={showPanel}
-                      isMobile={'ontouchstart' in window}
-                      onSelectEmoji={e=>{insertEmoji(e);}}
-                      onSelectGif={(item,isSticker)=>{
-                        onSend({type:'gif',gifUrl:item.url||item.preview,gifWidth:item.width,gifHeight:item.height,
-                          isSticker,title:item.title,text:''});
-                        setShowPanel(null);
-                      }}
-                      onClose={()=>setShowPanel(null)}/>
-                  )}
+                  <span style={{fontFamily:'var(--sans)',fontSize:10,color:'var(--muted)',
+                    opacity:.8,fontWeight:500,flexShrink:0,paddingRight:4}}>🔒 E2E</span>
                 </div>
+                {showPanel&&(
+                  <EmojiGifPanel
+                    defaultTab={showPanel}
+                    isMobile={'ontouchstart' in window}
+                    onSelectEmoji={e=>{insertEmoji(e);}}
+                    onSelectGif={(item,isSticker)=>{
+                      onSend({type:'gif',gifUrl:item.url||item.preview,gifWidth:item.width,gifHeight:item.height,
+                        isSticker,title:item.title,text:''});
+                      setShowPanel(null);
+                    }}
+                    onClose={()=>setShowPanel(null)}/>
+                )}
                 {text.trim()?(
                   <button onClick={send}
                     style={{width:38,height:38,background:'var(--accent)',border:'none',
