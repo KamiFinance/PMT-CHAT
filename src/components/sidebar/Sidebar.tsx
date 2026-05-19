@@ -213,7 +213,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             <div style={{padding:'12px 12px 8px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
                 <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',
-                  textTransform:'uppercase',color:'var(--muted)'}}>Contacts</span>
+                  textTransform:'uppercase',color:'var(--muted)'}}>Chats</span>
                 <button onClick={onSearch} style={{width:26,height:26,background:'var(--surface)',border:'none',borderRadius:7,
                   color:'var(--muted)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>⌕</button>
               </div>
