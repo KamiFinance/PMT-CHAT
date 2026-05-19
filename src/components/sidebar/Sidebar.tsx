@@ -229,8 +229,10 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           {/* Mobile search bar (no header) */}
           {isMobile && (
             <div style={{padding:'calc(10px + var(--safe-top,0px)) 12px 6px',flexShrink:0}}>
-              <div style={{fontFamily:'var(--sans)',fontSize:22,fontWeight:700,
-                color:'var(--text)',marginBottom:8,letterSpacing:'-0.02em'}}>Chats</div>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                <span style={{fontSize:20}}>💬</span>
+                <span style={{fontSize:17,fontWeight:700,color:'var(--text)'}}>Chats</span>
+              </div>
               <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
                 borderRadius:9,padding:'0 9px'}}>
                 <span style={{fontSize:12,color:'var(--muted)'}}>⌕</span>
@@ -407,8 +409,10 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           <div style={{flex:1,overflowY:'auto',
             padding: isMobile ? 'calc(16px + var(--safe-top,0px)) 12px 12px' : '12px 10px',
             display:'flex',flexDirection:'column',gap:10}}>
-            {isMobile&&<div style={{fontFamily:'var(--sans)',fontSize:22,fontWeight:700,
-              color:'var(--text)',marginBottom:4,letterSpacing:'-0.02em'}}>Wallet</div>}
+            {isMobile&&<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}>
+              <span style={{fontSize:20}}>💰</span>
+              <span style={{fontSize:17,fontWeight:700,color:'var(--text)'}}>Wallet</span>
+            </div>}
             <div onClick={onWallet}
               style={{padding:'14px',background:'var(--surface)',borderRadius:12,cursor:'pointer',border:'1px solid var(--border)',transition:'border-color .15s'}}
               onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
@@ -439,8 +443,12 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>My Profile</span>
           </div>}
           <div style={{flex:1,overflowY:'auto',
-            padding: isMobile ? 'calc(20px + var(--safe-top,0px)) 14px 16px' : '20px 14px',
+            padding: isMobile ? 'calc(16px + var(--safe-top,0px)) 14px 16px' : '20px 14px',
             display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+            {isMobile&&<div style={{display:'flex',alignItems:'center',gap:10,width:'100%',marginBottom:4}}>
+              <span style={{fontSize:20}}>👤</span>
+              <span style={{fontSize:17,fontWeight:700,color:'var(--text)'}}>Profile</span>
+            </div>}
             <div style={{position:'relative',cursor:'pointer'}} onClick={onProfile}>
               {profile?.avatarUrl
                 ? <ProfilePic avatarUrl={profile.avatarUrl}
