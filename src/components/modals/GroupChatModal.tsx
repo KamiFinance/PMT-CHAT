@@ -150,6 +150,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
         unread: 0,
       };
       onCreate(contact);
+      if (inline) return; // inline mode: onCreate handles everything (chat opens + popup shows)
       setTab('links');
       loadLinks(g.id);
     } catch (e) {

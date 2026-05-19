@@ -87,7 +87,7 @@ function MobileBottomTabs({activeSection, setActiveSection, onSettings}) {
   );
 }
 
-export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onProfile,onSettings,onWallet,onLogout,wallet,isDemo,profile,onEditContact,onSearch,mobileOpen,onMobileClose,onLeaveGroup,onToggleMute,mutedGroupIds,darkMode,onToggleTheme,chatWallpaper,onSetWallpaper}){
+export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onProfile,onSettings,onWallet,onLogout,wallet,isDemo,profile,onEditContact,onSearch,mobileOpen,onMobileClose,onLeaveGroup,onToggleMute,mutedGroupIds,darkMode,onToggleTheme,chatWallpaper,onSetWallpaper,onChangePassword,onNewGroupCreated,onManageGroup}){
   const [q,setQ]=useState('');
   const [canInstall,setCanInstall]=useState(false);
   const [pushState,setPushState]=useState('default');
@@ -640,8 +640,8 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             contacts={contacts}
             onClose={()=>setActiveSection('contacts')}
             onCreate={(contact)=>{
-              onNewGroupCreated&&onNewGroupCreated(contact);
               setActiveSection('contacts');
+              onNewGroupCreated&&onNewGroupCreated(contact);
             }}
             myAddress={wallet?.address??''}
           />
