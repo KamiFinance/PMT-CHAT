@@ -57,7 +57,7 @@ function MobileBottomTabs({activeSection, setActiveSection, onSettings}) {
       paddingBottom:'calc(8px + var(--safe-bottom,0px))',paddingTop:8,flexShrink:0}}>
       {tabs.map(({id,label,Icon}) => (
         <button key={id}
-          onClick={()=> id==='settings' ? (onSettings&&onSettings()) : setActiveSection(id)}
+          onClick={()=> setActiveSection(id)}
           style={{flex:1,background:'none',border:'none',cursor:'pointer',
             display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'4px 0',
             color: activeSection===id ? 'var(--accent)' : 'rgba(255,255,255,0.45)',
@@ -70,7 +70,7 @@ function MobileBottomTabs({activeSection, setActiveSection, onSettings}) {
   );
 }
 
-export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onProfile,onSettings,onWallet,onLogout,wallet,isDemo,profile,onEditContact,onSearch,mobileOpen,onMobileClose,onLeaveGroup,onToggleMute,mutedGroupIds}){
+export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onProfile,onSettings,onWallet,onLogout,wallet,isDemo,profile,onEditContact,onSearch,mobileOpen,onMobileClose,onLeaveGroup,onToggleMute,mutedGroupIds,darkMode,onToggleTheme,chatWallpaper,onSetWallpaper}){
   const [q,setQ]=useState('');
   const [canInstall,setCanInstall]=useState(false);
   const [pushState,setPushState]=useState('default');
@@ -144,7 +144,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           <NavBtn id="wallet"   label="Wallet"    Icon={IcoWallet}/>
           <NavBtn id="profile"  label="Profile"   Icon={IcoProfile}/>
           <NavBtn id="group"    label="New Group" Icon={IcoGroup} onClick={()=>{onNewGroup&&onNewGroup();}}/>
-          <NavBtn id="settings" label="Settings"  Icon={IcoSettings} onClick={()=>{onSettings&&onSettings();}}/>
+          <NavBtn id="settings" label="Settings"  Icon={IcoSettings} onClick={()=>setActiveSection('settings')}/>
           <div style={{flex:1}}/>
           <div style={{width:'65%',height:1,background:'var(--border)',marginBottom:4}}/>
           <button onClick={onLogout} title="Log Out"
@@ -194,8 +194,46 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             </div>
           )}
 
-          {/* New Chat — desktop only */}
-          {!isMobile && (
+          {/* Action buttons row — mobile: shown in chats header; desktop: shown below search */}
+          {isMobile ? (
+            <div style={{display:'flex',gap:8,padding:'6px 12px 4px',flexShrink:0}}>
+              <button onClick={onNew}
+                style={{flex:1,padding:'8px 4px',background:'rgba(250,255,99,.1)',border:'1px solid rgba(250,255,99,.25)',
+                  borderRadius:10,cursor:'pointer',display:'flex',flexDirection:'column',
+                  alignItems:'center',gap:3,color:'var(--accent)',transition:'background .15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(250,255,99,.18)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(250,255,99,.1)'}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="10" y1="11" x2="14" y2="11"/>
+                </svg>
+                <span style={{fontSize:9,fontFamily:'var(--sans)',fontWeight:700,letterSpacing:'0.04em'}}>New Chat</span>
+              </button>
+              <button onClick={onNewGroup}
+                style={{flex:1,padding:'8px 4px',background:'rgba(167,139,250,.1)',border:'1px solid rgba(167,139,250,.25)',
+                  borderRadius:10,cursor:'pointer',display:'flex',flexDirection:'column',
+                  alignItems:'center',gap:3,color:'var(--accent2)',transition:'background .15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(167,139,250,.18)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(167,139,250,.1)'}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+                  <line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
+                </svg>
+                <span style={{fontSize:9,fontFamily:'var(--sans)',fontWeight:700,letterSpacing:'0.04em'}}>New Group</span>
+              </button>
+              <button onClick={onSearch}
+                style={{flex:1,padding:'8px 4px',background:'rgba(255,255,255,.06)',border:'1px solid var(--border)',
+                  borderRadius:10,cursor:'pointer',display:'flex',flexDirection:'column',
+                  alignItems:'center',gap:3,color:'var(--muted)',transition:'background .15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.1)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <span style={{fontSize:9,fontFamily:'var(--sans)',fontWeight:700,letterSpacing:'0.04em'}}>Search</span>
+              </button>
+            </div>
+          ) : (
             <button onClick={onNew} style={{margin:'8px 8px 2px',padding:'8px',background:'var(--accent)',border:'none',
               borderRadius:9,cursor:'pointer',fontFamily:'var(--sans)',fontSize:12,fontWeight:700,
               color:'#0a0c14',display:'flex',alignItems:'center',justifyContent:'center',gap:5,flexShrink:0}}>
@@ -395,6 +433,85 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
               onMouseLeave={e=>e.currentTarget.style.background='rgba(248,113,113,.08)'}>
               <IcoLogout/> Log Out
             </button>
+          </div>
+          {isMobile && <MobileBottomTabs activeSection={activeSection} setActiveSection={setActiveSection} onSettings={onSettings}/>}
+        </>}
+
+        {/* ══ SETTINGS ══ */}
+        {activeSection==='settings'&&<>
+          {!isMobile&&<div style={{padding:'12px 12px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+            <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>Settings</span>
+          </div>}
+          <div style={{flex:1,overflowY:'auto',
+            padding: isMobile ? 'calc(16px + var(--safe-top,0px)) 14px 12px' : '14px 12px',
+            display:'flex',flexDirection:'column',gap:12}}>
+
+            {/* Theme */}
+            <div style={{background:'var(--surface)',borderRadius:12,border:'1px solid var(--border)',padding:'14px 16px'}}>
+              <div style={{fontFamily:'var(--sans)',fontSize:10,fontWeight:700,textTransform:'uppercase',
+                letterSpacing:'0.1em',color:'var(--muted)',marginBottom:10}}>Appearance</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:18}}>{darkMode?'🌙':'☀️'}</span>
+                  <span style={{fontSize:13,fontWeight:500}}>{darkMode?'Dark Mode':'Light Mode'}</span>
+                </div>
+                <div onClick={onToggleTheme}
+                  style={{width:44,height:24,borderRadius:12,background:darkMode?'var(--accent)':'rgba(255,255,255,.15)',
+                    position:'relative',cursor:'pointer',transition:'background .2s'}}>
+                  <div style={{position:'absolute',top:3,left:darkMode?21:3,width:18,height:18,
+                    borderRadius:'50%',background:darkMode?'#0a0c14':'var(--muted)',
+                    transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
+                </div>
+              </div>
+            </div>
+
+            {/* Wallpaper */}
+            <div style={{background:'var(--surface)',borderRadius:12,border:'1px solid var(--border)',padding:'14px 16px'}}>
+              <div style={{fontFamily:'var(--sans)',fontSize:10,fontWeight:700,textTransform:'uppercase',
+                letterSpacing:'0.1em',color:'var(--muted)',marginBottom:10}}>Chat Wallpaper</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+                {['none','dots','grid','waves','circuit','bokeh'].map(wp=>(
+                  <button key={wp} onClick={()=>onSetWallpaper&&onSetWallpaper(wp)}
+                    style={{padding:'10px 6px',borderRadius:9,cursor:'pointer',
+                      border:`2px solid ${chatWallpaper===wp?'var(--accent)':'var(--border)'}`,
+                      background:chatWallpaper===wp?'rgba(250,255,99,.1)':'rgba(255,255,255,.04)',
+                      color:chatWallpaper===wp?'var(--accent)':'var(--muted)',
+                      fontFamily:'var(--sans)',fontSize:10,fontWeight:600,
+                      transition:'border-color .15s',textTransform:'capitalize'}}>
+                    {wp==='none'?'None':wp.charAt(0).toUpperCase()+wp.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* More settings */}
+            <button onClick={()=>setActiveSection('settings')}
+              style={{padding:'12px',background:'var(--surface)',border:'1px solid var(--border)',
+                borderRadius:12,cursor:'pointer',fontFamily:'var(--sans)',fontSize:13,
+                fontWeight:600,color:'var(--text)',display:'flex',alignItems:'center',
+                justifyContent:'space-between',transition:'border-color .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+              <span style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:16}}>⚙️</span> More Settings
+              </span>
+              <span style={{color:'var(--muted)',fontSize:12}}>→</span>
+            </button>
+
+            {/* Change password */}
+            <button onClick={()=>setActiveSection('settings')}
+              style={{padding:'12px',background:'var(--surface)',border:'1px solid var(--border)',
+                borderRadius:12,cursor:'pointer',fontFamily:'var(--sans)',fontSize:13,
+                fontWeight:600,color:'var(--text)',display:'flex',alignItems:'center',
+                justifyContent:'space-between',transition:'border-color .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+              <span style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:16}}>🔑</span> Security &amp; Password
+              </span>
+              <span style={{color:'var(--muted)',fontSize:12}}>→</span>
+            </button>
+
           </div>
           {isMobile && <MobileBottomTabs activeSection={activeSection} setActiveSection={setActiveSection} onSettings={onSettings}/>}
         </>}
