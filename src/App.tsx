@@ -1119,8 +1119,8 @@ export default function App() {
     const block = nextBlock();
     const inputReplyTo = typeof input === 'string' ? null : (input as Message).replyTo ?? null;
     const msg: Message = (isVoice || isImage || isFile || isVideo || isGif)
-      ? { id: uid(), out: true, ...(input as object), type: (input as Message).type, text: '', time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) }
-      : { id: uid(), out: true, type: 'text', text: textContent, time: now(), block, confirms: 0, hash: rndHash(), pending: true, ...(inputReplyTo && { replyTo: inputReplyTo }) };
+      ? { id: uid(), out: true, ...(input as object), type: (input as Message).type, text: '', time: now(), block, confirms: 0, hash: rndHash(), pending: true, ts: Date.now(), ...(inputReplyTo && { replyTo: inputReplyTo }) }
+      : { id: uid(), out: true, type: 'text', text: textContent, time: now(), block, confirms: 0, hash: rndHash(), pending: true, ts: Date.now(), ...(inputReplyTo && { replyTo: inputReplyTo }) };
     const addr = normalizeAddress(activeRef.current.address);
     // skipLocal: relay-only calls (after media upload) — temp message already in state
     if (!(typeof input === 'object' && (input as any).skipLocal)) {

@@ -278,6 +278,7 @@ export function useInboxPoll({
           type: inboxMsg.type as Message['type'],
           text: inboxMsg.text,
           time: inboxMsg.time ?? now(),
+          ts: (inboxMsg as any).ts || Date.now(),
           block: 0, // will be incremented
           confirms: 3,
           hash: inboxMsg.hash ?? rndHash(),

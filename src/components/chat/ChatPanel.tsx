@@ -241,6 +241,24 @@ function ForwardModal({msg,contacts,onForward,onClose}:{msg:any;contacts:any[];o
   );
 }
 
+// ── Floating date chip helper ─────────────────────────────────────────────
+function formatFloatingDate(ts: number): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const now = new Date();
+  const toDay = (dt: Date) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+  const todayTs = toDay(now);
+  const msgTs = toDay(d);
+  const diff = todayTs - msgTs;
+  if (diff === 0) return 'Today';
+  if (diff === 86400000) return 'Yesterday';
+  if (diff < 7 * 86400000) return d.toLocaleDateString('en-US', { weekday: 'long' });
+  if (d.getFullYear() === now.getFullYear())
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+
 export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg,contacts,onForwardMsg,lastSeenTs=0,chatWallpaper='none',onStickerCreated}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
@@ -365,6 +383,9 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   const searchInputRef=useRef<HTMLInputElement>(null);
   const [recording,setRecording]=useState(false);
   const [showScrollBtn,setShowScrollBtn]=useState(false);
+  const [floatingDate,setFloatingDate]=useState('');
+  const [floatingDateVisible,setFloatingDateVisible]=useState(false);
+  const floatingDateTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null);
   const fileInputRef=useRef(null);
   const cameraInputRef=useRef(null);
   const attachBtnRef=useRef(null);
@@ -403,16 +424,42 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     return()=>document.removeEventListener('wheel',handler,{capture:true});
   },[]);
 
-  // Show scroll-to-bottom button when user scrolls up
+  // Scroll tracking: scroll-to-bottom button + floating date chip
   useEffect(()=>{
     const el=messagesRef.current;
     if(!el) return;
     const onScroll=()=>{
       const distFromBottom=el.scrollHeight-el.scrollTop-el.clientHeight;
       setShowScrollBtn(distFromBottom>120);
+
+      // Floating date chip — only show when scrolled up
+      if(distFromBottom>80){
+        const containerTop=el.getBoundingClientRect().top;
+        const markers=el.querySelectorAll('[data-ts]');
+        for(const marker of Array.from(markers)){
+          const rect=(marker as HTMLElement).getBoundingClientRect();
+          if(rect.bottom>containerTop+56){
+            const ts=Number((marker as HTMLElement).dataset.ts);
+            if(ts){
+              const label=formatFloatingDate(ts);
+              if(label) setFloatingDate(label);
+            }
+            break;
+          }
+        }
+        setFloatingDateVisible(true);
+        if(floatingDateTimerRef.current) clearTimeout(floatingDateTimerRef.current);
+        floatingDateTimerRef.current=setTimeout(()=>setFloatingDateVisible(false),1800);
+      } else {
+        setFloatingDateVisible(false);
+        if(floatingDateTimerRef.current) clearTimeout(floatingDateTimerRef.current);
+      }
     };
     el.addEventListener('scroll',onScroll,{passive:true});
-    return()=>el.removeEventListener('scroll',onScroll);
+    return()=>{
+      el.removeEventListener('scroll',onScroll);
+      if(floatingDateTimerRef.current) clearTimeout(floatingDateTimerRef.current);
+    };
   },[]);
   const inputRef=useRef(null);
   const mediaRecRef=useRef(null);
@@ -895,6 +942,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
             </div>
             {filteredMessages.map((m,idx)=>(
               <React.Fragment key={m.id}>
+                <div data-ts={m.ts||0} style={{display:'contents'}}>
                 {/* Unread messages divider */}
                 {idx===firstUnreadIdx&&firstUnreadIdx>=0&&(
                   <div ref={unreadDividerRef} style={{display:'flex',alignItems:'center',gap:10,margin:'10px 0',
@@ -944,6 +992,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                     onStickerCreated?.(); // trigger backup
                   } catch {}
                 }}/>
+                </div>
               </React.Fragment>
             ))}
             {/* Typing indicator bubble */}
@@ -1105,6 +1154,31 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         })()}
 
         {/* ── Block strip ── */}
+        {/* Floating date chip — Telegram-style, appears while scrolling up */}
+        <div style={{
+          position:'absolute',
+          top:pinnedMsgs?.length?100:68,
+          left:'50%',transform:'translateX(-50%)',
+          zIndex:8,pointerEvents:'none',
+          transition:'opacity .25s ease, transform .25s ease',
+          opacity:floatingDateVisible&&floatingDate?1:0,
+          transform:floatingDateVisible&&floatingDate?'translateX(-50%) translateY(0)':'translateX(-50%) translateY(-6px)',
+        }}>
+          <span style={{
+            display:'inline-block',
+            background:'rgba(0,0,0,.55)',
+            backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',
+            color:'#fff',
+            fontFamily:'var(--sans)',fontSize:12,fontWeight:600,
+            padding:'4px 12px',borderRadius:12,
+            whiteSpace:'nowrap',
+            boxShadow:'0 1px 6px rgba(0,0,0,.3)',
+            letterSpacing:'0.01em',
+          }}>
+            {floatingDate}
+          </span>
+        </div>
+
         {/* Scroll-to-bottom button */}
         {showScrollBtn&&(
           <button
