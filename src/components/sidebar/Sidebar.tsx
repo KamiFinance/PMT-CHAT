@@ -42,6 +42,19 @@ const IcoLogout = () => (
     <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
   </svg>
 );
+const IcoAppearance = () => (
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="4"/>
+    <line x1="12" y1="2" x2="12" y2="4"/>
+    <line x1="12" y1="20" x2="12" y2="22"/>
+    <line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/>
+    <line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/>
+    <line x1="2" y1="12" x2="4" y2="12"/>
+    <line x1="20" y1="12" x2="22" y2="12"/>
+    <line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/>
+    <line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/>
+  </svg>
+);
 
 // Mobile bottom tab bar (shared across all sections)
 function MobileBottomTabs({activeSection, setActiveSection, onSettings}) {
@@ -508,7 +521,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             {/* APPEARANCE */}
             <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontSize:18}}>{darkMode?'🌙':'☀️'}</span>
+                <span style={{color:'var(--accent)',display:'flex'}}><IcoAppearance/></span>
                 <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:'1px'}}>APPEARANCE</span>
               </div>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
