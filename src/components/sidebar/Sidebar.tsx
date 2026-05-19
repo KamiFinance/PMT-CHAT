@@ -640,8 +640,8 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             contacts={contacts}
             onClose={()=>setActiveSection('contacts')}
             onCreate={(contact)=>{
-              setActiveSection('contacts');
               onNewGroupCreated&&onNewGroupCreated(contact);
+              setActiveSection('contacts');
             }}
             myAddress={wallet?.address??''}
           />
