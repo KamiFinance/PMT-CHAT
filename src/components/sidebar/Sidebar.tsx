@@ -1,259 +1,356 @@
 // @ts-nocheck
 import { onInstallAvailable, triggerInstallPrompt, isRunningAsPWA,
          requestPushPermission, getPushPermissionState } from '../../lib/pwa';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import Avatar from '../ui/Avatar';
 import { shortAddress } from '../../lib/utils';
 import ProfilePic from '../ui/ProfilePic';
 import SwitchNetworkButton from '../ui/SwitchNetworkButton';
 
-
-
+const IcoContacts = () => (
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/>
+  </svg>
+);
+const IcoWallet = () => (
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="20" height="14" rx="2"/><circle cx="17" cy="14" r="1" fill="currentColor" stroke="none"/>
+    <path d="M22 7V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2"/>
+  </svg>
+);
+const IcoProfile = () => (
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+  </svg>
+);
+const IcoGroup = () => (
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><path d="M12 8v8m-4-4h8"/>
+  </svg>
+);
+const IcoSettings = () => (
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+);
+const IcoLogout = () => (
+  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+);
 
 export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onProfile,onSettings,onWallet,onLogout,wallet,isDemo,profile,onEditContact,onSearch,mobileOpen,onMobileClose,onLeaveGroup,onToggleMute,mutedGroupIds}){
   const [q,setQ]=useState('');
   const [canInstall,setCanInstall]=useState(false);
-  const [pushState,setPushState]=useState<string>('default');
+  const [pushState,setPushState]=useState('default');
   const [showIosHint,setShowIosHint]=useState(false);
-  // Group context menu (right-click / long-press)
-  const [groupCtxMenu,setGroupCtxMenu]=useState<{contact:any,x:number,y:number}|null>(null);
-  const groupLongPressRef=useRef<any>(null);
+  const [activeSection,setActiveSection]=useState('contacts');
+  const [groupCtxMenu,setGroupCtxMenu]=useState(null);
+  const groupLongPressRef=useRef(null);
 
   const isIos=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isInStandaloneMode=()=>(window.navigator as any).standalone===true||window.matchMedia('(display-mode: standalone)').matches;
+  const isInStandaloneMode=()=>(window.navigator).standalone===true||window.matchMedia('(display-mode: standalone)').matches;
 
   useEffect(()=>{
     const off=onInstallAvailable(()=>setCanInstall(true));
     const state=getPushPermissionState();
     setPushState(state);
-    // Show iOS hint if on iOS Safari and not already installed
     if(isIos()&&!isInStandaloneMode()) setShowIosHint(true);
-    // If permission already granted but subscription may not be saved (e.g. after re-install),
-    // silently re-subscribe so push works without user needing to tap the banner again
-    if(state==='granted'&&wallet?.address){
-      requestPushPermission(wallet.address).catch(()=>{});
-    }
+    if(state==='granted'&&wallet?.address) requestPushPermission(wallet.address).catch(()=>{});
     return off;
   },[wallet?.address]);
+
   const filtered=contacts
     .filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.address.includes(q))
-    .sort((a,b)=>{
-      // AI assistant always pinned to top
-      if(a.isAI && !b.isAI) return -1;
-      if(!a.isAI && b.isAI) return 1;
-      return 0; // preserve existing order (activity-based) for the rest
-    });
+    .sort((a,b)=>{ if(a.isAI&&!b.isAI) return -1; if(!a.isAI&&b.isAI) return 1; return 0; });
+
+  // Icon rail button
+  const NavBtn = ({id,label,Icon,onClick,danger=false}) => {
+    const isActive = activeSection===id;
+    return (
+      <button onClick={onClick||(() => setActiveSection(id))} title={label}
+        style={{width:'100%',padding:'11px 0',background:'none',border:'none',cursor:'pointer',
+          display:'flex',flexDirection:'column',alignItems:'center',gap:3,
+          color:isActive?'var(--accent)':danger?'var(--danger)':'rgba(255,255,255,0.38)',
+          position:'relative',transition:'color .15s'}}>
+        {isActive&&<div style={{position:'absolute',left:0,top:'50%',transform:'translateY(-50%)',
+          width:3,height:24,background:'var(--accent)',borderRadius:'0 2px 2px 0'}}/>}
+        <Icon/>
+        <span style={{fontSize:8,fontFamily:'var(--sans)',fontWeight:700,letterSpacing:'0.05em',
+          textTransform:'uppercase',lineHeight:1,opacity:isActive?1:0.7}}>{label}</span>
+      </button>
+    );
+  };
+
   return(
     <div className={`sidebar-panel${mobileOpen?' mobile-open':''}`}
-      style={{background:'var(--panel)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      {/* iOS PWA safe area spacer */}
-      
-      {/* Brand */}
-      <div style={{padding:'16px 14px 12px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
-        <div style={{cursor:'pointer'}} onClick={onProfile}>
+      style={{background:'var(--panel)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'row',overflow:'hidden'}}>
+
+      {/* ── Icon Rail ─────────────────────────────────────────── */}
+      <div style={{width:56,flexShrink:0,background:'rgba(0,0,0,0.2)',borderRight:'1px solid var(--border)',
+        display:'flex',flexDirection:'column',alignItems:'center',paddingTop:8}}>
+
+        {/* Avatar shortcut to profile */}
+        <div style={{marginBottom:10,cursor:'pointer',padding:4,borderRadius:'50%',
+          outline:activeSection==='profile'?'2px solid var(--accent)':'2px solid transparent',transition:'outline .15s'}}
+          onClick={()=>setActiveSection('profile')}>
           {profile?.avatarUrl
-            ? <ProfilePic avatarUrl={profile.avatarUrl} initials={profile?.name?profile.name.slice(0,2).toUpperCase():'ME'}
-                color='var(--accent)' bg='#0a1f2a' size={34} fs={11}/>
-            : <img src={'/pmt-logo.png'} style={{width:34,height:34,borderRadius:'50%',objectFit:'cover',flexShrink:0}} alt="PM"/>
+            ? <ProfilePic avatarUrl={profile.avatarUrl}
+                initials={profile?.name?profile.name.slice(0,2).toUpperCase():'ME'}
+                color='var(--accent)' bg='#0a1f2a' size={32} fs={10}/>
+            : <img src={'/pmt-logo.png'} style={{width:32,height:32,borderRadius:'50%',objectFit:'cover'}} alt="PM"/>
           }
         </div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:15,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-            {profile?.name||wallet?.username||(wallet?.address?'Unnamed Wallet':'PMT-Chat')}
-          </div>
-          <div style={{fontFamily:'var(--mono)',fontSize:9,letterSpacing:'1px',marginTop:1,
-            color:isDemo?'var(--muted)':'var(--accent)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-            {wallet?.address
-              ?wallet.address.slice(0,8)+'...'+wallet.address.slice(-6)
-              :isDemo?'demo mode':'not connected'}
-          </div>
-        </div>
-        <button onClick={onSearch} title="Search messages"
-          style={{width:28,height:28,background:'var(--surface)',border:'none',borderRadius:8,
-            color:'var(--muted)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-          ⌕
-        </button>
-        <button className="mobile-topbar" onClick={onMobileClose}
-          style={{display:'none',width:30,height:30,background:'var(--surface)',border:'1px solid var(--border)',
-            borderRadius:7,color:'var(--muted)',fontSize:18,cursor:'pointer',alignItems:'center',
-            justifyContent:'center',flexShrink:0,lineHeight:1}}>
-          ×
-        </button>
-      </div>
-      {/* Wallet — click to open wallet modal */}
-      <div onClick={onWallet} style={{margin:'10px',padding:'12px 14px',background:'var(--surface)',border:'none',
-        borderRadius:10,flexShrink:0,cursor:'pointer',transition:'border-color .15s'}}
-        onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
-        onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
-          <div style={{fontFamily:'var(--sans)',fontSize:12,color:'var(--text2)',fontWeight:600,letterSpacing:'0.2px'}}>Wallet</div>
-          <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',opacity:.7}}>👁 View</div>
-        </div>
-        <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--accent)'}}>{wallet?wallet.address.slice(0,6)+'...'+wallet.address.slice(-4):isDemo?'Demo Wallet':'Not connected'}</div>
-        <div style={{display:'flex',alignItems:'center',gap:8,marginTop:5}}>
-          <span style={{fontSize:12,color:'var(--accent3)',fontWeight:500}}>◈ {wallet?wallet.balance:isDemo?'2.847':'0.000'} PMT</span>
-          <span style={{fontFamily:'var(--sans)',fontSize:10,fontWeight:600,background:'rgba(10,132,255,.15)',border:'none',
-            borderRadius:6,padding:'3px 8px',color:'var(--accent)'}}>{wallet?wallet.network:isDemo?'demo':' - '}</span>
-        </div>
-      </div>
-      {/* Switch Network button */}
-      {!isDemo && <SwitchNetworkButton/>}
-      {/* ── Install banner — Android Chrome (auto prompt) ── */}
-      {canInstall&&!isRunningAsPWA()&&(
-        <div onClick={async()=>{await triggerInstallPrompt();setCanInstall(false);}}
-          style={{margin:'0 10px 8px',padding:'10px 14px',background:'var(--accent)',
-            borderRadius:12,cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
-          <span style={{fontSize:20}}>📲</span>
-          <div>
-            <div style={{fontFamily:'var(--sans)',fontWeight:700,fontSize:13,color:'#0a0c14'}}>Install PMT-Chat</div>
-            <div style={{fontFamily:'var(--sans)',fontSize:11,color:'rgba(0,0,0,0.6)'}}>Tap to add to Home Screen</div>
-          </div>
-        </div>
-      )}
-      {/* ── iOS install hint (Safari doesn't support beforeinstallprompt) ── */}
-      {showIosHint&&!canInstall&&(
-        <div style={{margin:'0 10px 8px',padding:'10px 14px',background:'var(--surface)',
-          border:'0.5px solid var(--border)',borderRadius:12,position:'relative'}}>
-          <button onClick={()=>setShowIosHint(false)}
-            style={{position:'absolute',top:6,right:10,background:'none',border:'none',
-              color:'var(--muted)',fontSize:16,cursor:'pointer',lineHeight:1}}>×</button>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <span style={{fontSize:20}}>📲</span>
-            <div>
-              <div style={{fontFamily:'var(--sans)',fontWeight:700,fontSize:13,color:'var(--text)'}}>Install on iPhone</div>
-              <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--muted)',lineHeight:1.4}}>
-                Tap <strong style={{color:'var(--accent)'}}>Share ↑</strong> then <strong style={{color:'var(--accent)'}}>Add to Home Screen</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* ── Push notifications ── */}
-      {wallet?.address&&pushState!=='granted'&&pushState!=='unsupported'&&(
-        <div onClick={async()=>{
-          const ok=await requestPushPermission(wallet.address);
-          setPushState(ok?'granted':'denied');
-        }} style={{margin:'0 10px 8px',padding:'10px 14px',background:'var(--surface)',
-          borderRadius:12,cursor:'pointer',display:'flex',alignItems:'center',gap:10,
-          border:'0.5px solid var(--border)'}}>
-          <span style={{fontSize:20}}>🔔</span>
-          <div>
-            <div style={{fontFamily:'var(--sans)',fontWeight:600,fontSize:13,color:'var(--text)'}}>Enable Notifications</div>
-            <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--muted)'}}>Get notified of new messages</div>
-          </div>
-        </div>
-      )}
+        <div style={{width:'65%',height:1,background:'var(--border)',marginBottom:4}}/>
 
-      {/* Search */}
-      <div style={{margin:'4px 10px 0',display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
-        border:'none',borderRadius:10,padding:'0 10px',flexShrink:0}}>
-        <span style={{fontSize:14,color:'var(--muted)'}}>⌕</span>
-        <input placeholder="Search contacts..." value={q} onChange={e=>setQ(e.target.value)}
-          style={{flex:1,background:'transparent',border:'none',outline:'none',color:'var(--text)',fontSize:14,padding:'8px 0'}}/>
-      </div>
-      {/* Label */}
-      <div style={{padding:'10px 14px 3px',fontFamily:'var(--sans)',fontSize:11,color:'var(--muted)',fontWeight:500,flexShrink:0}}>
-        CONTACTS ({contacts.length})
-      </div>
-      {/* List */}
-      <div className="sidebar-contacts-list" style={{flex:1,overflowY:'auto'}}>
-        {/* Group context menu portal */}
-        {groupCtxMenu && createPortal(
-          <div onClick={()=>setGroupCtxMenu(null)}
-            style={{position:'fixed',inset:0,zIndex:9999}}>
-            <div onClick={e=>e.stopPropagation()}
-              style={{position:'fixed',left:Math.min(groupCtxMenu.x,window.innerWidth-180),
-                top:Math.min(groupCtxMenu.y,window.innerHeight-110),
-                background:'var(--panel)',border:'1px solid var(--border)',
-                borderRadius:10,padding:'6px 0',minWidth:180,
-                boxShadow:'0 8px 32px rgba(0,0,0,.45)',zIndex:10000,
-                animation:'fadeIn .12s ease'}}>
-              <button onClick={()=>{onToggleMute&&onToggleMute(groupCtxMenu.contact);setGroupCtxMenu(null);}}
-                style={{display:'flex',alignItems:'center',gap:10,width:'100%',
-                  padding:'10px 16px',background:'none',border:'none',
-                  color:'var(--text)',fontSize:13,cursor:'pointer',textAlign:'left'}}>
-                {mutedGroupIds?.has(groupCtxMenu.contact.groupId||groupCtxMenu.contact.id) ? '🔔 Unmute group' : '🔕 Mute group'}
-              </button>
-              <div style={{height:1,background:'var(--border)',margin:'4px 0'}}/>
-              <button onClick={()=>{
-                  if(window.confirm(`Leave "${groupCtxMenu.contact.name}"? You will no longer receive messages from this group.`)){
-                    onLeaveGroup&&onLeaveGroup(groupCtxMenu.contact);
-                  }
-                  setGroupCtxMenu(null);
-                }}
-                style={{display:'flex',alignItems:'center',gap:10,width:'100%',
-                  padding:'10px 16px',background:'none',border:'none',
-                  color:'#ff6b6b',fontSize:13,cursor:'pointer',textAlign:'left'}}>
-                🚪 Leave group
-              </button>
-            </div>
-          </div>, document.body
-        )}
-        {filtered.map(c=>{
-          const isMuted = c.isGroup && mutedGroupIds?.has(c.groupId||c.id);
-          const openCtxMenu = c.isGroup ? (x,y) => setGroupCtxMenu({contact:c,x,y}) : null;
-          return (
-          <div key={c.id}
-            className="contact-row"
-            style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer',
-              borderLeft:`2px solid ${activeId===c.id?'var(--accent)':'transparent'}`,
-              background:activeId===c.id?'var(--surface)':'transparent',transition:'background .12s',
-              position:'relative'}}
-            onClick={()=>{onSelect(c);onMobileClose&&onMobileClose();}}
-            onContextMenu={openCtxMenu?(e)=>{e.preventDefault();openCtxMenu(e.clientX,e.clientY);}:undefined}
-            onTouchStart={openCtxMenu?(e)=>{const t=e.touches[0];groupLongPressRef.current=setTimeout(()=>openCtxMenu(t.clientX,t.clientY),600);}:undefined}
-            onTouchEnd={openCtxMenu?()=>{clearTimeout(groupLongPressRef.current);}:undefined}
-            onTouchMove={openCtxMenu?()=>{clearTimeout(groupLongPressRef.current);}:undefined}>
-            <ProfilePic initials={c.isGroup?'#':c.avatar} avatarUrl={c.avatarUrl} color={c.isGroup?'var(--accent2)':c.color} bg={c.isGroup?'#1e1b30':c.bg} online={c.online}/>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:'flex',alignItems:'center',gap:4}}>
-                {c.isGroup&&<span style={{fontFamily:'var(--mono)',fontSize:8,background:'rgba(167,139,250,.2)',
-                  border:'1px solid rgba(167,139,250,.3)',borderRadius:4,padding:'0 4px',color:'var(--accent2)'}}>GROUP</span>}
-                <div style={{fontSize:13,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
-                {isMuted&&<span style={{fontSize:10,color:'var(--muted)',flexShrink:0}}>🔕</span>}
-              </div>
-              <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:2}}>{c.preview||shortAddress(c.address)}</div>
-            </div>
-            {c.unread>0&&(
-              <div style={{minWidth:18,height:18,borderRadius:9,background:'var(--accent)',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:10,fontWeight:700,color:'#0a0c14',padding:'0 4px',flexShrink:0}}>
-                {c.unread>99?'99+':c.unread}
-              </div>
-            )}
-            {!c.isGroup&&(
-              <button onClick={e=>{e.stopPropagation();onEditContact(c);}}
-                className="edit-btn"
-                style={{opacity:0,position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',
-                  background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,
-                  color:'var(--muted)',fontSize:11,cursor:'pointer',padding:'3px 7px',transition:'opacity .15s'}}
-                onMouseEnter={e=>e.currentTarget.style.opacity=1}
-                onMouseLeave={e=>e.currentTarget.style.opacity=0}>
-                ✎
-              </button>
-            )}
-          </div>
-        );})}
-      </div>
-      {/* Footer */}
-      <div className="sidebar-footer" style={{padding:'10px',borderTop:'1px solid var(--border)',display:'flex',gap:6,flexShrink:0}}>
-        {[['+','New Chat',onNew],['⊞','New Group',onNewGroup],['👤','Profile',onProfile],['⚙️','Settings',onSettings]].map(([icon,title,fn])=>(
-          <button key={icon} onClick={fn} title={title}
-            style={{flex:1,padding:10,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,
-              color:'var(--muted)',fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-            {icon}
-          </button>
-        ))}
+        <NavBtn id="contacts" label="Chats" Icon={IcoContacts}/>
+        <NavBtn id="wallet"   label="Wallet" Icon={IcoWallet}/>
+        <NavBtn id="profile"  label="Profile" Icon={IcoProfile}/>
+        <NavBtn id="group" label="New Group" Icon={IcoGroup} onClick={()=>{onNewGroup&&onNewGroup();}}/>
+        <NavBtn id="settings" label="Settings" Icon={IcoSettings} onClick={()=>{onSettings&&onSettings();}}/>
+
+        <div style={{flex:1}}/>
+
+        <div style={{width:'65%',height:1,background:'var(--border)',marginBottom:4}}/>
         <button onClick={onLogout} title="Log Out"
-          style={{padding:8,background:'var(--surface)',border:'1px solid rgba(248,113,113,.3)',borderRadius:8,
-            color:'var(--danger)',fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
-            fontFamily:'var(--mono)',letterSpacing:.5,gap:4,paddingLeft:10,paddingRight:10}}
-          onMouseEnter={e=>{e.currentTarget.style.background='rgba(248,113,113,.1)';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='var(--surface)';}}>
-          &#x2715;
+          style={{width:'100%',padding:'10px 0',background:'none',border:'none',cursor:'pointer',
+            display:'flex',flexDirection:'column',alignItems:'center',gap:3,
+            color:'var(--danger)',marginBottom:6,transition:'opacity .15s'}}
+          onMouseEnter={e=>e.currentTarget.style.opacity='0.65'}
+          onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+          <IcoLogout/>
+          <span style={{fontSize:8,fontFamily:'var(--sans)',fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Exit</span>
         </button>
+      </div>
+
+      {/* ── Content Panel ─────────────────────────────────────── */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',minWidth:0}}>
+
+        {/* ══ CONTACTS ══ */}
+        {activeSection==='contacts'&&<>
+          <div style={{padding:'12px 12px 8px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+              <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',
+                textTransform:'uppercase',color:'var(--muted)'}}>Contacts</span>
+              <div style={{display:'flex',gap:5}}>
+                <button onClick={onSearch} title="Search"
+                  style={{width:26,height:26,background:'var(--surface)',border:'none',borderRadius:7,
+                    color:'var(--muted)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>⌕</button>
+                <button className="mobile-topbar" onClick={onMobileClose}
+                  style={{display:'none',width:26,height:26,background:'var(--surface)',border:'1px solid var(--border)',
+                    borderRadius:7,color:'var(--muted)',fontSize:18,cursor:'pointer',alignItems:'center',justifyContent:'center'}}>×</button>
+              </div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
+              borderRadius:9,padding:'0 9px'}}>
+              <span style={{fontSize:12,color:'var(--muted)'}}>⌕</span>
+              <input placeholder="Search contacts..." value={q} onChange={e=>setQ(e.target.value)}
+                style={{flex:1,background:'transparent',border:'none',outline:'none',color:'var(--text)',fontSize:13,padding:'7px 0'}}/>
+            </div>
+          </div>
+
+          <button onClick={onNew}
+            style={{margin:'8px 8px 2px',padding:'8px',background:'var(--accent)',border:'none',
+              borderRadius:9,cursor:'pointer',fontFamily:'var(--sans)',fontSize:12,fontWeight:700,
+              color:'#0a0c14',display:'flex',alignItems:'center',justifyContent:'center',gap:5,flexShrink:0}}>
+            <span style={{fontSize:15}}>+</span> New Chat
+          </button>
+
+          <div style={{padding:'6px 12px 2px',fontFamily:'var(--sans)',fontSize:9,color:'var(--muted)',
+            fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',flexShrink:0}}>
+            {contacts.length} contacts
+          </div>
+
+          <div className="sidebar-contacts-list" style={{flex:1,overflowY:'auto'}}>
+            {groupCtxMenu && createPortal(
+              <div onClick={()=>setGroupCtxMenu(null)} style={{position:'fixed',inset:0,zIndex:9999}}>
+                <div onClick={e=>e.stopPropagation()}
+                  style={{position:'fixed',left:Math.min(groupCtxMenu.x,window.innerWidth-180),
+                    top:Math.min(groupCtxMenu.y,window.innerHeight-110),
+                    background:'var(--panel)',border:'1px solid var(--border)',
+                    borderRadius:10,padding:'6px 0',minWidth:180,
+                    boxShadow:'0 8px 32px rgba(0,0,0,.45)',zIndex:10000}}>
+                  <button onClick={()=>{onToggleMute&&onToggleMute(groupCtxMenu.contact);setGroupCtxMenu(null);}}
+                    style={{display:'flex',alignItems:'center',gap:10,width:'100%',
+                      padding:'10px 16px',background:'none',border:'none',
+                      color:'var(--text)',fontSize:13,cursor:'pointer',textAlign:'left'}}>
+                    {mutedGroupIds?.has(groupCtxMenu.contact.groupId||groupCtxMenu.contact.id)?'🔔 Unmute group':'🔕 Mute group'}
+                  </button>
+                  <div style={{height:1,background:'var(--border)',margin:'4px 0'}}/>
+                  <button onClick={()=>{
+                      if(window.confirm(`Leave "${groupCtxMenu.contact.name}"?`)) onLeaveGroup&&onLeaveGroup(groupCtxMenu.contact);
+                      setGroupCtxMenu(null);
+                    }}
+                    style={{display:'flex',alignItems:'center',gap:10,width:'100%',
+                      padding:'10px 16px',background:'none',border:'none',
+                      color:'#ff6b6b',fontSize:13,cursor:'pointer',textAlign:'left'}}>
+                    🚪 Leave group
+                  </button>
+                </div>
+              </div>, document.body
+            )}
+            {filtered.map(c=>{
+              const isMuted = c.isGroup&&mutedGroupIds?.has(c.groupId||c.id);
+              const openCtxMenu = c.isGroup?(x,y)=>setGroupCtxMenu({contact:c,x,y}):null;
+              return (
+                <div key={c.id} className="contact-row"
+                  style={{display:'flex',alignItems:'center',gap:10,padding:'11px 12px',cursor:'pointer',
+                    borderLeft:`2px solid ${activeId===c.id?'var(--accent)':'transparent'}`,
+                    background:activeId===c.id?'var(--surface)':'transparent',transition:'background .12s',position:'relative'}}
+                  onClick={()=>{onSelect(c);onMobileClose&&onMobileClose();}}
+                  onContextMenu={openCtxMenu?(e)=>{e.preventDefault();openCtxMenu(e.clientX,e.clientY);}:undefined}
+                  onTouchStart={openCtxMenu?(e)=>{const t=e.touches[0];groupLongPressRef.current=setTimeout(()=>openCtxMenu(t.clientX,t.clientY),600);}:undefined}
+                  onTouchEnd={openCtxMenu?()=>clearTimeout(groupLongPressRef.current):undefined}
+                  onTouchMove={openCtxMenu?()=>clearTimeout(groupLongPressRef.current):undefined}>
+                  <ProfilePic initials={c.isGroup?'#':c.avatar} avatarUrl={c.avatarUrl}
+                    color={c.isGroup?'var(--accent2)':c.color} bg={c.isGroup?'#1e1b30':c.bg} online={c.online}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:'flex',alignItems:'center',gap:4}}>
+                      {c.isGroup&&<span style={{fontFamily:'var(--mono)',fontSize:8,background:'rgba(167,139,250,.2)',
+                        border:'1px solid rgba(167,139,250,.3)',borderRadius:4,padding:'0 4px',color:'var(--accent2)'}}>GROUP</span>}
+                      <div style={{fontSize:13,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
+                      {isMuted&&<span style={{fontSize:10,color:'var(--muted)',flexShrink:0}}>🔕</span>}
+                    </div>
+                    <div style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:2}}>{c.preview||shortAddress(c.address)}</div>
+                  </div>
+                  {c.unread>0&&(
+                    <div style={{minWidth:18,height:18,borderRadius:9,background:'var(--accent)',display:'flex',
+                      alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#0a0c14',padding:'0 4px',flexShrink:0}}>
+                      {c.unread>99?'99+':c.unread}
+                    </div>
+                  )}
+                  {!c.isGroup&&(
+                    <button onClick={e=>{e.stopPropagation();onEditContact(c);}} className="edit-btn"
+                      style={{opacity:0,position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',
+                        background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,
+                        color:'var(--muted)',fontSize:11,cursor:'pointer',padding:'3px 7px',transition:'opacity .15s'}}
+                      onMouseEnter={e=>e.currentTarget.style.opacity=1}
+                      onMouseLeave={e=>e.currentTarget.style.opacity=0}>✎</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Install/Push banners */}
+          {(canInstall||showIosHint||(wallet?.address&&pushState!=='granted'&&pushState!=='unsupported'))&&(
+            <div style={{padding:'6px 8px',borderTop:'1px solid var(--border)',display:'flex',flexDirection:'column',gap:5,flexShrink:0}}>
+              {canInstall&&!isRunningAsPWA()&&(
+                <div onClick={async()=>{await triggerInstallPrompt();setCanInstall(false);}}
+                  style={{padding:'7px 10px',background:'var(--accent)',borderRadius:9,cursor:'pointer',display:'flex',alignItems:'center',gap:7}}>
+                  <span style={{fontSize:16}}>📲</span>
+                  <div><div style={{fontFamily:'var(--sans)',fontWeight:700,fontSize:11,color:'#0a0c14'}}>Install PMT-Chat</div></div>
+                </div>
+              )}
+              {showIosHint&&!canInstall&&(
+                <div style={{padding:'7px 10px',background:'var(--surface)',border:'0.5px solid var(--border)',borderRadius:9,position:'relative'}}>
+                  <button onClick={()=>setShowIosHint(false)} style={{position:'absolute',top:3,right:6,background:'none',border:'none',color:'var(--muted)',fontSize:13,cursor:'pointer'}}>×</button>
+                  <div style={{fontFamily:'var(--sans)',fontSize:10,color:'var(--muted)'}}>
+                    Tap <strong style={{color:'var(--accent)'}}>Share ↑</strong> → Add to Home Screen
+                  </div>
+                </div>
+              )}
+              {wallet?.address&&pushState!=='granted'&&pushState!=='unsupported'&&(
+                <div onClick={async()=>{const ok=await requestPushPermission(wallet.address);setPushState(ok?'granted':'denied');}}
+                  style={{padding:'7px 10px',background:'var(--surface)',borderRadius:9,cursor:'pointer',display:'flex',alignItems:'center',gap:7,border:'0.5px solid var(--border)'}}>
+                  <span style={{fontSize:16}}>🔔</span>
+                  <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--text)'}}>Enable Notifications</div>
+                </div>
+              )}
+            </div>
+          )}
+        </>}
+
+        {/* ══ WALLET ══ */}
+        {activeSection==='wallet'&&<>
+          <div style={{padding:'12px 12px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+            <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>Wallet</span>
+          </div>
+          <div style={{flex:1,overflowY:'auto',padding:'12px 10px',display:'flex',flexDirection:'column',gap:10}}>
+            <div onClick={onWallet}
+              style={{padding:'14px',background:'var(--surface)',borderRadius:12,cursor:'pointer',border:'1px solid var(--border)',transition:'border-color .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+              <div style={{fontFamily:'var(--sans)',fontSize:10,color:'var(--muted)',fontWeight:600,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.1em'}}>Wallet Address</div>
+              <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text)',wordBreak:'break-all',marginBottom:10,lineHeight:1.5}}>
+                {wallet?.address||'Not connected'}
+              </div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <span style={{fontSize:16,color:'var(--accent3)',fontWeight:600}}>◈ {wallet?.balance||'0.000'} PMT</span>
+                <span style={{fontFamily:'var(--sans)',fontSize:10,fontWeight:700,background:'rgba(10,132,255,.15)',borderRadius:6,padding:'3px 9px',color:'var(--accent)'}}>
+                  {wallet?.network||'—'}
+                </span>
+              </div>
+            </div>
+            <SwitchNetworkButton/>
+            <button onClick={onWallet}
+              style={{padding:'10px',background:'var(--accent)',border:'none',borderRadius:9,cursor:'pointer',fontFamily:'var(--sans)',fontSize:12,fontWeight:700,color:'#0a0c14'}}>
+              Open Wallet →
+            </button>
+          </div>
+        </>}
+
+        {/* ══ PROFILE ══ */}
+        {activeSection==='profile'&&<>
+          <div style={{padding:'12px 12px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+            <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>My Profile</span>
+          </div>
+          <div style={{flex:1,overflowY:'auto',padding:'20px 14px',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+            {/* Avatar */}
+            <div style={{position:'relative',cursor:'pointer'}} onClick={onProfile}>
+              {profile?.avatarUrl
+                ? <ProfilePic avatarUrl={profile.avatarUrl}
+                    initials={profile?.name?profile.name.slice(0,2).toUpperCase():'ME'}
+                    color='var(--accent)' bg='#0a1f2a' size={70} fs={22}/>
+                : <div style={{width:70,height:70,borderRadius:'50%',background:'var(--surface)',
+                    border:'2px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,color:'var(--muted)'}}>👤</div>
+              }
+              <div style={{position:'absolute',bottom:2,right:0,width:20,height:20,background:'var(--accent)',
+                borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,color:'#0a0c14',fontWeight:700}}>✎</div>
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontSize:17,fontWeight:700,marginBottom:3}}>
+                {profile?.name||wallet?.username||'Unnamed'}
+              </div>
+              {profile?.bio&&<div style={{fontSize:12,color:'var(--muted)',lineHeight:1.5,maxWidth:190}}>{profile.bio}</div>}
+            </div>
+            <div style={{width:'100%',padding:'10px 12px',background:'var(--surface)',borderRadius:9,border:'1px solid var(--border)'}}>
+              <div style={{fontFamily:'var(--sans)',fontSize:9,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:3}}>Wallet Address</div>
+              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--accent)',wordBreak:'break-all',lineHeight:1.5}}>
+                {wallet?.address||'Not connected'}
+              </div>
+            </div>
+            <button onClick={onProfile} style={{width:'100%',padding:'10px',background:'var(--surface)',
+              border:'1px solid var(--border)',borderRadius:9,cursor:'pointer',fontFamily:'var(--sans)',
+              fontSize:12,fontWeight:600,color:'var(--text)',transition:'border-color .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+              ✎ Edit Profile
+            </button>
+            <button onClick={onSettings} style={{width:'100%',padding:'10px',background:'var(--surface)',
+              border:'1px solid var(--border)',borderRadius:9,cursor:'pointer',fontFamily:'var(--sans)',
+              fontSize:12,fontWeight:600,color:'var(--text)',transition:'border-color .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+              ⚙ Settings
+            </button>
+            <div style={{width:'100%',height:1,background:'var(--border)'}}/>
+            <button onClick={onLogout}
+              style={{width:'100%',padding:'10px',background:'rgba(248,113,113,.08)',
+                border:'1px solid rgba(248,113,113,.25)',borderRadius:9,cursor:'pointer',
+                fontFamily:'var(--sans)',fontSize:12,fontWeight:700,color:'var(--danger)',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'background .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(248,113,113,.16)'}
+              onMouseLeave={e=>e.currentTarget.style.background='rgba(248,113,113,.08)'}>
+              <IcoLogout/> Log Out
+            </button>
+          </div>
+        </>}
+
       </div>
     </div>
   );
