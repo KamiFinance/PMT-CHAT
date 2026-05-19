@@ -106,7 +106,7 @@ function SenderProfileCard({msg, contact, onClose}) {
   );
 }
 
-export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onEdit,onForward,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,pinConfirmOpen,onOpenPinConfirm,searchQuery,onJoinGroup}:{[k:string]:any}){
+export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPin,onDelete,onEdit,onForward,onSaveSticker,onOpenCtxMenu,onOpenDelConfirm,onCloseMenus,ctxMenuOpen,delConfirmOpen,pickerOpen,onOpenPicker,onClosePicker,anyPopupOpen,isSelected,pinConfirmOpen,onOpenPinConfirm,searchQuery,onJoinGroup}:{[k:string]:any}){
   const [showSenderProfile,setShowSenderProfile]=useState(false);
   const delLongPressRef=useRef<any>(null);
   const [bubblePos,setBubblePos]=useState<any>(null);
@@ -205,7 +205,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   };
 
   const handleLongPress=()=>{ if(anyPopupOpen) return; longPressRef.current=setTimeout(()=>(()=>{capturePos();onOpenPicker&&onOpenPicker(msg);})(),500); };
-  const handleDelLongPressStart=()=>{ if(anyPopupOpen||(!onReply&&!onEdit&&!onForward&&!onDelete&&!onPin)) return; delLongPressRef.current=setTimeout(()=>{clearTimeout(longPressRef.current);capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);},700); };
+  const handleDelLongPressStart=()=>{ if(anyPopupOpen||(!onReply&&!onEdit&&!onForward&&!onDelete&&!onPin&&!onSaveSticker)) return; delLongPressRef.current=setTimeout(()=>{clearTimeout(longPressRef.current);capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);},700); };
   const handleDelLongPressEnd=()=>{clearTimeout(delLongPressRef.current);};
   const cancelLongPress=()=>clearTimeout(longPressRef.current);
   const togglePicker=(e)=>{e.stopPropagation();pickerOpen?onClosePicker&&onClosePicker():(()=>{capturePos();onOpenPicker&&onOpenPicker(msg);})();};
@@ -395,7 +395,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
 
   // ── Shared lift + context-menu portal (used by ALL message types) ──────────
   const isLifted=!!(isSelected&&ctxMenuOpen&&bubblePos);
-  const ctxMenuPortal=ctxMenuOpen&&(onReply||onEdit||onForward||onDelete||onPin)&&bubblePos&&createPortal(
+  const ctxMenuPortal=ctxMenuOpen&&(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker)&&bubblePos&&createPortal(
     <>
       <div style={{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,.55)',
         backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)'}}
@@ -480,6 +480,15 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             <span>{msg.pinned?'Unpin':'Pin'}</span>
           </button>
         )}
+        {onSaveSticker&&msg.type==='gif'&&msg.isSticker&&msg.gifUrl&&(
+          <button onClick={(e)=>{e.stopPropagation();onSaveSticker(msg);onCloseMenus&&onCloseMenus();}}
+            style={{width:'100%',background:'none',border:'none',padding:'13px 20px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',fontSize:16,textAlign:'left',fontFamily:'var(--sans)',color:'var(--text)'}}
+            onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,.06)')}
+            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+            <span>Add to My Stickers</span>
+          </button>
+        )}
         {onDelete&&<div style={{height:1,background:'rgba(255,255,255,.1)',margin:'4px 0'}}/>}
         {onDelete&&(
           <button onClick={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();onOpenDelConfirm&&onOpenDelConfirm(msg);}}
@@ -496,7 +505,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   );
   // Shared IIFE wrapper: applies isLifted portal to any bubble content
   const _wrapBubble=(innerContent:React.ReactNode,extraOnCtx?:(e:any)=>void)=>{
-    const _ctx=(e:any)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}};
+    const _ctx=(e:any)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}};
     const _f=extraOnCtx||_ctx;
     const _w=<>{innerContent}{reactionsBar}</>;
     return isLifted&&bubblePos
@@ -507,7 +516,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   if(msg.type==='voice') return(
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
-      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       {_wrapBubble(<VoiceBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
@@ -533,7 +542,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   if(msg.type==='image') return(
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
-      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       {_wrapBubble(<ImageBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
@@ -578,7 +587,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
     return(
       <>
       <div ref={bubbleRef} style={{marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
-        onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+        onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
         onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}}
         onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}}
         onTouchMove={cancelLongPress}>
@@ -591,7 +600,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   if(msg.type==='video') return(
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
-      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
@@ -603,7 +612,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   if(msg.type==='file') return(
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
-      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       {_wrapBubble(<FileBubble msg={msg} isOut={isOut} contact={contact}/>)}
     </div>
@@ -613,7 +622,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
   if(msg.type==='tx') return(
     <>
     <div ref={bubbleRef} style={{position:'relative',marginBottom:3,...(isLifted?{opacity:0,pointerEvents:'none'}:{})}}
-      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();}} onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();}} onTouchMove={cancelLongPress}>
       {_wrapBubble(
         <div style={{display:'flex',alignItems:'flex-end',gap:8,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
@@ -641,13 +650,13 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
       style={{position:'relative',marginBottom:3,userSelect:'none',WebkitUserSelect:'none',
         // When lifted, keep space in layout but hide the original rendering
         ...(isLifted?{visibility:'hidden', pointerEvents:'none'}:{})}}
-      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
+      onContextMenu={(e)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}}}
       onTouchStart={(e)=>{handleLongPress(e);handleDelLongPressStart();onTouchStartSwipe(e);}}
       onTouchEnd={(e)=>{cancelLongPress();handleDelLongPressEnd();onTouchEndSwipe();}}
       onTouchMove={cancelLongPress}>
     {/* Portal when lifted → root stacking context, escapes iOS Safari overflow:scroll clipping.
          Inline div when not lifted. Content defined once in _w, used in both paths. */}
-    {(()=>{const _ctx=(e:any)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}};
+    {(()=>{const _ctx=(e:any)=>{e.preventDefault();if(onReply||onEdit||onForward||onDelete||onPin||onSaveSticker){capturePos();onCloseMenus&&onCloseMenus();onOpenCtxMenu&&onOpenCtxMenu(msg);}else{capturePos();onOpenPicker&&onOpenPicker(msg);}};
     const _w=(<>
       <div style={{display:'flex',alignItems:'flex-end',gap:4,flexDirection:isOut?'row-reverse':'row',animation:'fadeIn .2s ease'}}>
         {!isOut&&(

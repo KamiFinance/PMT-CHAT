@@ -917,7 +917,20 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                 pickerOpen={pickerMsgId===m.id}
                 onOpenPicker={(m:any)=>{setCtxMenuMsg(null);setDelConfirmMsg(null);setPickerMsgId(m.id);}}
                 onClosePicker={()=>setPickerMsgId(null)}
-                onForward={onForwardMsg?(msg:any)=>{setForwardMsg(msg);setShowForward(true);}:undefined}/>
+                onForward={onForwardMsg?(msg:any)=>{setForwardMsg(msg);setShowForward(true);}:undefined}
+                onSaveSticker={(msg:any)=>{
+                  // Import here to avoid circular deps — save sticker URL to custom stickers list
+                  const url = msg.gifUrl;
+                  if (!url) return;
+                  try {
+                    const existing: any[] = (() => { try { return JSON.parse(localStorage.getItem('pmt_custom_stickers')||'[]'); } catch { return []; } })();
+                    // Already saved?
+                    if (existing.some((s:any) => s.url === url || (s.gifId && s.gifId === msg.gifId))) return;
+                    const newSticker = { id: 'cs-' + Date.now(), url, title: msg.title || 'Sticker', createdAt: Date.now() };
+                    localStorage.setItem('pmt_custom_stickers', JSON.stringify([newSticker, ...existing].slice(0, 50)));
+                    onStickerCreated?.(); // trigger backup
+                  } catch {}
+                }}/>
               </React.Fragment>
             ))}
             {/* Typing indicator bubble */}
