@@ -528,7 +528,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             {/* CHAT WALLPAPER */}
             <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontSize:18}}>🖼️</span>
+                <span style={{color:'var(--accent)',display:'flex'}}><IcoContacts/></span>
                 <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:'1px'}}>CHAT</span>
               </div>
               <div>
