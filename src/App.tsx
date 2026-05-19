@@ -566,6 +566,8 @@ export default function App() {
       settings: {
         chatWallpaper: (() => { try { return localStorage.getItem('chatWallpaper') || null; } catch { return null; } })(),
         customStickers: (() => { try { return JSON.parse(localStorage.getItem('pmt_custom_stickers') || '[]'); } catch { return []; } })(),
+        theme: (() => { try { return localStorage.getItem('pmt_theme') || 'dark'; } catch { return 'dark'; } })(),
+        mutedGroups: (() => { try { return JSON.parse(localStorage.getItem('pmt_muted_groups') || '[]'); } catch { return []; } })(),
       },
     });
   }, [isDemo]);
@@ -602,7 +604,7 @@ export default function App() {
       runBackup(password).catch(() => {});
     }, 1000);
     return () => clearTimeout(timer);
-  }, [contacts, msgs, profile, chatWallpaper, wallet?.address, wallet?.username, isDemo, runBackup]);
+  }, [contacts, msgs, profile, chatWallpaper, darkMode, mutedGroupIds, wallet?.address, wallet?.username, isDemo, runBackup]);
 
   // On page load: restore sessionPassword so auto-backup works after page refresh
   useEffect(() => {
@@ -1915,6 +1917,22 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         const existingIds = new Set(existing.map((s: any) => s.id));
         const merged = [...existing, ...incoming.filter((s: any) => !existingIds.has(s.id))];
         localStorage.setItem('pmt_custom_stickers', JSON.stringify(merged.slice(0, 50)));
+      } catch {}
+    }
+    if ((w as any).restoredSettings?.theme) {
+      try {
+        const t = (w as any).restoredSettings.theme;
+        localStorage.setItem('pmt_theme', t);
+        setDarkMode(t !== 'light');
+      } catch {}
+    }
+    if (Array.isArray((w as any).restoredSettings?.mutedGroups)) {
+      try {
+        const mg: string[] = (w as any).restoredSettings.mutedGroups;
+        if (mg.length > 0) {
+          localStorage.setItem('pmt_muted_groups', JSON.stringify(mg));
+          setMutedGroupIds(new Set(mg));
+        }
       } catch {}
     }
     if (w.restoredProfile) {
