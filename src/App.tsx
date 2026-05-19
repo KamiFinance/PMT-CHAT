@@ -1969,25 +1969,32 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   }, [setContacts, setMsgs]);
 
   // On mount: if session was restored from localStorage but no password in memory,
-  // check if cloud backup exists — if not, show one-time password prompt to create it
+  // show prompt so the user can re-enter password and resume auto-backup.
+  // This is critical on iOS where sessionStorage is cleared on every app close.
   useEffect(() => {
     if (!wallet?.address || isDemo || !wallet.username) return;
     if (sessionPasswordRef.current) return; // already have password from fresh login
+    // Don't prompt MetaMask/WalletConnect users — they use a derived key, no password needed
+    if ((wallet as any).isMetaMask) return;
     const uname = wallet.username.toLowerCase();
-    fetch(`/api/auth?username=${encodeURIComponent(uname)}`)
-      .then(r => r.json())
-      .then(record => {
-        // Only prompt if no backup exists yet — if a backup already exists (e.g. with
-        // old password), the migration modal handles it; don't show this and confuse the user.
-        if (record?.encryptedBackup) return;
-        const promptKey = `pmt_backup_prompted_${wallet?.address?.toLowerCase()}`;
-        const lastPrompt = localStorage.getItem(promptKey);
-        if (!lastPrompt || Date.now() - parseInt(lastPrompt) > 86400000) {
-          localStorage.setItem(promptKey, String(Date.now()));
+    // Small delay so UI settles before showing the prompt
+    const t = setTimeout(() => {
+      fetch(`/api/auth?username=${encodeURIComponent(uname)}`)
+        .then(r => r.json())
+        .then(record => {
+          // Show prompt whether backup exists or not:
+          // - No backup: create first backup
+          // - Backup exists but password gone: resume auto-backup (happens after iOS app close)
+          const promptKey = `pmt_backup_prompted_${wallet?.address?.toLowerCase()}_session`;
+          // Rate-limit to once per session (not once per day) so it re-prompts on every app open
+          const alreadyPromptedThisSession = sessionStorage.getItem(promptKey);
+          if (alreadyPromptedThisSession) return;
+          sessionStorage.setItem(promptKey, '1');
           setShowBackupPrompt(true);
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    }, 1500);
+    return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet?.address]);
 
@@ -2250,39 +2257,25 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         </div>
       )}
 
-      {/* One-time backup password prompt — appears when session was restored but no cloud backup exists */}
+      {/* Backup password prompt — shown when session password is missing (after iOS app close) */}
       {showBackupPrompt && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999,padding:16}}>
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:16,padding:'24px 20px',width:'100%',maxWidth:380,display:'flex',flexDirection:'column',gap:14}}>
-            <div style={{fontSize:16,fontWeight:600}}>Enable cloud backup</div>
-            <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.5}}>Enter your password once to save an encrypted backup. This lets you restore your account on any device.</div>
+            <div style={{fontSize:16,fontWeight:600}}>☁️ Enable Auto-Backup</div>
+            <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.5}}>Enter your password to enable automatic cloud backup. Your chats, stickers and settings are securely backed up whenever you use the app.</div>
             <input type="password" placeholder="Your password" value={backupPromptPassword}
               onChange={e=>{setBackupPromptPassword(e.target.value);setBackupPromptErr('');}}
               onKeyDown={async e=>{
                 if(e.key==='Enter'&&backupPromptPassword){
                   setBackupPromptSaving(true);setBackupPromptErr('');
                   try{
-                    const uname=wallet?.username?.toLowerCase()??'';
-                    // Password used for encryption only — no local hash check
-                    // (local account may not have passwordHash stored; server rejects wrong owners)
                     sessionPasswordRef.current=backupPromptPassword;
-                    const cleanMsgs:Record<string,object[]>={};
-                    Object.entries(msgs).forEach(([addr,arr])=>{
-                      cleanMsgs[addr]=(arr as any[]).slice(addr===AI_AGENT_ADDRESS.toLowerCase()?-100:-50).map(m=>{const{b64Data,audioUrl,fileUrl,imgData,fileData,uploading,_toAddr,waveform,audioB64,...keep}=m;return keep;});
-                    });
-                    const {compressAvatarForBackup:cabE}=await import('./lib/cloudBackup');
-                    const enrichedC=await Promise.all(contacts.map(async(ct:any)=>{try{if(ct.avatarUrl?.startsWith('data:')){const th=await cabE(ct.avatarUrl);return{...ct,avatarUrl:th};}const p=JSON.parse(localStorage.getItem(`pmt_profile_${ct.address?.toLowerCase()}`)||'null');return p?{...ct,avatarUrl:ct.avatarUrl||p.avatarUrl||null,bio:ct.bio||p.bio||''}:ct;}catch{return ct;}}));
-                    const{saveCloudBackup:scb}=await import('./lib/cloudBackup');
-                    await scb(uname,backupPromptPassword,{
-                      wallet:{address:wallet?.address??'',privateKey:wallet?.privateKey??'',username:uname},
-                      contacts:enrichedC,messages:cleanMsgs,profile:profileRef.current ? await (async()=>{
-                        const {compressAvatarForBackup:cab}=await import('./lib/cloudBackup');
-                        const av=profileRef.current!.avatarUrl;
-                        return {...profileRef.current,avatarUrl:av?await cab(av):null};
-                      })() : {}
-                    });
+                    await runBackup(backupPromptPassword);
                     setShowBackupPrompt(false);setBackupPromptPassword('');
-                  }catch(err:any){setBackupPromptErr(err.message==='Username already taken'?'This account already has a backup with a different password. Try logging out and back in.':err.message||'Failed — check password');}
+                  }catch(err:any){
+                    sessionPasswordRef.current=null;
+                    setBackupPromptErr(err.message==='Username already taken'||err.message?.includes('403')?'Incorrect password. Please try again.':err.message||'Failed — check password');
+                  }
                   finally{setBackupPromptSaving(false);}
                 }
               }}
@@ -2298,25 +2291,13 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                 onClick={async()=>{
                   setBackupPromptSaving(true);setBackupPromptErr('');
                   try{
-                    const uname=wallet?.username?.toLowerCase()??'';
                     sessionPasswordRef.current=backupPromptPassword;
-                    const cleanMsgs:Record<string,object[]>={};
-                    Object.entries(msgs).forEach(([addr,arr])=>{
-                      cleanMsgs[addr]=(arr as any[]).slice(addr===AI_AGENT_ADDRESS.toLowerCase()?-100:-50).map(m=>{const{b64Data,audioUrl,fileUrl,imgData,fileData,uploading,_toAddr,waveform,audioB64,...keep}=m;return keep;});
-                    });
-                    const {compressAvatarForBackup:cabE}=await import('./lib/cloudBackup');
-                    const enrichedC=await Promise.all(contacts.map(async(ct:any)=>{try{if(ct.avatarUrl?.startsWith('data:')){const th=await cabE(ct.avatarUrl);return{...ct,avatarUrl:th};}const p=JSON.parse(localStorage.getItem(`pmt_profile_${ct.address?.toLowerCase()}`)||'null');return p?{...ct,avatarUrl:ct.avatarUrl||p.avatarUrl||null,bio:ct.bio||p.bio||''}:ct;}catch{return ct;}}));
-                    const{saveCloudBackup:scb}=await import('./lib/cloudBackup');
-                    await scb(uname,backupPromptPassword,{
-                      wallet:{address:wallet?.address??'',privateKey:wallet?.privateKey??'',username:uname},
-                      contacts:enrichedC,messages:cleanMsgs,profile:profileRef.current ? await (async()=>{
-                        const {compressAvatarForBackup:cab}=await import('./lib/cloudBackup');
-                        const av=profileRef.current!.avatarUrl;
-                        return {...profileRef.current,avatarUrl:av?await cab(av):null};
-                      })() : {}
-                    });
+                    await runBackup(backupPromptPassword);
                     setShowBackupPrompt(false);setBackupPromptPassword('');
-                  }catch(err:any){setBackupPromptErr(err.message==='Username already taken'?'This account already has a backup with a different password. Try logging out and back in.':err.message||'Failed — check password');}
+                  }catch(err:any){
+                    sessionPasswordRef.current=null;
+                    setBackupPromptErr(err.message==='Username already taken'||err.message?.includes('403')?'Incorrect password. Please try again.':err.message||'Failed — check password');
+                  }
                   finally{setBackupPromptSaving(false);}
                 }}
                 style={{flex:2,padding:'10px',background:'var(--accent)',border:'none',borderRadius:9,
