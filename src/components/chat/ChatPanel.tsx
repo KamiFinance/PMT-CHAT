@@ -434,13 +434,19 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
 
       // Floating date chip — only show when scrolled up
       if(distFromBottom>80){
-        const containerTop=el.getBoundingClientRect().top;
+        const containerRect=el.getBoundingClientRect();
         const markers=el.querySelectorAll('[data-ts]');
         for(const marker of Array.from(markers)){
-          const rect=(marker as HTMLElement).getBoundingClientRect();
-          if(rect.bottom>containerTop+56){
-            const ts=Number((marker as HTMLElement).dataset.ts);
-            if(ts){
+          // display:contents elements: use firstElementChild rect as fallback
+          const el2=(marker as HTMLElement);
+          let rect=el2.getBoundingClientRect();
+          if(!rect.height && el2.firstElementChild){
+            rect=(el2.firstElementChild as HTMLElement).getBoundingClientRect();
+          }
+          // First marker whose bottom edge is inside the visible area
+          if(rect.bottom>containerRect.top && rect.top<containerRect.bottom){
+            const ts=Number(el2.dataset.ts||el2.getAttribute('data-ts'));
+            if(ts>0){
               const label=formatFloatingDate(ts);
               if(label) setFloatingDate(label);
             }
