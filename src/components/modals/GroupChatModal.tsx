@@ -22,7 +22,7 @@ function formatExpiry(expiresAt) {
   return `Expires in ${h}h ${m}m`;
 }
 
-export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup, onRolesUpdated }) {
+export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup, onRolesUpdated, inline=false }) {
 
 
   // If existingGroup passed, start in manage mode (links tab)
@@ -215,9 +215,11 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   const inp = { width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 9, padding: '10px 13px', color: 'var(--text)', fontFamily: 'var(--sans)', fontSize: 13.5, outline: 'none' };
   const label = { fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: '1px', marginBottom: 5 };
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onClose}>
-      <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 18, padding: 28, width: 440, maxWidth: '95vw', display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '90vh', overflow: 'hidden', animation: 'slideUp .25s ease' }} onClick={e => e.stopPropagation()}>
+  const panel = (
+      <div style={inline
+        ? { display: 'flex', flexDirection: 'column', gap: 16, flex: 1, overflow: 'hidden', padding: '10px 12px' }
+        : { background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 18, padding: 28, width: 440, maxWidth: '95vw', display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '90vh', overflow: 'hidden', animation: 'slideUp .25s ease' }}
+        onClick={inline ? undefined : e => e.stopPropagation()}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -529,6 +531,12 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
           )}
         </div>
       </div>
+  );
+
+  if (inline) return panel;
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onClose}>
+      {panel}
     </div>
   );
 }

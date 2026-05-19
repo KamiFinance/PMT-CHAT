@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { shortAddress } from '../../lib/utils';
 import ProfilePic from '../ui/ProfilePic';
+import GroupChatModal from '../modals/GroupChatModal';
 import SwitchNetworkButton from '../ui/SwitchNetworkButton';
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────
@@ -200,7 +201,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           <NavBtn id="contacts" label="Chats"     Icon={IcoContacts}/>
           <NavBtn id="wallet"   label="Wallet"    Icon={IcoWallet}/>
           <NavBtn id="profile"  label="Profile"   Icon={IcoProfile}/>
-          <NavBtn id="group"    label="New Group" Icon={IcoGroup} onClick={()=>{onNewGroup&&onNewGroup();}}/>
+          <NavBtn id="newgroup" label="New Group" Icon={IcoGroup} onClick={()=>setActiveSection('newgroup')}/>
           <NavBtn id="settings" label="Settings"  Icon={IcoSettings} onClick={()=>setActiveSection('settings')}/>
           <div style={{flex:1}}/>
           <div style={{width:'65%',height:1,background:'var(--border)',marginBottom:4}}/>
@@ -631,6 +632,20 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           </div>
           {isMobile && <MobileBottomTabs activeSection={activeSection} setActiveSection={setActiveSection} onSettings={onSettings}/>}
         </>}
+
+        {/* ══ NEW GROUP ══ */}
+        {activeSection==='newgroup'&&(
+          <GroupChatModal
+            inline={true}
+            contacts={contacts}
+            onClose={()=>setActiveSection('contacts')}
+            onCreate={(contact)=>{
+              onNewGroupCreated&&onNewGroupCreated(contact);
+              setActiveSection('contacts');
+            }}
+            myAddress={wallet?.address??''}
+          />
+        )}
 
       </div>
     </div>
