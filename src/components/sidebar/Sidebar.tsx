@@ -469,18 +469,37 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             <div style={{background:'var(--surface)',borderRadius:12,border:'1px solid var(--border)',padding:'14px 16px'}}>
               <div style={{fontFamily:'var(--sans)',fontSize:10,fontWeight:700,textTransform:'uppercase',
                 letterSpacing:'0.1em',color:'var(--muted)',marginBottom:10}}>Chat Wallpaper</div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
-                {['none','dots','grid','waves','circuit','bokeh'].map(wp=>(
+              <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                {/* None */}
+                <button onClick={()=>onSetWallpaper&&onSetWallpaper('none')}
+                  title="No wallpaper"
+                  style={{width:56,height:56,borderRadius:10,flexShrink:0,cursor:'pointer',
+                    border:`2px solid ${chatWallpaper==='none'?'var(--accent)':'var(--border)'}`,
+                    background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',
+                    fontSize:20,position:'relative',transition:'border-color .15s'}}>
+                  🚫
+                  {chatWallpaper==='none'&&<div style={{position:'absolute',inset:0,borderRadius:8,
+                    background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <span style={{fontSize:16}}>✓</span></div>}
+                </button>
+                {/* Wallpaper 1/2/3 */}
+                {['wallpaper1','wallpaper2','wallpaper3'].map(wp=>(
                   <button key={wp} onClick={()=>onSetWallpaper&&onSetWallpaper(wp)}
-                    style={{padding:'10px 6px',borderRadius:9,cursor:'pointer',
+                    title={`Wallpaper ${wp.replace('wallpaper','')}`}
+                    style={{width:56,height:56,borderRadius:10,flexShrink:0,cursor:'pointer',
                       border:`2px solid ${chatWallpaper===wp?'var(--accent)':'var(--border)'}`,
-                      background:chatWallpaper===wp?'rgba(250,255,99,.1)':'rgba(255,255,255,.04)',
-                      color:chatWallpaper===wp?'var(--accent)':'var(--muted)',
-                      fontFamily:'var(--sans)',fontSize:10,fontWeight:600,
-                      transition:'border-color .15s',textTransform:'capitalize'}}>
-                    {wp==='none'?'None':wp.charAt(0).toUpperCase()+wp.slice(1)}
+                      backgroundImage:`url(/${wp}.png?v=2)`,backgroundSize:'contain',
+                      backgroundPosition:'center',backgroundRepeat:'no-repeat',
+                      background:chatWallpaper===wp?undefined:'var(--surface)',
+                      position:'relative',transition:'border-color .15s'}}>
+                    {chatWallpaper===wp&&<div style={{position:'absolute',inset:0,borderRadius:8,
+                      background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <span style={{fontSize:16}}>✓</span></div>}
                   </button>
                 ))}
+              </div>
+              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',marginTop:8}}>
+                {chatWallpaper==='none'?'No wallpaper selected':`Wallpaper ${chatWallpaper.replace('wallpaper','')} active`}
               </div>
             </div>
 
