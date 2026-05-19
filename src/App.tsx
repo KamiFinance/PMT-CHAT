@@ -516,20 +516,13 @@ export default function App() {
       // Keep last 200 messages per contact (was 50 — increased for better coverage)
       cleanMsgs[a] = (arr as any[]).slice(a === AI_AGENT_ADDRESS.toLowerCase() ? -100 : -200).map((m: any) => {
         const { audioUrl, fileUrl, imgData, fileData,
-                uploading, _toAddr, audioB64: _audioB64Raw, ...keep } = m;
+                uploading, _toAddr, audioB64, ...keep } = m;
         // Keep waveform for voice (visualizer needs it after restore)
         if (keep.type !== 'voice') delete keep.waveform;
         // Keep b64Data only for small inline images/files without a Pinata CID
         if (keep.ipfsCid || !keep.b64Data || keep.b64Data.length > 80000) delete keep.b64Data;
         // Blob URLs expire on reload — video plays via ipfsCid/ipfsUrl after restore
         if (keep.type === 'video') delete keep.localUrl;
-        // For voice messages without an IPFS CID, include audioB64 as fallback so
-        // the audio is playable on a new device (capped at ~500 KB base64 ≈ 30s)
-        if (keep.type === 'voice' && !keep.ipfsCid) {
-          const rawB64 = _audioB64Raw
-            || (keep.audioMsgId ? (() => { try { return storage.getAudio(keep.audioMsgId); } catch { return null; } })() : null);
-          if (rawB64 && rawB64.length < 700000) keep.audioB64 = rawB64;
-        }
         // Explicitly ensure gif/sticker URL fields survive the backup
         if (m.type === 'gif') {
           keep.gifUrl    = m.gifUrl    ?? null;
@@ -611,7 +604,7 @@ export default function App() {
       runBackup(password).catch(() => {});
     }, 1000);
     return () => clearTimeout(timer);
-  }, [contacts, msgs, profile, chatWallpaper, darkMode, mutedGroupIds, wallet?.address, wallet?.username, isDemo, runBackup]);
+  }, [contacts, msgs, profile, chatWallpaper, wallet?.address, wallet?.username, isDemo, runBackup]);
 
   // On page load: restore sessionPassword so auto-backup works after page refresh
   useEffect(() => {
