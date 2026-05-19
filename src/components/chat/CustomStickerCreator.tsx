@@ -149,8 +149,8 @@ export default function CustomStickerCreator({ onDone, onClose }: Props) {
               <button key={s} onClick={()=>setShape(s)}
                 style={{flex:1,padding:'7px 0',borderRadius:20,border:'none',cursor:'pointer',
                   fontFamily:'var(--sans)',fontSize:12,fontWeight:600,transition:'all .15s',
-                  background:shape===s?'var(--accent)':'var(--surface)',
-                  color:shape===s?'#fff':'var(--muted)'}}>
+                  background:shape===s?'var(--accent)':'var(--surface2)',
+                  color:'#111'}}>
                 {s==='square'?'⬛ Square':'⬤ Circle'}
               </button>
             ))}
@@ -163,12 +163,12 @@ export default function CustomStickerCreator({ onDone, onClose }: Props) {
           <div style={{display:'flex',gap:8,flexShrink:0}}>
             <button onClick={()=>{setStage('upload');setProcessedBlob(null);if(fileRef.current)fileRef.current.value='';}}
               style={{flex:1,padding:'10px 0',background:'var(--surface)',border:'1px solid var(--border)',
-                borderRadius:22,color:'var(--muted)',fontFamily:'var(--sans)',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+                borderRadius:22,color:'#555',fontFamily:'var(--sans)',fontSize:13,fontWeight:600,cursor:'pointer'}}>
               ↩ Redo
             </button>
             <button onClick={handleCreate} disabled={uploading}
               style={{flex:2,padding:'10px 0',background:uploading?'var(--surface)':'var(--accent)',
-                border:'none',borderRadius:22,color:uploading?'var(--muted)':'#fff',
+                border:'none',borderRadius:22,color:uploading?'#555':'#111',
                 fontFamily:'var(--sans)',fontSize:13,fontWeight:700,cursor:uploading?'not-allowed':'pointer'}}>
               {uploading?'⏳ Creating…':'✨ Create Sticker'}
             </button>
