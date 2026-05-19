@@ -1302,14 +1302,25 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
             ...(grpData.roles ? { roles: grpData.roles } : {}),
           } : c));
         }
-        // Relay to each member except self
-        members.forEach(memberAddr => {
-          if (!memberAddr || memberAddr === normalizeAddress(w.address)) return;
-          fetch(`/api/inbox?address=${memberAddr}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(inboxMsg),
-          }).catch(() => {});
+        // Relay to each member except self — track delivery to mark message as sent
+        const relayPromises = members
+          .filter(memberAddr => memberAddr && memberAddr !== normalizeAddress(w.address))
+          .map(memberAddr =>
+            fetch(`/api/inbox?address=${memberAddr}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(inboxMsg),
+            }).catch(() => null)
+          );
+        // Mark message as delivered once at least one relay succeeds
+        Promise.allSettled(relayPromises).then(results => {
+          const anyOk = results.some(r => r.status === 'fulfilled' && r.value?.ok);
+          if (anyOk || relayPromises.length === 0) {
+            const groupAddr = normalizeAddress(`group_${groupId}`);
+            setMsgs(p => ({ ...p, [groupAddr]: (p[groupAddr] ?? []).map(m =>
+              m.id === msg.id ? { ...m, pending: false, confirms: 1 } : m
+            )}));
+          }
         });
         // Store in server-side group history so new members see it
         fetch('/api/groups?action=storeMessage', {
@@ -1319,13 +1330,23 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       } catch {
         // Fallback to local member list
         const members: string[] = (grp.members ?? []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
-        members.forEach(memberAddr => {
-          if (!memberAddr || memberAddr === normalizeAddress(w.address)) return;
-          fetch(`/api/inbox?address=${memberAddr}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(inboxMsg),
-          }).catch(() => {});
+        const fallbackPromises = members
+          .filter(memberAddr => memberAddr && memberAddr !== normalizeAddress(w.address))
+          .map(memberAddr =>
+            fetch(`/api/inbox?address=${memberAddr}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(inboxMsg),
+            }).catch(() => null)
+          );
+        Promise.allSettled(fallbackPromises).then(results => {
+          const anyOk = results.some(r => r.status === 'fulfilled' && r.value?.ok);
+          if (anyOk || fallbackPromises.length === 0) {
+            const groupAddr = normalizeAddress(`group_${groupId}`);
+            setMsgs(p => ({ ...p, [groupAddr]: (p[groupAddr] ?? []).map(m =>
+              m.id === msg.id ? { ...m, pending: false, confirms: 1 } : m
+            )}));
+          }
         });
         // Store in history even in fallback path
         fetch('/api/groups?action=storeMessage', {
