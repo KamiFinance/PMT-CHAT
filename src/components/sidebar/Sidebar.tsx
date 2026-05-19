@@ -144,7 +144,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           <NavBtn id="wallet"   label="Wallet"    Icon={IcoWallet}/>
           <NavBtn id="profile"  label="Profile"   Icon={IcoProfile}/>
           <NavBtn id="group"    label="New Group" Icon={IcoGroup} onClick={()=>{onNewGroup&&onNewGroup();}}/>
-          <NavBtn id="settings" label="Settings"  Icon={IcoSettings} onClick={()=>setActiveSection('settings')}/>
+          <NavBtn id="settings" label="Settings"  Icon={IcoSettings} onClick={()=>{onSettings&&onSettings();}}/>
           <div style={{flex:1}}/>
           <div style={{width:'65%',height:1,background:'var(--border)',marginBottom:4}}/>
           <button onClick={onLogout} title="Log Out"
@@ -437,8 +437,8 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           {isMobile && <MobileBottomTabs activeSection={activeSection} setActiveSection={setActiveSection} onSettings={onSettings}/>}
         </>}
 
-        {/* ══ SETTINGS ══ */}
-        {activeSection==='settings'&&<>
+        {/* ══ SETTINGS ══ (mobile only) */}
+        {isMobile&&activeSection==='settings'&&<>
           {!isMobile&&<div style={{padding:'12px 12px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
             <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>Settings</span>
           </div>}
