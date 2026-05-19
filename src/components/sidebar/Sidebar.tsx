@@ -43,6 +43,98 @@ const IcoLogout = () => (
   </svg>
 );
 
+// ── Inline settings sub-components ─────────────────────────────────────────
+function SettingsSave() {
+  const [saved, setSaved] = React.useState(false);
+  const save = () => {
+    const pinataJwt = (document.querySelector('[data-settings-pinata]') as any)?.value?.trim();
+    const aiKey = (document.querySelector('[data-settings-ai]') as any)?.value?.trim();
+    if (pinataJwt) localStorage.setItem('pmt_pinata_jwt', pinataJwt);
+    if (aiKey) localStorage.setItem('pmt_anthropic_key', aiKey);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+  return (
+    <button onClick={save}
+      style={{width:'100%',padding:'12px',background:saved?'var(--accent3)':'var(--accent)',border:'none',
+        borderRadius:10,color:saved?'#fff':'#000',fontWeight:700,fontSize:14,cursor:'pointer',
+        transition:'background .2s',fontFamily:'var(--sans)'}}>
+      {saved ? '✓ Saved!' : 'Save Settings'}
+    </button>
+  );
+}
+
+function SettingsSecurity({onChangePassword}) {
+  const [show, setShow] = React.useState(false);
+  const [curPw, setCurPw] = React.useState('');
+  const [newPw, setNewPw] = React.useState('');
+  const [confirmPw, setConfirmPw] = React.useState('');
+  const [err, setErr] = React.useState('');
+  const [ok, setOk] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+
+  const fieldStyle = {width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,
+    padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11,outline:'none',boxSizing:'border-box' as any};
+  const labelStyle = {fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5};
+
+  const handleChange = async () => {
+    setErr('');
+    if (!curPw) return setErr('Enter your current password.');
+    if (!newPw) return setErr('Enter a new password.');
+    if (newPw.length < 8) return setErr('New password must be at least 8 characters.');
+    if (newPw !== confirmPw) return setErr('New passwords do not match.');
+    if (newPw === curPw) return setErr('New password must be different.');
+    setLoading(true);
+    try {
+      await onChangePassword(curPw, newPw);
+      setOk(true); setCurPw(''); setNewPw(''); setConfirmPw('');
+      setTimeout(() => { setOk(false); setShow(false); }, 2500);
+    } catch(e) {
+      setErr(e.message || 'Password change failed.');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        <span style={{fontSize:18}}>🔑</span>
+        <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:'1px'}}>SECURITY</span>
+      </div>
+      {!show ? (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <div style={{fontSize:13,color:'var(--text)',fontWeight:500}}>Change Password</div>
+            <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>Update your account password</div>
+          </div>
+          <button onClick={()=>setShow(true)}
+            style={{padding:'7px 14px',background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:8,color:'var(--text)',fontSize:12,cursor:'pointer',fontWeight:500}}>
+            Change
+          </button>
+        </div>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div><div style={labelStyle}>CURRENT PASSWORD</div><input type="password" value={curPw} onChange={e=>setCurPw(e.target.value)} placeholder="Your current password" style={fieldStyle}/></div>
+          <div><div style={labelStyle}>NEW PASSWORD</div><input type="password" value={newPw} onChange={e=>setNewPw(e.target.value)} placeholder="At least 8 characters" style={fieldStyle}/></div>
+          <div><div style={labelStyle}>CONFIRM NEW PASSWORD</div><input type="password" value={confirmPw} onChange={e=>setConfirmPw(e.target.value)} placeholder="Repeat new password" style={fieldStyle}/></div>
+          {err&&<div style={{fontSize:12,color:'var(--danger)',background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',borderRadius:8,padding:'8px 10px'}}>{err}</div>}
+          {ok&&<div style={{fontSize:12,color:'var(--accent3)',background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:8,padding:'8px 10px'}}>✓ Password changed successfully!</div>}
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={()=>{setShow(false);setCurPw('');setNewPw('');setConfirmPw('');setErr('');}}
+              style={{flex:1,padding:'9px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,color:'var(--muted)',fontSize:13,cursor:'pointer'}}>
+              Cancel
+            </button>
+            <button onClick={handleChange} disabled={loading}
+              style={{flex:2,padding:'9px',background:'var(--accent)',border:'none',borderRadius:8,color:'#000',fontWeight:700,fontSize:13,cursor:loading?'default':'pointer',opacity:loading?0.7:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+              {loading?<><span style={{width:12,height:12,border:'2px solid rgba(0,0,0,.3)',borderTopColor:'#000',borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>Updating...</>:'🔑 Update Password'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Mobile bottom tab bar (shared across all sections)
 function MobileBottomTabs({activeSection, setActiveSection, onSettings}) {
   const tabs = [
@@ -437,99 +529,79 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           {isMobile && <MobileBottomTabs activeSection={activeSection} setActiveSection={setActiveSection} onSettings={onSettings}/>}
         </>}
 
-        {/* ══ SETTINGS ══ (mobile only) */}
+        {/* ══ SETTINGS ══ (mobile only — full SettingsModal content inline) */}
         {isMobile&&activeSection==='settings'&&<>
-          {!isMobile&&<div style={{padding:'12px 12px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
-            <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>Settings</span>
-          </div>}
           <div style={{flex:1,overflowY:'auto',
-            padding: isMobile ? 'calc(16px + var(--safe-top,0px)) 14px 12px' : '14px 12px',
-            display:'flex',flexDirection:'column',gap:12}}>
+            padding:'calc(14px + var(--safe-top,0px)) 14px 12px',
+            display:'flex',flexDirection:'column',gap:14,overscrollBehavior:'contain'}}>
 
-            {/* Theme */}
-            <div style={{background:'var(--surface)',borderRadius:12,border:'1px solid var(--border)',padding:'14px 16px'}}>
-              <div style={{fontFamily:'var(--sans)',fontSize:10,fontWeight:700,textTransform:'uppercase',
-                letterSpacing:'0.1em',color:'var(--muted)',marginBottom:10}}>Appearance</div>
+            {/* Header label */}
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:20}}>⚙️</span>
+              <span style={{fontSize:17,fontWeight:700,color:'var(--text)'}}>Settings</span>
+            </div>
+
+            {/* APPEARANCE */}
+            <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:18}}>{darkMode?'🌙':'☀️'}</span>
+                <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:'1px'}}>APPEARANCE</span>
+              </div>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:18}}>{darkMode?'🌙':'☀️'}</span>
-                  <span style={{fontSize:13,fontWeight:500}}>{darkMode?'Dark Mode':'Light Mode'}</span>
+                <div>
+                  <div style={{fontSize:13,color:'var(--text)',fontWeight:500}}>{darkMode?'Dark Mode':'Light Mode'}</div>
+                  <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>Switch between dark and light theme</div>
                 </div>
-                <div onClick={onToggleTheme}
-                  style={{width:44,height:24,borderRadius:12,background:darkMode?'var(--accent)':'rgba(255,255,255,.15)',
-                    position:'relative',cursor:'pointer',transition:'background .2s'}}>
-                  <div style={{position:'absolute',top:3,left:darkMode?21:3,width:18,height:18,
-                    borderRadius:'50%',background:darkMode?'#0a0c14':'var(--muted)',
-                    transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
-                </div>
-              </div>
-            </div>
-
-            {/* Wallpaper */}
-            <div style={{background:'var(--surface)',borderRadius:12,border:'1px solid var(--border)',padding:'14px 16px'}}>
-              <div style={{fontFamily:'var(--sans)',fontSize:10,fontWeight:700,textTransform:'uppercase',
-                letterSpacing:'0.1em',color:'var(--muted)',marginBottom:10}}>Chat Wallpaper</div>
-              <div style={{display:'flex',gap:10,alignItems:'center'}}>
-                {/* None */}
-                <button onClick={()=>onSetWallpaper&&onSetWallpaper('none')}
-                  title="No wallpaper"
-                  style={{width:56,height:56,borderRadius:10,flexShrink:0,cursor:'pointer',
-                    border:`2px solid ${chatWallpaper==='none'?'var(--accent)':'var(--border)'}`,
-                    background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',
-                    fontSize:20,position:'relative',transition:'border-color .15s'}}>
-                  🚫
-                  {chatWallpaper==='none'&&<div style={{position:'absolute',inset:0,borderRadius:8,
-                    background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <span style={{fontSize:16}}>✓</span></div>}
+                <button onClick={onToggleTheme}
+                  style={{width:52,height:28,borderRadius:14,border:'none',cursor:'pointer',position:'relative',
+                    background:darkMode?'var(--accent)':'var(--muted)',transition:'background .2s',flexShrink:0}}>
+                  <div style={{position:'absolute',top:3,left:darkMode?26:3,width:22,height:22,borderRadius:'50%',
+                    background:darkMode?'#000':'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
                 </button>
-                {/* Wallpaper 1/2/3 */}
-                {['wallpaper1','wallpaper2','wallpaper3'].map(wp=>(
-                  <button key={wp} onClick={()=>onSetWallpaper&&onSetWallpaper(wp)}
-                    title={`Wallpaper ${wp.replace('wallpaper','')}`}
-                    style={{width:56,height:56,borderRadius:10,flexShrink:0,cursor:'pointer',
-                      border:`2px solid ${chatWallpaper===wp?'var(--accent)':'var(--border)'}`,
-                      backgroundImage:`url(/${wp}.png?v=2)`,backgroundSize:'contain',
-                      backgroundPosition:'center',backgroundRepeat:'no-repeat',
-                      background:chatWallpaper===wp?undefined:'var(--surface)',
-                      position:'relative',transition:'border-color .15s'}}>
-                    {chatWallpaper===wp&&<div style={{position:'absolute',inset:0,borderRadius:8,
-                      background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                      <span style={{fontSize:16}}>✓</span></div>}
-                  </button>
-                ))}
-              </div>
-              <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',marginTop:8}}>
-                {chatWallpaper==='none'?'No wallpaper selected':`Wallpaper ${chatWallpaper.replace('wallpaper','')} active`}
               </div>
             </div>
 
-            {/* More settings */}
-            <button onClick={()=>setActiveSection('settings')}
-              style={{padding:'12px',background:'var(--surface)',border:'1px solid var(--border)',
-                borderRadius:12,cursor:'pointer',fontFamily:'var(--sans)',fontSize:13,
-                fontWeight:600,color:'var(--text)',display:'flex',alignItems:'center',
-                justifyContent:'space-between',transition:'border-color .15s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
-              <span style={{display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontSize:16}}>⚙️</span> More Settings
-              </span>
-              <span style={{color:'var(--muted)',fontSize:12}}>→</span>
-            </button>
+            {/* CHAT WALLPAPER */}
+            <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:18}}>🖼️</span>
+                <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:'1px'}}>CHAT</span>
+              </div>
+              <div>
+                <div style={{fontSize:12,color:'var(--muted)',marginBottom:10}}>Chat Wallpaper</div>
+                <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+                  <button onClick={()=>onSetWallpaper&&onSetWallpaper('none')} title="No wallpaper"
+                    style={{width:56,height:56,borderRadius:10,border:`2px solid ${chatWallpaper==='none'?'var(--accent)':'var(--border)'}`,
+                      background:'var(--bg)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+                      flexShrink:0,transition:'border-color .15s',outline:'none'}}>
+                    <span style={{fontSize:20}}>🚫</span>
+                  </button>
+                  {['wallpaper1','wallpaper2','wallpaper3'].map(wp=>(
+                    <button key={wp} onClick={()=>onSetWallpaper&&onSetWallpaper(wp)} title={`Wallpaper ${wp.replace('wallpaper','')}`}
+                      style={{width:56,height:56,borderRadius:10,
+                        border:`2px solid ${chatWallpaper===wp?'var(--accent)':'var(--border)'}`,
+                        backgroundImage:`url(/${wp}.png?v=2)`,backgroundSize:'contain',
+                        backgroundPosition:'center',backgroundRepeat:'no-repeat',
+                        cursor:'pointer',flexShrink:0,transition:'border-color .15s',outline:'none',position:'relative'}}>
+                      {chatWallpaper===wp&&<div style={{position:'absolute',inset:0,borderRadius:8,
+                        background:'rgba(250,255,99,.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                        <span style={{fontSize:16}}>✓</span></div>}
+                    </button>
+                  ))}
+                </div>
+                <div style={{fontSize:10,color:'var(--muted)',marginTop:8,fontFamily:'var(--mono)'}}>
+                  {chatWallpaper==='none'?'No wallpaper selected':`Wallpaper ${chatWallpaper.replace('wallpaper','')} active`}
+                </div>
+              </div>
+            </div>
 
-            {/* Change password */}
-            <button onClick={()=>setActiveSection('settings')}
-              style={{padding:'12px',background:'var(--surface)',border:'1px solid var(--border)',
-                borderRadius:12,cursor:'pointer',fontFamily:'var(--sans)',fontSize:13,
-                fontWeight:600,color:'var(--text)',display:'flex',alignItems:'center',
-                justifyContent:'space-between',transition:'border-color .15s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
-              <span style={{display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontSize:16}}>🔑</span> Security &amp; Password
-              </span>
-              <span style={{color:'var(--muted)',fontSize:12}}>→</span>
-            </button>
+            {/* SECURITY — password change (internal wallet only) */}
+            {wallet?.address&&!wallet?.isMetaMask&&wallet?.privateKey!=='metamask'&&!isDemo&&(
+              <SettingsSecurity onChangePassword={onChangePassword}/>
+            )}
+
+            {/* Save button */}
+            <SettingsSave/>
 
           </div>
           {isMobile && <MobileBottomTabs activeSection={activeSection} setActiveSection={setActiveSection} onSettings={onSettings}/>}
