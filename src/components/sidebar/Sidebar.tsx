@@ -230,7 +230,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           {isMobile && (
             <div style={{padding:'calc(10px + var(--safe-top,0px)) 12px 6px',flexShrink:0}}>
               <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
-                <span style={{fontSize:20}}>💬</span>
+                <span style={{color:'var(--text)',display:'flex',transform:'scale(1.2)'}}><IcoContacts/></span>
                 <span style={{fontSize:17,fontWeight:700,color:'var(--text)'}}>Chats</span>
               </div>
               <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
@@ -410,7 +410,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             padding: isMobile ? 'calc(16px + var(--safe-top,0px)) 12px 12px' : '12px 10px',
             display:'flex',flexDirection:'column',gap:10}}>
             {isMobile&&<div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}>
-              <span style={{fontSize:20}}>💰</span>
+              <span style={{color:'var(--text)',display:'flex',transform:'scale(1.2)'}}><IcoWallet/></span>
               <span style={{fontSize:17,fontWeight:700,color:'var(--text)'}}>Wallet</span>
             </div>}
             <div onClick={onWallet}
@@ -446,7 +446,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             padding: isMobile ? 'calc(16px + var(--safe-top,0px)) 14px 16px' : '20px 14px',
             display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
             {isMobile&&<div style={{display:'flex',alignItems:'center',gap:10,width:'100%',marginBottom:4}}>
-              <span style={{fontSize:20}}>👤</span>
+              <span style={{color:'var(--text)',display:'flex',transform:'scale(1.2)'}}><IcoProfile/></span>
               <span style={{fontSize:17,fontWeight:700,color:'var(--text)'}}>Profile</span>
             </div>}
             <div style={{position:'relative',cursor:'pointer'}} onClick={onProfile}>
@@ -501,7 +501,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
 
             {/* Header label */}
             <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <span style={{fontSize:20}}>⚙️</span>
+              <span style={{color:'var(--text)',display:'flex',transform:'scale(1.2)'}}><IcoSettings/></span>
               <span style={{fontSize:17,fontWeight:700,color:'var(--text)'}}>Settings</span>
             </div>
 
