@@ -43,98 +43,6 @@ const IcoLogout = () => (
   </svg>
 );
 
-// ── Inline settings sub-components ─────────────────────────────────────────
-function SettingsSave() {
-  const [saved, setSaved] = React.useState(false);
-  const save = () => {
-    const pinataJwt = (document.querySelector('[data-settings-pinata]') as any)?.value?.trim();
-    const aiKey = (document.querySelector('[data-settings-ai]') as any)?.value?.trim();
-    if (pinataJwt) localStorage.setItem('pmt_pinata_jwt', pinataJwt);
-    if (aiKey) localStorage.setItem('pmt_anthropic_key', aiKey);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-  return (
-    <button onClick={save}
-      style={{width:'100%',padding:'12px',background:saved?'var(--accent3)':'var(--accent)',border:'none',
-        borderRadius:10,color:saved?'#fff':'#000',fontWeight:700,fontSize:14,cursor:'pointer',
-        transition:'background .2s',fontFamily:'var(--sans)'}}>
-      {saved ? '✓ Saved!' : 'Save Settings'}
-    </button>
-  );
-}
-
-function SettingsSecurity({onChangePassword}) {
-  const [show, setShow] = React.useState(false);
-  const [curPw, setCurPw] = React.useState('');
-  const [newPw, setNewPw] = React.useState('');
-  const [confirmPw, setConfirmPw] = React.useState('');
-  const [err, setErr] = React.useState('');
-  const [ok, setOk] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
-
-  const fieldStyle = {width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,
-    padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11,outline:'none',boxSizing:'border-box' as any};
-  const labelStyle = {fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5};
-
-  const handleChange = async () => {
-    setErr('');
-    if (!curPw) return setErr('Enter your current password.');
-    if (!newPw) return setErr('Enter a new password.');
-    if (newPw.length < 8) return setErr('New password must be at least 8 characters.');
-    if (newPw !== confirmPw) return setErr('New passwords do not match.');
-    if (newPw === curPw) return setErr('New password must be different.');
-    setLoading(true);
-    try {
-      await onChangePassword(curPw, newPw);
-      setOk(true); setCurPw(''); setNewPw(''); setConfirmPw('');
-      setTimeout(() => { setOk(false); setShow(false); }, 2500);
-    } catch(e) {
-      setErr(e.message || 'Password change failed.');
-    } finally { setLoading(false); }
-  };
-
-  return (
-    <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}>
-        <span style={{fontSize:18}}>🔑</span>
-        <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:'1px'}}>SECURITY</span>
-      </div>
-      {!show ? (
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div>
-            <div style={{fontSize:13,color:'var(--text)',fontWeight:500}}>Change Password</div>
-            <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>Update your account password</div>
-          </div>
-          <button onClick={()=>setShow(true)}
-            style={{padding:'7px 14px',background:'var(--surface)',border:'1px solid var(--border)',
-              borderRadius:8,color:'var(--text)',fontSize:12,cursor:'pointer',fontWeight:500}}>
-            Change
-          </button>
-        </div>
-      ) : (
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div><div style={labelStyle}>CURRENT PASSWORD</div><input type="password" value={curPw} onChange={e=>setCurPw(e.target.value)} placeholder="Your current password" style={fieldStyle}/></div>
-          <div><div style={labelStyle}>NEW PASSWORD</div><input type="password" value={newPw} onChange={e=>setNewPw(e.target.value)} placeholder="At least 8 characters" style={fieldStyle}/></div>
-          <div><div style={labelStyle}>CONFIRM NEW PASSWORD</div><input type="password" value={confirmPw} onChange={e=>setConfirmPw(e.target.value)} placeholder="Repeat new password" style={fieldStyle}/></div>
-          {err&&<div style={{fontSize:12,color:'var(--danger)',background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',borderRadius:8,padding:'8px 10px'}}>{err}</div>}
-          {ok&&<div style={{fontSize:12,color:'var(--accent3)',background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:8,padding:'8px 10px'}}>✓ Password changed successfully!</div>}
-          <div style={{display:'flex',gap:8}}>
-            <button onClick={()=>{setShow(false);setCurPw('');setNewPw('');setConfirmPw('');setErr('');}}
-              style={{flex:1,padding:'9px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,color:'var(--muted)',fontSize:13,cursor:'pointer'}}>
-              Cancel
-            </button>
-            <button onClick={handleChange} disabled={loading}
-              style={{flex:2,padding:'9px',background:'var(--accent)',border:'none',borderRadius:8,color:'#000',fontWeight:700,fontSize:13,cursor:loading?'default':'pointer',opacity:loading?0.7:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-              {loading?<><span style={{width:12,height:12,border:'2px solid rgba(0,0,0,.3)',borderTopColor:'#000',borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>Updating...</>:'🔑 Update Password'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // Mobile bottom tab bar (shared across all sections)
 function MobileBottomTabs({activeSection, setActiveSection, onSettings}) {
   const tabs = [
@@ -195,6 +103,41 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
     if(state==='granted'&&wallet?.address) requestPushPermission(wallet.address).catch(()=>{});
     return off;
   },[wallet?.address]);
+
+  // Settings inline state
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [showPwSection, setShowPwSection] = useState(false);
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const saveSettings = () => {
+    setSettingsSaved(true);
+    setTimeout(() => setSettingsSaved(false), 2000);
+  };
+
+  const handleChangePassword = async () => {
+    setPwError('');
+    if (!curPw) { setPwError('Enter your current password.'); return; }
+    if (!newPw) { setPwError('Enter a new password.'); return; }
+    if (newPw.length < 8) { setPwError('New password must be at least 8 characters.'); return; }
+    if (newPw !== confirmPw) { setPwError('New passwords do not match.'); return; }
+    if (newPw === curPw) { setPwError('New password must be different.'); return; }
+    setPwLoading(true);
+    try {
+      await onChangePassword(curPw, newPw);
+      setPwSuccess(true);
+      setCurPw(''); setNewPw(''); setConfirmPw('');
+      setTimeout(() => { setPwSuccess(false); setShowPwSection(false); }, 2500);
+    } catch(e) {
+      setPwError((e as any)?.message || 'Password change failed.');
+    } finally { setPwLoading(false); }
+  };
+
+  const isInternalWallet = wallet?.address && !wallet?.isMetaMask && wallet?.privateKey !== 'metamask';
 
   const filtered=contacts
     .filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.address.includes(q))
@@ -602,12 +545,60 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
             </div>
 
             {/* SECURITY — password change (internal wallet only) */}
-            {wallet?.address&&!wallet?.isMetaMask&&wallet?.privateKey!=='metamask'&&!isDemo&&(
-              <SettingsSecurity onChangePassword={onChangePassword}/>
+            {isInternalWallet&&!isDemo&&(
+              <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:18}}>🔑</span>
+                  <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:'1px'}}>SECURITY</span>
+                </div>
+                {!showPwSection ? (
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div>
+                      <div style={{fontSize:13,color:'var(--text)',fontWeight:500}}>Change Password</div>
+                      <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>Update your account password</div>
+                    </div>
+                    <button onClick={()=>setShowPwSection(true)}
+                      style={{padding:'7px 14px',background:'var(--surface)',border:'1px solid var(--border)',
+                        borderRadius:8,color:'var(--text)',fontSize:12,cursor:'pointer',fontWeight:500}}>
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                    {[['CURRENT PASSWORD',curPw,setCurPw,'Your current password'],
+                      ['NEW PASSWORD',newPw,setNewPw,'At least 8 characters'],
+                      ['CONFIRM NEW PASSWORD',confirmPw,setConfirmPw,'Repeat new password']].map(([lbl,val,setter,ph])=>(
+                      <div key={lbl}>
+                        <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--muted)',letterSpacing:'1px',marginBottom:5}}>{lbl}</div>
+                        <input type="password" value={val} onChange={e=>setter(e.target.value)} placeholder={ph}
+                          style={{width:'100%',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,
+                            padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11,outline:'none',boxSizing:'border-box'}}/>
+                      </div>
+                    ))}
+                    {pwError&&<div style={{fontSize:12,color:'var(--danger)',background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',borderRadius:8,padding:'8px 10px'}}>{pwError}</div>}
+                    {pwSuccess&&<div style={{fontSize:12,color:'#34d399',background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:8,padding:'8px 10px'}}>✓ Password changed!</div>}
+                    <div style={{display:'flex',gap:8}}>
+                      <button onClick={()=>{setShowPwSection(false);setCurPw('');setNewPw('');setConfirmPw('');setPwError('');}}
+                        style={{flex:1,padding:'9px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,color:'var(--muted)',fontSize:13,cursor:'pointer'}}>
+                        Cancel
+                      </button>
+                      <button onClick={handleChangePassword} disabled={pwLoading}
+                        style={{flex:2,padding:'9px',background:'var(--accent)',border:'none',borderRadius:8,color:'#000',fontWeight:700,fontSize:13,cursor:pwLoading?'default':'pointer',opacity:pwLoading?0.7:1}}>
+                        {pwLoading?'Updating...':'🔑 Update Password'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Save button */}
-            <SettingsSave/>
+            <button onClick={saveSettings}
+              style={{width:'100%',padding:'12px',background:settingsSaved?'#34d399':'var(--accent)',border:'none',
+                borderRadius:10,color:settingsSaved?'#fff':'#000',fontWeight:700,fontSize:14,cursor:'pointer',
+                transition:'background .2s',fontFamily:'var(--sans)'}}>
+              {settingsSaved ? '✓ Saved!' : 'Save Settings'}
+            </button>
 
           </div>
           {isMobile && <MobileBottomTabs activeSection={activeSection} setActiveSection={setActiveSection} onSettings={onSettings}/>}
