@@ -171,11 +171,17 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
   const [groupCtxMenu,setGroupCtxMenu]=useState(null);
   const groupLongPressRef=useRef(null);
 
-  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 640);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 640px)').matches;
+  });
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 640);
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+    const mq = window.matchMedia('(max-width: 640px)');
+    const check = (e: any) => setIsMobile(e.matches);
+    mq.addEventListener('change', check);
+    // Sync on mount in case media query state changed before listener attached
+    setIsMobile(mq.matches);
+    return () => mq.removeEventListener('change', check);
   }, []);
 
   const isIos=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -529,8 +535,8 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           {isMobile && <MobileBottomTabs activeSection={activeSection} setActiveSection={setActiveSection} onSettings={onSettings}/>}
         </>}
 
-        {/* ══ SETTINGS ══ (mobile only — full SettingsModal content inline) */}
-        {isMobile&&activeSection==='settings'&&<>
+        {/* ══ SETTINGS ══ (mobile only — desktop never reaches this because its NavBtn calls onSettings modal) */}
+        {activeSection==='settings'&&<>
           <div style={{flex:1,overflowY:'auto',
             padding:'calc(14px + var(--safe-top,0px)) 14px 12px',
             display:'flex',flexDirection:'column',gap:14,overscrollBehavior:'contain'}}>
