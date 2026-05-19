@@ -136,24 +136,9 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
 
         {/* ══ CONTACTS ══ */}
         {activeSection==='contacts'&&<>
-          {/* Mobile WhatsApp-style header */}
           {isMobile ? (
-            <div style={{padding:'12px 16px 8px',background:'var(--panel)',flexShrink:0,
-              paddingTop:'calc(12px + var(--safe-top, 0px))'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <img src="/pmt-logo.png" style={{width:28,height:28,borderRadius:'50%',objectFit:'cover'}} alt="PMT"/>
-                  <span style={{fontFamily:'var(--sans)',fontSize:18,fontWeight:700,letterSpacing:'-0.02em'}}>PMT Chat</span>
-                </div>
-                <div style={{display:'flex',gap:8}}>
-                  <button onClick={onSearch} style={{width:36,height:36,background:'none',border:'none',
-                    borderRadius:'50%',color:'var(--text)',fontSize:20,cursor:'pointer',
-                    display:'flex',alignItems:'center',justifyContent:'center'}}>⌕</button>
-                  <button onClick={onNew} style={{width:36,height:36,background:'none',border:'none',
-                    borderRadius:'50%',color:'var(--text)',fontSize:22,cursor:'pointer',fontWeight:300,
-                    display:'flex',alignItems:'center',justifyContent:'center'}}>✎</button>
-                </div>
-              </div>
+            <div style={{padding:'calc(10px + var(--safe-top,0px)) 12px 6px',background:'var(--panel)',flexShrink:0}}>
+              <div>
             <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
               borderRadius:9,padding:'0 9px'}}>
               <span style={{fontSize:12,color:'var(--muted)'}}>⌕</span>
@@ -341,16 +326,12 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
 
         {/* ══ WALLET ══ */}
         {activeSection==='wallet'&&<>
-          <div style={{padding: isMobile ? 'calc(14px + var(--safe-top,0px)) 16px 10px' : '12px 12px 10px',
-            borderBottom:'1px solid var(--border)',flexShrink:0,
-            display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <span style={{fontFamily:'var(--sans)',fontSize: isMobile?18:11,fontWeight:700,
-              letterSpacing: isMobile?'-0.02em':'0.12em',
-              textTransform: isMobile?'none':'uppercase',color:'var(--text)'}}>
-              {isMobile ? '💰 Wallet' : 'Wallet'}
-            </span>
-          </div>
-          <div style={{flex:1,overflowY:'auto',padding:'12px 10px',display:'flex',flexDirection:'column',gap:10}}>
+          {!isMobile&&<div style={{padding:'12px 12px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+            <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>Wallet</span>
+          </div>}
+          <div style={{flex:1,overflowY:'auto',
+            padding: isMobile ? 'calc(16px + var(--safe-top,0px)) 12px 12px' : '12px 10px',
+            display:'flex',flexDirection:'column',gap:10}}>
             <div onClick={onWallet}
               style={{padding:'14px',background:'var(--surface)',borderRadius:12,cursor:'pointer',border:'1px solid var(--border)',transition:'border-color .15s'}}
               onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
@@ -395,15 +376,12 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
         )}
         {/* ══ PROFILE ══ */}
         {activeSection==='profile'&&<>
-          <div style={{padding: isMobile ? 'calc(14px + var(--safe-top,0px)) 16px 10px' : '12px 12px 10px',
-            borderBottom:'1px solid var(--border)',flexShrink:0}}>
-            <span style={{fontFamily:'var(--sans)',fontSize: isMobile?18:11,fontWeight:700,
-              letterSpacing: isMobile?'-0.02em':'0.12em',
-              textTransform: isMobile?'none':'uppercase',color:'var(--text)'}}>
-              {isMobile ? '👤 Profile' : 'My Profile'}
-            </span>
-          </div>
-          <div style={{flex:1,overflowY:'auto',padding:'20px 14px',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+          {!isMobile&&<div style={{padding:'12px 12px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+            <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>My Profile</span>
+          </div>}
+          <div style={{flex:1,overflowY:'auto',
+            padding: isMobile ? 'calc(16px + var(--safe-top,0px)) 14px 16px' : '20px 14px',
+            display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
             {/* Avatar */}
             <div style={{position:'relative',cursor:'pointer'}} onClick={onProfile}>
               {profile?.avatarUrl
@@ -434,6 +412,20 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
               onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
               onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
               ✎ Edit Profile
+            </button>
+            <div style={{width:'100%',height:1,background:'var(--border)'}}/>
+            <button onClick={onLogout}
+              style={{width:'100%',padding:'11px',background:'rgba(248,113,113,.08)',
+                border:'1px solid rgba(248,113,113,.25)',borderRadius:9,cursor:'pointer',
+                fontFamily:'var(--sans)',fontSize:13,fontWeight:700,color:'var(--danger)',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'background .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(248,113,113,.18)'}
+              onMouseLeave={e=>e.currentTarget.style.background='rgba(248,113,113,.08)'}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Log Out
             </button>
           </div>
         {isMobile&&(
