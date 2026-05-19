@@ -2,6 +2,9 @@
 // POST /api/typing?from=X&to=Y  → sets typing status
 // GET  /api/typing?from=X&to=Y  → checks if X is typing to Y
 
+import { rateLimit } from './_security.js';
+
+
 async function redis(cmd, ...args) {
   const url =
     process.env.UPSTASH_KV_REST_API_URL ||
@@ -23,6 +26,8 @@ async function redis(cmd, ...args) {
 }
 
 export default async function handler(req, res) {
+  const _rl = await rateLimit(req, 'typing', 60, 60);
+  if (!_rl.allowed) { res.status(429).json({ error: 'Too many requests' }); return; }
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

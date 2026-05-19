@@ -1,16 +1,24 @@
 // Fetch Open Graph / meta tags for link preview
 // GET /api/preview?url=https://example.com
+import { rateLimit, securityHeaders, isBlockedUrl } from './_security.js';
 
 export default async function handler(req, res) {
+  securityHeaders(res);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const rl = await rateLimit(req, 'preview', 20, 60);
+  if (!rl.allowed) return res.status(429).json({ error: 'Too many requests' });
 
   const rawUrl = req.query.url;
   if (!rawUrl) return res.status(400).json({ error: 'url required' });
 
   // Ensure URL has protocol
   const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : 'https://' + rawUrl;
+
+  // SSRF protection: block internal/private addresses
+  if (isBlockedUrl(url)) return res.status(403).json({ error: 'URL not allowed' });
 
   try {
     const controller = new AbortController();

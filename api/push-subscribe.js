@@ -1,4 +1,7 @@
 // Save/remove push subscription for a user address
+import { rateLimit, securityHeaders } from './_security.js';
+
+
 async function redis(cmd, ...args) {
   const url = process.env.UPSTASH_KV_REST_API_URL || process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_KV_REST_API_TOKEN || process.env.KV_REST_API_TOKEN;
@@ -13,6 +16,8 @@ async function redis(cmd, ...args) {
 }
 
 export default async function handler(req, res) {
+  const _rl = await rateLimit(req, 'push_sub', 10, 60);
+  if (!_rl.allowed) { res.status(429).json({ error: 'Too many requests' }); return; }
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

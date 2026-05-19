@@ -1,6 +1,9 @@
 // Server-side pin storage for 1-on-1 chats
 // Key: pmt:pins:{addr1}-{addr2} (addresses sorted so both users use the same key)
 
+import { rateLimit, securityHeaders } from './_security.js';
+
+
 async function redis(cmd, ...args) {
   const url = process.env.UPSTASH_KV_REST_API_URL || process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_KV_REST_API_TOKEN || process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -27,6 +30,8 @@ function convKey(addr1, addr2) {
 }
 
 export default async function handler(req, res) {
+  const _rl = await rateLimit(req, 'pins', 30, 60);
+  if (!_rl.allowed) { res.status(429).json({ error: 'Too many requests' }); return; }
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();

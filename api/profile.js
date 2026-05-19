@@ -1,5 +1,6 @@
 // Profile store — GET /api/profile?address=0x... or POST with {address,name,bio,avatarUrl}
 // Stores each user's latest public profile in Redis so any device can fetch it.
+import { rateLimit, securityHeaders } from './_security.js';
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -39,9 +40,18 @@ export default async function handler(req, res) {
 
     } else if (req.method === 'POST') {
       // POST /api/profile  body: {address, name, bio, avatarUrl}
+      // Rate limit profile writes: 10/min (prevents profile flooding)
+      const rl = await rateLimit(req, 'profile_write', 10, 60);
+      if (!rl.allowed) { res.status(429).json({ error: 'Too many requests' }); return; }
       let body = '';
       await new Promise(resolve => { req.on('data', c => body += c); req.on('end', resolve); });
-      const { address, name, bio, avatarUrl } = JSON.parse(body);
+      const raw = JSON.parse(body);
+      const { address } = raw;
+      // Sanitize inputs: strip HTML tags, enforce length limits
+      const strip = (s, max) => typeof s === 'string' ? s.replace(/<[^>]*>/g, '').trim().slice(0, max) : '';
+      const name = strip(raw.name, 60);
+      const bio  = strip(raw.bio, 200);
+      const avatarUrl = typeof raw.avatarUrl === 'string' && raw.avatarUrl.length < 500000 ? raw.avatarUrl : null;
       if (!address) return res.status(400).json({ error: 'address required' });
       const addr = address.toLowerCase().trim();
       const profile = { name: name || '', bio: bio || '', avatarUrl: avatarUrl || null, ts: Date.now() };
