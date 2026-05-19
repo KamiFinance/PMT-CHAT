@@ -1,4 +1,5 @@
 // Group management API — create groups, invite links, join via link
+import { rateLimit, securityHeaders } from './_security.js';
 export const config = { api: { bodyParser: false } };
 
 async function redis(cmd, ...args) {
@@ -21,7 +22,11 @@ async function readBody(req) {
 }
 
 export default async function handler(req, res) {
+  securityHeaders(res);
   res.setHeader('Access-Control-Allow-Origin', '*');
+  // Rate limit: 60 req/min per IP
+  const rl = await rateLimit(req, 'groups', 60, 60);
+  if (!rl.allowed) { res.status(429).json({ error: 'Too many requests' }); return; }
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 

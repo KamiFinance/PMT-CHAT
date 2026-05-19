@@ -1,8 +1,10 @@
 // Giphy proxy — keeps API key server-side
-// Set GIPHY_API_KEY in Vercel env vars (free key at developers.giphy.com)
-// Falls back to public demo key (rate-limited but works for testing)
+import { rateLimit, securityHeaders } from './_security.js';
 
 export default async function handler(req, res) {
+  securityHeaders(res);
+  const rl = await rateLimit(req, 'giphy', 30, 60);
+  if (!rl.allowed) { res.status(429).json({ error: 'Too many requests' }); return; }
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();

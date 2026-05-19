@@ -1,9 +1,13 @@
 // Catch-all proxy for @imgly/background-removal CDN assets.
 // In Vercel catch-all routes, the param is req.query['...path'] (not req.query.path).
+import { rateLimit } from '../_security.js';
 export const config = { api: { responseLimit: false } };
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  // Rate limit: 50 req/min (model files are cached, so 50 is plenty for real use)
+  const rl = await rateLimit(req, 'bgremoval', 50, 60);
+  if (!rl.allowed) { res.status(429).end(); return; }
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 

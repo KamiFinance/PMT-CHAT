@@ -1,5 +1,5 @@
 // User registry: username → { passwordHash, salt, address, encryptedBackup }
-// Pure fetch REST — no ioredis, no TCP connections
+import { redis, securityHeaders, rateLimit } from './_security.js';
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -7,29 +7,16 @@ function cors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-async function redis(cmd, ...args) {
-  const url = process.env.UPSTASH_KV_REST_API_URL
-    || process.env.KV_REST_API_URL
-    || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_KV_REST_API_TOKEN
-    || process.env.KV_REST_API_TOKEN
-    || process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!url || !token) throw new Error('No Redis REST credentials found');
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify([cmd, ...args]),
-  });
-  if (!res.ok) throw new Error(`Redis HTTP ${res.status}`);
-  const data = await res.json();
-  return data.result;
-}
-
 export default async function handler(req, res) {
   cors(res);
+  securityHeaders(res);
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+
+  // Rate limit: 30 req/min per IP
+  const rl = await rateLimit(req, 'auth', 30, 60);
+  if (!rl.allowed) {
+    res.status(429).json({ error: 'Too many requests' }); return;
+  }
 
   try {
     // GET /api/auth?username=xxx — fetch record
@@ -44,12 +31,15 @@ export default async function handler(req, res) {
         const raw2 = await redis('GET', `pmt:user:${uname}`);
         if (!raw2) { res.status(404).json({ error: 'Account not found' }); return; }
         const rec = JSON.parse(raw2);
-        return res.status(200).json({ username: uname, address: rec.address, hasBackup: !!rec.encryptedBackup });
+        return res.status(200).json({ username: uname, address: rec.address, hasBackup: !!rec.encryptedBackup }); // passwordHash intentionally excluded
       }
       if (!username) { res.status(400).json({ error: 'username required' }); return; }
       const raw = await redis('GET', `pmt:user:${username}`);
       if (!raw) { res.status(404).json({ error: 'User not found' }); return; }
-      return res.status(200).json(JSON.parse(raw));
+      const rec2 = JSON.parse(raw);
+      // SECURITY: never return passwordHash to client — prevents offline cracking
+      const { passwordHash: _ph, ...safeRec } = rec2;
+      return res.status(200).json(safeRec);
     }
 
     // POST /api/auth — create or update account + backup

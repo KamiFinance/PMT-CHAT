@@ -1,8 +1,13 @@
 // Pinata file upload — tries API Key+Secret (v1, reliable) then JWT fallback
 // POST /api/pinata-upload  { data: base64, name, mimeType }
+import { rateLimit, securityHeaders } from './_security.js';
 
 export default async function handler(req, res) {
+  securityHeaders(res);
   res.setHeader('Access-Control-Allow-Origin', '*');
+  // Rate limit uploads: 20/min per IP (prevents storage abuse)
+  const rl = await rateLimit(req, 'upload', 20, 60);
+  if (!rl.allowed) { res.status(429).json({ error: 'Too many requests' }); return; }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();

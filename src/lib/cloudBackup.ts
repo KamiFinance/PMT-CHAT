@@ -178,16 +178,20 @@ export async function loadCloudBackup(
   if (!res.ok) return null;
   const record = await res.json();
 
-  // Verify password before decrypting
-  let ok = await PMTAuth.verifyPassword(password, record.passwordHash, record.salt);
-  if (!ok) {
-    // Fallback: try deterministic salt (for accounts saved with old random-salt code)
-    const hashBuf = await crypto.subtle.digest('SHA-256',
-      new TextEncoder().encode('pmt-backup-salt-v1:' + password));
-    const detSalt = Array.from(new Uint8Array(hashBuf)).map((x:number) => x.toString(16).padStart(2,'0')).join('');
-    ok = await PMTAuth.verifyPassword(password, record.passwordHash, detSalt);
+  // Verify password — server no longer sends passwordHash (security hardening).
+  // If passwordHash IS present (cached/old clients), verify it; otherwise verify via decryption.
+  if (record.passwordHash) {
+    let ok = await PMTAuth.verifyPassword(password, record.passwordHash, record.salt);
+    if (!ok) {
+      // Fallback: try deterministic salt (for accounts saved with old random-salt code)
+      const hashBuf = await crypto.subtle.digest('SHA-256',
+        new TextEncoder().encode('pmt-backup-salt-v1:' + password));
+      const detSalt = Array.from(new Uint8Array(hashBuf)).map((x:number) => x.toString(16).padStart(2,'0')).join('');
+      ok = await PMTAuth.verifyPassword(password, record.passwordHash, detSalt);
+    }
+    if (!ok) throw new Error('WRONG_PASSWORD');
   }
-  if (!ok) throw new Error('WRONG_PASSWORD');
+  // If no passwordHash, password correctness is proven by successful decryption below.
 
   if (!record.encryptedBackup) {
     // User is registered but backup was never saved (e.g. first login after migration).

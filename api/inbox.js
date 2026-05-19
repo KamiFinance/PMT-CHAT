@@ -1,5 +1,5 @@
 // Cross-device message relay — pure fetch REST, no TCP connections
-// Works reliably in Vercel serverless (no ioredis, no persistent connections)
+import { rateLimit, securityHeaders } from './_security.js';
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -33,6 +33,11 @@ async function redis(cmd, ...args) {
 
 export default async function handler(req, res) {
   cors(res);
+  securityHeaders(res);
+  // Rate limit: 60 req/min for GET (polling), 30/min for POST (sending)
+  const limit = req.method === 'GET' ? 60 : 30;
+  const rl = await rateLimit(req, 'inbox', limit, 60);
+  if (!rl.allowed) { res.status(429).json({ error: 'Too many requests' }); return; }
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
   const urlObj = new URL(req.url, `http://${req.headers.host}`);
