@@ -22,7 +22,7 @@ function formatExpiry(expiresAt) {
   return `Expires in ${h}h ${m}m`;
 }
 
-export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup, onRolesUpdated, inline=false }) {
+export default function GroupChatModal({ contacts, onClose, onCreate, myAddress, existingGroup, onRolesUpdated, inline=false, onDeleteGroup }) {
 
 
   // If existingGroup passed, start in manage mode (links tab)
@@ -54,6 +54,27 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   const [isAnnouncement, setIsAnnouncement] = useState(existingGroup?.isAnnouncement || false);
 
   const fileRef = useRef(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteGroup = async () => {
+    const gId = group?.id || group?.groupId || existingGroup?.groupId || existingGroup?.id;
+    if (!gId) return;
+    if (!window.confirm(`Delete "${group?.name || existingGroup?.name}"? This cannot be undone. All members will lose access.`)) return;
+    setDeleting(true);
+    try {
+      const r = await fetch('/api/groups?action=deleteGroup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId: gId, requestedBy: myAddress }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed to delete group');
+      onDeleteGroup && onDeleteGroup(gId);
+      onClose();
+    } catch (e) {
+      alert(e.message);
+    } finally { setDeleting(false); }
+  };
 
   // Auto-load links when managing existing group
   const getProfile = (addr: string) => {
@@ -321,6 +342,20 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
               {group && (
                 <div style={{ background: 'rgba(74,222,128,.08)', border: '1px solid rgba(74,222,128,.2)', borderRadius: 9, padding: '10px 14px', fontSize: 13, color: 'var(--accent3)' }}>
                   ✓ Group created! Go to <b>Invite Links</b> tab to add members.
+                </div>
+              )}
+
+              {/* Delete group — creator only, on existing groups */}
+              {(group || existingGroup) &&
+               (group?.createdBy || existingGroup?.createdBy)?.toLowerCase() === myAddress?.toLowerCase() && (
+                <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                  <button onClick={handleDeleteGroup} disabled={deleting}
+                    style={{ width: '100%', padding: '10px', background: 'rgba(248,113,113,.08)',
+                      border: '1px solid rgba(248,113,113,.3)', borderRadius: 9, cursor: deleting ? 'default' : 'pointer',
+                      color: 'var(--danger)', fontWeight: 700, fontSize: 13, opacity: deleting ? 0.6 : 1,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    {deleting ? 'Deleting…' : '🗑 Delete Group'}
+                  </button>
                 </div>
               )}
             </>

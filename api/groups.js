@@ -328,6 +328,24 @@ export default async function handler(req, res) {
       return res.json({ ok: true, pinnedMsgs: grp.pinnedMsgs });
     }
 
+    // Delete a group (owner only) — removes group data + all member index entries
+    if (action === 'deleteGroup') {
+      const { groupId, requestedBy } = body;
+      if (!groupId || !requestedBy) return res.status(400).json({ error: 'groupId and requestedBy required' });
+      const data = await redis('GET', `pmt:group:${groupId}`);
+      if (!data) return res.status(404).json({ error: 'Group not found' });
+      const grp = JSON.parse(data);
+      if (grp.createdBy?.toLowerCase() !== requestedBy.toLowerCase())
+        return res.status(403).json({ error: 'Only the group creator can delete the group' });
+      // Remove from every member's group index
+      const members = grp.members || [];
+      await Promise.all(members.map(m => redis('SREM', `pmt:user:groups:${m.toLowerCase()}`, groupId)));
+      // Delete group data and any invite links
+      await redis('DEL', `pmt:group:${groupId}`);
+      await redis('DEL', `pmt:group:links:${groupId}`);
+      return res.json({ ok: true });
+    }
+
     // Unpin a message in a group
     if (action === 'unpinMsg') {
       const { groupId, pinId, requestedBy } = body;

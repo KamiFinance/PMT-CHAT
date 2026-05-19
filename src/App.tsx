@@ -2313,7 +2313,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       {showWallet && <WalletModal wallet={wallet} isDemo={isDemo} onClose={() => setShowWallet(false)} />}
       {showNew && <NewChatModal onClose={() => setShowNew(false)} onAdd={(c) => { setContacts(p => p.find(x => normalizeAddress(x.address) === normalizeAddress(c.address)) ? p : [...p, c]); selectContact(c); setShowNew(false); }} />}
       {showGroup && <GroupChatModal contacts={contacts.filter(c => !c.isAI && !c.isGroup)} myAddress={wallet?.address ?? ''} onClose={() => setShowGroup(false)} onCreate={(g) => { setContacts(p => [g, ...p]); selectContact(g); }} />}
-      {manageGroupContact && <GroupChatModal contacts={contacts.filter(c => !c.isAI)} myAddress={wallet?.address ?? ''} existingGroup={manageGroupContact} onClose={() => setManageGroupContact(null)} onCreate={() => {}} onRolesUpdated={(newRoles: Record<string,string>) => {
+      {manageGroupContact && <GroupChatModal contacts={contacts.filter(c => !c.isAI)} myAddress={wallet?.address ?? ''} existingGroup={manageGroupContact} onClose={() => setManageGroupContact(null)} onCreate={() => {}} onDeleteGroup={(gId: string) => { setContacts((p: any[]) => p.filter((c: any) => c.groupId !== gId && c.id !== gId)); if (active && (active.groupId === gId || active.id === gId)) setActiveAndRef(null); setManageGroupContact(null); }} onRolesUpdated={(newRoles: Record<string,string>) => {
         const gid = manageGroupContact.id || manageGroupContact.groupId;
         setContacts(p => p.map(c => (c.groupId === gid || c.id === gid) ? { ...c, roles: newRoles } : c));
         setActive((prev: any) => {
