@@ -188,7 +188,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           <NavBtn id="wallet"   label="Wallet"    Icon={IcoWallet}/>
           <NavBtn id="profile"  label="Profile"   Icon={IcoProfile}/>
           <NavBtn id="group"    label="New Group" Icon={IcoGroup} onClick={()=>{onNewGroup&&onNewGroup();}}/>
-          <NavBtn id="settings" label="Settings"  Icon={IcoSettings} onClick={()=>{onSettings&&onSettings();}}/>
+          <NavBtn id="settings" label="Settings"  Icon={IcoSettings} onClick={()=>setActiveSection('settings')}/>
           <div style={{flex:1}}/>
           <div style={{width:'65%',height:1,background:'var(--border)',marginBottom:4}}/>
           <button onClick={onLogout} title="Log Out"
@@ -496,7 +496,7 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
         {/* ══ SETTINGS ══ (mobile only — desktop never reaches this because its NavBtn calls onSettings modal) */}
         {activeSection==='settings'&&<>
           <div style={{flex:1,overflowY:'auto',
-            padding:'calc(14px + var(--safe-top,0px)) 14px 12px',
+            padding: isMobile ? 'calc(14px + var(--safe-top,0px)) 14px 12px' : '14px 12px',
             display:'flex',flexDirection:'column',gap:14,overscrollBehavior:'contain'}}>
 
             {/* Header label */}
