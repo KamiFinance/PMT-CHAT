@@ -70,10 +70,7 @@ export default function CustomStickerCreator({ onDone, onClose }: Props) {
     setProgress('Removing background…');
     try {
       const blob = await removeBackground(file, {
-        // Use our own Vercel proxy instead of staticimgly.com directly —
-        // the CDN is unreachable on some networks/browsers (especially desktop).
-        // Vercel fetches from staticimgly server-side and serves with correct CORS headers.
-        publicPath: `${window.location.origin}/api/bgremoval/`,
+        publicPath: 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',
         progress: (key:string, cur:number, tot:number) => {
           if (key==='compute:inference') setProgress(`Processing… ${Math.round(cur/tot*100)}%`);
         },
@@ -81,8 +78,7 @@ export default function CustomStickerCreator({ onDone, onClose }: Props) {
       setProcessedBlob(blob);
       setStage('edit');
     } catch(e:any) {
-      console.error('[BG Removal]', e);
-      setError('Background removal failed: ' + (e?.message || 'Unknown error'));
+      setError('Background removal failed. Try a clearer image.');
       setStage('upload');
     }
   };
