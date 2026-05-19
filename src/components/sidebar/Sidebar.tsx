@@ -229,6 +229,8 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           {/* Mobile search bar (no header) */}
           {isMobile && (
             <div style={{padding:'calc(10px + var(--safe-top,0px)) 12px 6px',flexShrink:0}}>
+              <div style={{fontFamily:'var(--sans)',fontSize:22,fontWeight:700,
+                color:'var(--text)',marginBottom:8,letterSpacing:'-0.02em'}}>Chats</div>
               <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
                 borderRadius:9,padding:'0 9px'}}>
                 <span style={{fontSize:12,color:'var(--muted)'}}>⌕</span>
@@ -405,6 +407,8 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           <div style={{flex:1,overflowY:'auto',
             padding: isMobile ? 'calc(16px + var(--safe-top,0px)) 12px 12px' : '12px 10px',
             display:'flex',flexDirection:'column',gap:10}}>
+            {isMobile&&<div style={{fontFamily:'var(--sans)',fontSize:22,fontWeight:700,
+              color:'var(--text)',marginBottom:4,letterSpacing:'-0.02em'}}>Wallet</div>}
             <div onClick={onWallet}
               style={{padding:'14px',background:'var(--surface)',borderRadius:12,cursor:'pointer',border:'1px solid var(--border)',transition:'border-color .15s'}}
               onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
