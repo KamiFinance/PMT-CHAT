@@ -331,23 +331,6 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
               onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
               ✎ Edit Profile
             </button>
-            <button onClick={onSettings} style={{width:'100%',padding:'10px',background:'var(--surface)',
-              border:'1px solid var(--border)',borderRadius:9,cursor:'pointer',fontFamily:'var(--sans)',
-              fontSize:12,fontWeight:600,color:'var(--text)',transition:'border-color .15s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
-              ⚙ Settings
-            </button>
-            <div style={{width:'100%',height:1,background:'var(--border)'}}/>
-            <button onClick={onLogout}
-              style={{width:'100%',padding:'10px',background:'rgba(248,113,113,.08)',
-                border:'1px solid rgba(248,113,113,.25)',borderRadius:9,cursor:'pointer',
-                fontFamily:'var(--sans)',fontSize:12,fontWeight:700,color:'var(--danger)',
-                display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'background .15s'}}
-              onMouseEnter={e=>e.currentTarget.style.background='rgba(248,113,113,.16)'}
-              onMouseLeave={e=>e.currentTarget.style.background='rgba(248,113,113,.08)'}>
-              <IcoLogout/> Log Out
-            </button>
           </div>
         </>}
 
