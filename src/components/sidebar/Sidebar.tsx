@@ -53,7 +53,10 @@ function MobileBottomTabs({activeSection, setActiveSection, onSettings}) {
   ];
   return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-around',
-      borderTop:'1px solid var(--border)',background:'var(--panel)',
+      borderTop:'1px solid rgba(255,255,255,0.08)',
+      background:'rgba(28,28,30,0.82)',
+      backdropFilter:'blur(20px)',
+      WebkitBackdropFilter:'blur(20px)',
       paddingBottom:'calc(8px + var(--safe-bottom,0px))',paddingTop:8,flexShrink:0}}>
       {tabs.map(({id,label,Icon}) => (
         <button key={id}
