@@ -70,7 +70,7 @@ export default function CustomStickerCreator({ onDone, onClose }: Props) {
     setProgress('Removing background…');
     try {
       const blob = await removeBackground(file, {
-        publicPath: 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',
+        publicPath: `${window.location.origin}/api/bgremoval/`,
         progress: (key:string, cur:number, tot:number) => {
           if (key==='compute:inference') setProgress(`Processing… ${Math.round(cur/tot*100)}%`);
         },
@@ -78,7 +78,8 @@ export default function CustomStickerCreator({ onDone, onClose }: Props) {
       setProcessedBlob(blob);
       setStage('edit');
     } catch(e:any) {
-      setError('Background removal failed. Try a clearer image.');
+      console.error('[BG Removal]', e);
+      setError('Background removal failed: ' + (e?.message || 'Unknown error'));
       setStage('upload');
     }
   };
