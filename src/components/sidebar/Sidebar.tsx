@@ -79,7 +79,12 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
   const [groupCtxMenu,setGroupCtxMenu]=useState(null);
   const groupLongPressRef=useRef(null);
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 640);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 640);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const isIos=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
   const isInStandaloneMode=()=>(window.navigator).standalone===true||window.matchMedia('(display-mode: standalone)').matches;
