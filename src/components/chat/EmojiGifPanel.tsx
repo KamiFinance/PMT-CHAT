@@ -27,9 +27,10 @@ interface Props {
   onClose: () => void;
   defaultTab?: 'emoji' | 'gif' | 'sticker';
   isMobile?: boolean;
+  onStickerCreated?: () => void; // called after a custom sticker is saved, so parent can trigger backup
 }
 
-export default function EmojiGifPanel({ onSelectEmoji, onSelectGif, onClose, defaultTab = 'emoji', isMobile }: Props) {
+export default function EmojiGifPanel({ onSelectEmoji, onSelectGif, onClose, defaultTab = 'emoji', isMobile, onStickerCreated }: Props) {
   const [tab, setTab] = useState<'emoji'|'gif'|'sticker'>(defaultTab);
   const [emojiCat, setEmojiCat] = useState(0);
   const [query, setQuery] = useState('');
@@ -210,7 +211,7 @@ export default function EmojiGifPanel({ onSelectEmoji, onSelectGif, onClose, def
         {(tab==='gif'||tab==='sticker') && (
           showCreator ? (
             <CustomStickerCreator
-              onDone={s=>{ setCustomStickers(loadCustomStickers()); setShowCreator(false); }}
+              onDone={s=>{ setCustomStickers(loadCustomStickers()); setShowCreator(false); onStickerCreated?.(); }}
               onClose={()=>setShowCreator(false)}/>
           ) : (
           <div ref={gridRef} onScroll={onScroll}

@@ -565,6 +565,7 @@ export default function App() {
       })(),
       settings: {
         chatWallpaper: (() => { try { return localStorage.getItem('chatWallpaper') || null; } catch { return null; } })(),
+        customStickers: (() => { try { return JSON.parse(localStorage.getItem('pmt_custom_stickers') || '[]'); } catch { return []; } })(),
       },
     });
   }, [isDemo]);
@@ -1906,6 +1907,16 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       try { localStorage.setItem('chatWallpaper', wp); } catch {}
       setChatWallpaper(wp);
     }
+    if (Array.isArray((w as any).restoredSettings?.customStickers) && (w as any).restoredSettings.customStickers.length > 0) {
+      try {
+        // Merge with any existing local stickers (device-created ones not yet in backup)
+        const incoming: any[] = (w as any).restoredSettings.customStickers;
+        const existing: any[] = (() => { try { return JSON.parse(localStorage.getItem('pmt_custom_stickers') || '[]'); } catch { return []; } })();
+        const existingIds = new Set(existing.map((s: any) => s.id));
+        const merged = [...existing, ...incoming.filter((s: any) => !existingIds.has(s.id))];
+        localStorage.setItem('pmt_custom_stickers', JSON.stringify(merged.slice(0, 50)));
+      } catch {}
+    }
     if (w.restoredProfile) {
       setProfile(w.restoredProfile as Profile);
       if (w.address) {
@@ -2187,7 +2198,7 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         <div className={`sidebar-overlay${mobileSidebarOpen ? ' visible' : ''}`} onClick={() => setMobileSidebarOpen(false)} />
         <Sidebar contacts={contacts} activeId={active?.id ?? null} wallet={wallet} isDemo={isDemo} profile={profile} mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} onSelect={selectContact} onNew={() => { setShowNew(true); setMobileSidebarOpen(false); }} onNewGroup={() => { setShowGroup(true); setMobileSidebarOpen(false); }} onProfile={() => { setShowProfile(true); setMobileSidebarOpen(false); }} onSettings={() => { setShowSettings(true); setMobileSidebarOpen(false); }} onWallet={() => { setShowWallet(true); setMobileSidebarOpen(false); }} onLogout={handleLogout} onEditContact={setEditContact} onSearch={() => setShowSearch(true)} onLeaveGroup={handleLeaveGroup} onToggleMute={handleToggleMute} mutedGroupIds={mutedGroupIds} />
         <main className="chat-panel">
-          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} chatWallpaper={chatWallpaper} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsgs={active ? (pinnedMsgs[normalizeAddress(active.address)] || []) : []} onDelete={handleDeleteMsg} onEditMsg={handleEditMsg} contacts={contacts} onForwardMsg={handleForwardMsg} lastSeenTs={active ? (displayLastSeenTs[normalizeAddress(active.address)] ?? 0) : 0} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
+          {(active && active.address) ? <ChatErrorBoundary onReset={() => setActiveAndRef(null)}><ChatPanel contact={active} chatWallpaper={chatWallpaper} messages={msgs[normalizeAddress(active.address)] ?? []} onSend={sendMsg} onSendETH={sendETH} isDemo={isDemo} myAddress={wallet?.address?.toLowerCase() ?? ''} onReact={(msgId: string, emoji: string) => handleReact(normalizeAddress(active.address), msgId, emoji)} onMediaUploaded={handleMediaUploaded} onOpenSidebar={() => setMobileSidebarOpen(true)} onBack={() => { setActiveAndRef(null); setMobileSidebarOpen(true); }} onViewContact={(c) => setEditContact(c)} onManageGroup={(g) => setManageGroupContact(g)} needsPasswordToSend={needsPasswordToSend} onJoinGroup={handleJoinGroup} onPin={handlePin} pinnedMsgs={active ? (pinnedMsgs[normalizeAddress(active.address)] || []) : []} onDelete={handleDeleteMsg} onEditMsg={handleEditMsg} contacts={contacts} onForwardMsg={handleForwardMsg} lastSeenTs={active ? (displayLastSeenTs[normalizeAddress(active.address)] ?? 0) : 0} onStickerCreated={() => { try { runBackup(sessionPasswordRef.current ?? '').catch(()=>{}); } catch {} }} /> </ChatErrorBoundary> : <Empty onNew={() => setShowNew(true)} onOpenSidebar={() => setMobileSidebarOpen(true)} />}
         </main>
       </div>
       {showProfile && <ProfileModal profile={{ ...profile, address: wallet?.address ?? null }} onClose={() => setShowProfile(false)} onSave={saveProfile} />}

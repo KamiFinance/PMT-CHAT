@@ -241,7 +241,7 @@ function ForwardModal({msg,contacts,onForward,onClose}:{msg:any;contacts:any[];o
   );
 }
 
-export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg,contacts,onForwardMsg,lastSeenTs=0,chatWallpaper='none'}){
+export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAddress,onReact,searchQuery,isGroup,onMediaUploaded,onOpenSidebar,onBack,onViewContact,onManageGroup,needsPasswordToSend,onJoinGroup,onPin,pinnedMsgs,onDelete,onEditMsg,contacts,onForwardMsg,lastSeenTs=0,chatWallpaper='none',onStickerCreated}){
   const [text,setText]=useState('');
   const [showSend,setShowSend]=useState(false);
   const [showAttach,setShowAttach]=useState(false);
@@ -1235,7 +1235,8 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
                         isSticker,title:item.title,text:''});
                       setShowPanel(null);
                     }}
-                    onClose={()=>setShowPanel(null)}/>
+                    onClose={()=>setShowPanel(null)}
+                    onStickerCreated={onStickerCreated}/>
                 )}
                 {text.trim()?(
                   <button onClick={send}
