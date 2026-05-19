@@ -424,6 +424,13 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     return()=>document.removeEventListener('wheel',handler,{capture:true});
   },[]);
 
+  // Reset floating date chip when switching conversations
+  useEffect(()=>{
+    setFloatingDate('');
+    setFloatingDateVisible(false);
+    if(floatingDateTimerRef.current) clearTimeout(floatingDateTimerRef.current);
+  },[contact?.id]);
+
   // Scroll tracking: scroll-to-bottom button + floating date chip
   useEffect(()=>{
     const el=messagesRef.current;
@@ -433,7 +440,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       setShowScrollBtn(distFromBottom>120);
 
       // Floating date chip — only show when scrolled up
-      if(distFromBottom>80){
+      if(distFromBottom>250){
         const containerRect=el.getBoundingClientRect();
         const markers=el.querySelectorAll('[data-ts]');
         for(const marker of Array.from(markers)){
@@ -459,6 +466,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
       } else {
         setFloatingDateVisible(false);
         if(floatingDateTimerRef.current) clearTimeout(floatingDateTimerRef.current);
+        setFloatingDate('');
       }
     };
     el.addEventListener('scroll',onScroll,{passive:true});
