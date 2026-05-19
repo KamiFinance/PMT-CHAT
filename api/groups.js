@@ -281,6 +281,21 @@ export default async function handler(req, res) {
       const key = `pmt:group:history:${groupId}`;
       await redis('RPUSH', key, JSON.stringify(lean));
       await redis('LTRIM', key, -2000, -1); // keep last 2000 messages
+      // Auto-add sender to member list if missing (fixes mismatched accounts)
+      if (message.from) {
+        const senderAddr = message.from.toLowerCase();
+        try {
+          const grpRaw = await redis('GET', `pmt:group:${groupId}`);
+          if (grpRaw) {
+            const grp = JSON.parse(grpRaw);
+            if (!grp.members.map(m => m.toLowerCase()).includes(senderAddr)) {
+              grp.members.push(senderAddr);
+              await redis('SET', `pmt:group:${groupId}`, JSON.stringify(grp));
+              await redis('SADD', `pmt:user:groups:${senderAddr}`, groupId);
+            }
+          }
+        } catch { /* non-fatal */ }
+      }
       return res.json({ ok: true });
     }
 

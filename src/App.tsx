@@ -1262,7 +1262,6 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
 
     // Group message relay — fetch fresh member list from server then send to each member
     if (activeRef.current.isGroup && !isDemo && walletRef.current?.address) {
-      console.log('[PMT group relay] starting relay from', walletRef.current.address.slice(0,10), 'groupId:', (activeRef.current as any).groupId || (activeRef.current as any).id);
       const w = walletRef.current;
       const grp = activeRef.current;
       const groupId = grp.groupId || grp.id;
@@ -1303,7 +1302,6 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
             ...(grpData.roles ? { roles: grpData.roles } : {}),
           } : c));
         }
-        console.log('[PMT group relay] members:', members, 'self:', w.address.slice(0,10));
         // Relay to each member except self — track delivery to mark message as sent
         const relayPromises = members
           .filter(memberAddr => memberAddr && memberAddr !== normalizeAddress(w.address))
