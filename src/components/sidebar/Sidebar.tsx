@@ -85,13 +85,17 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
     );
   };
 
+  // Detect mobile
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+
   return(
     <div className={`sidebar-panel${mobileOpen?' mobile-open':''}`}
-      style={{background:'var(--panel)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'row',overflow:'hidden'}}>
+      style={{background:'var(--panel)',borderRight:'1px solid var(--border)',display:'flex',
+        flexDirection: isMobile ? 'column' : 'row',overflow:'hidden'}}>
 
-      {/* ── Icon Rail ─────────────────────────────────────────── */}
+      {/* ── Icon Rail (desktop only) ───────────────────────────── */}
       <div style={{width:56,flexShrink:0,background:'rgba(0,0,0,0.2)',borderRight:'1px solid var(--border)',
-        display:'flex',flexDirection:'column',alignItems:'center',paddingTop:8}}>
+        display: isMobile ? 'none' : 'flex',flexDirection:'column',alignItems:'center',paddingTop:8}}>
 
         {/* Avatar shortcut to profile */}
         <div style={{marginBottom:10,cursor:'pointer',padding:4,borderRadius:'50%',
@@ -132,18 +136,39 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
 
         {/* ══ CONTACTS ══ */}
         {activeSection==='contacts'&&<>
+          {/* Mobile WhatsApp-style header */}
+          {isMobile ? (
+            <div style={{padding:'12px 16px 8px',background:'var(--panel)',flexShrink:0,
+              paddingTop:'calc(12px + var(--safe-top, 0px))'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <img src="/pmt-logo.png" style={{width:28,height:28,borderRadius:'50%',objectFit:'cover'}} alt="PMT"/>
+                  <span style={{fontFamily:'var(--sans)',fontSize:18,fontWeight:700,letterSpacing:'-0.02em'}}>PMT Chat</span>
+                </div>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={onSearch} style={{width:36,height:36,background:'none',border:'none',
+                    borderRadius:'50%',color:'var(--text)',fontSize:20,cursor:'pointer',
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>⌕</button>
+                  <button onClick={onNew} style={{width:36,height:36,background:'none',border:'none',
+                    borderRadius:'50%',color:'var(--text)',fontSize:22,cursor:'pointer',fontWeight:300,
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>✎</button>
+                </div>
+              </div>
+            <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
+              borderRadius:9,padding:'0 9px'}}>
+              <span style={{fontSize:12,color:'var(--muted)'}}>⌕</span>
+              <input placeholder="Search contacts..." value={q} onChange={e=>setQ(e.target.value)}
+                style={{flex:1,background:'transparent',border:'none',outline:'none',color:'var(--text)',fontSize:13,padding:'7px 0'}}/>
+            </div>
+          </div>
+          ) : (
+          /* Desktop header */
           <div style={{padding:'12px 12px 8px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
               <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',
                 textTransform:'uppercase',color:'var(--muted)'}}>Contacts</span>
-              <div style={{display:'flex',gap:5}}>
-                <button onClick={onSearch} title="Search"
-                  style={{width:26,height:26,background:'var(--surface)',border:'none',borderRadius:7,
-                    color:'var(--muted)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>⌕</button>
-                <button className="mobile-topbar" onClick={onMobileClose}
-                  style={{display:'none',width:26,height:26,background:'var(--surface)',border:'1px solid var(--border)',
-                    borderRadius:7,color:'var(--muted)',fontSize:18,cursor:'pointer',alignItems:'center',justifyContent:'center'}}>×</button>
-              </div>
+              <button onClick={onSearch} style={{width:26,height:26,background:'var(--surface)',border:'none',borderRadius:7,
+                color:'var(--muted)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>⌕</button>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(118,118,128,0.18)',
               borderRadius:9,padding:'0 9px'}}>
@@ -152,18 +177,19 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
                 style={{flex:1,background:'transparent',border:'none',outline:'none',color:'var(--text)',fontSize:13,padding:'7px 0'}}/>
             </div>
           </div>
+          )}
 
-          <button onClick={onNew}
+          {!isMobile&&<button onClick={onNew}
             style={{margin:'8px 8px 2px',padding:'8px',background:'var(--accent)',border:'none',
               borderRadius:9,cursor:'pointer',fontFamily:'var(--sans)',fontSize:12,fontWeight:700,
               color:'#0a0c14',display:'flex',alignItems:'center',justifyContent:'center',gap:5,flexShrink:0}}>
             <span style={{fontSize:15}}>+</span> New Chat
-          </button>
+          </button>}
 
-          <div style={{padding:'6px 12px 2px',fontFamily:'var(--sans)',fontSize:9,color:'var(--muted)',
+          {!isMobile&&<div style={{padding:'6px 12px 2px',fontFamily:'var(--sans)',fontSize:9,color:'var(--muted)',
             fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',flexShrink:0}}>
             {contacts.length} contacts
-          </div>
+          </div>}
 
           <div className="sidebar-contacts-list" style={{flex:1,overflowY:'auto'}}>
             {groupCtxMenu && createPortal(
@@ -265,10 +291,64 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           )}
         </>}
 
+        {/* ── Mobile bottom tab bar ────────────────────────── */}
+        {isMobile&&(
+          <div style={{
+            display:'flex',alignItems:'center',justifyContent:'space-around',
+            borderTop:'1px solid var(--border)',background:'var(--panel)',
+            paddingBottom:'calc(8px + var(--safe-bottom, 0px))',
+            paddingTop:8, flexShrink:0,
+          }}>
+            {[
+              {id:'contacts', label:'Chats', icon:(
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              )},
+              {id:'wallet', label:'Wallet', icon:(
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2"/><circle cx="17" cy="14" r="1" fill="currentColor" stroke="none"/>
+                  <path d="M22 7V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2"/>
+                </svg>
+              )},
+              {id:'profile', label:'Profile', icon:(
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                </svg>
+              )},
+              {id:'settings_tab', label:'Settings', icon:(
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              )},
+            ].map(tab => (
+              <button key={tab.id} onClick={()=>{
+                if(tab.id==='settings_tab'){onSettings&&onSettings();}
+                else setActiveSection(tab.id);
+              }}
+                style={{flex:1,background:'none',border:'none',cursor:'pointer',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'4px 0',
+                  color: activeSection===tab.id ? 'var(--accent)' : 'rgba(255,255,255,0.45)',
+                  transition:'color .15s'}}>
+                {tab.icon}
+                <span style={{fontSize:10,fontFamily:'var(--sans)',fontWeight:600,
+                  letterSpacing:'0.02em'}}>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* ══ WALLET ══ */}
         {activeSection==='wallet'&&<>
-          <div style={{padding:'12px 12px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
-            <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>Wallet</span>
+          <div style={{padding: isMobile ? 'calc(14px + var(--safe-top,0px)) 16px 10px' : '12px 12px 10px',
+            borderBottom:'1px solid var(--border)',flexShrink:0,
+            display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span style={{fontFamily:'var(--sans)',fontSize: isMobile?18:11,fontWeight:700,
+              letterSpacing: isMobile?'-0.02em':'0.12em',
+              textTransform: isMobile?'none':'uppercase',color:'var(--text)'}}>
+              {isMobile ? '💰 Wallet' : 'Wallet'}
+            </span>
           </div>
           <div style={{flex:1,overflowY:'auto',padding:'12px 10px',display:'flex',flexDirection:'column',gap:10}}>
             <div onClick={onWallet}
@@ -294,10 +374,34 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
           </div>
         </>}
 
+        {isMobile&&activeSection==='wallet'&&(
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-around',
+            borderTop:'1px solid var(--border)',background:'var(--panel)',
+            paddingBottom:'calc(8px + var(--safe-bottom, 0px))',paddingTop:8,flexShrink:0}}>
+            {[
+              {id:'contacts',label:'Chats',emoji:'💬'},
+              {id:'wallet',label:'Wallet',emoji:'💰'},
+              {id:'profile',label:'Profile',emoji:'👤'},
+            ].map(t=>(
+              <button key={t.id} onClick={()=>setActiveSection(t.id)}
+                style={{flex:1,background:'none',border:'none',cursor:'pointer',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 0',
+                  color:activeSection===t.id?'var(--accent)':'rgba(255,255,255,0.45)',transition:'color .15s'}}>
+                <span style={{fontSize:20}}>{t.emoji}</span>
+                <span style={{fontSize:10,fontFamily:'var(--sans)',fontWeight:600}}>{t.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {/* ══ PROFILE ══ */}
         {activeSection==='profile'&&<>
-          <div style={{padding:'12px 12px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
-            <span style={{fontFamily:'var(--sans)',fontSize:11,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--muted)'}}>My Profile</span>
+          <div style={{padding: isMobile ? 'calc(14px + var(--safe-top,0px)) 16px 10px' : '12px 12px 10px',
+            borderBottom:'1px solid var(--border)',flexShrink:0}}>
+            <span style={{fontFamily:'var(--sans)',fontSize: isMobile?18:11,fontWeight:700,
+              letterSpacing: isMobile?'-0.02em':'0.12em',
+              textTransform: isMobile?'none':'uppercase',color:'var(--text)'}}>
+              {isMobile ? '👤 Profile' : 'My Profile'}
+            </span>
           </div>
           <div style={{flex:1,overflowY:'auto',padding:'20px 14px',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
             {/* Avatar */}
@@ -332,6 +436,25 @@ export default function Sidebar({contacts,activeId,onSelect,onNew,onNewGroup,onP
               ✎ Edit Profile
             </button>
           </div>
+        {isMobile&&(
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-around',
+            borderTop:'1px solid var(--border)',background:'var(--panel)',
+            paddingBottom:'calc(8px + var(--safe-bottom, 0px))',paddingTop:8,flexShrink:0}}>
+            {[
+              {id:'contacts',label:'Chats',emoji:'💬'},
+              {id:'wallet',label:'Wallet',emoji:'💰'},
+              {id:'profile',label:'Profile',emoji:'👤'},
+            ].map(t=>(
+              <button key={t.id} onClick={()=>setActiveSection(t.id)}
+                style={{flex:1,background:'none',border:'none',cursor:'pointer',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 0',
+                  color:activeSection===t.id?'var(--accent)':'rgba(255,255,255,0.45)',transition:'color .15s'}}>
+                <span style={{fontSize:20}}>{t.emoji}</span>
+                <span style={{fontSize:10,fontFamily:'var(--sans)',fontWeight:600}}>{t.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
         </>}
 
       </div>

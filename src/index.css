@@ -62,26 +62,36 @@ input,textarea,select{font-size:16px!important}
 .msg-bubble-text{max-width:72%}
 .modal-inner{width:340px;max-width:calc(100vw - 28px)}
 
-/* ── Mobile (≤640px) ──────────────────────────────────── */
+/* ── Mobile (≤640px) — WhatsApp-style layout ─────────── */
 @media(max-width:640px){
-  /* Full-screen chat, no grid */
-  .app-grid{display:block!important;height:100dvh;padding-top:0}
-  /* Sidebar: slide-in drawer */
-  .sidebar-panel{
-    position:fixed!important;top:0;left:0;bottom:0;
-    width:100vw!important;max-width:360px;
-    height:100%!important;
-    z-index:800;
-    transform:translateX(-105%);
-    transition:transform .28s cubic-bezier(.4,0,.2,1);
-    box-shadow:6px 0 32px rgba(0,0,0,.6);
-    /* iOS safe area handled by inline spacer div */
-  }
-  .sidebar-panel.mobile-open{transform:translateX(0)!important}
+  /* Full-screen stack — sidebar is base, chat slides over it */
+  .app-grid{display:block!important;height:100dvh;padding-top:0;position:relative;overflow:hidden}
 
-  /* Backdrop overlay */
-  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:799}
-  .sidebar-overlay.visible{display:block!important}
+  /* Sidebar: always full-screen base layer */
+  .sidebar-panel{
+    position:fixed!important;inset:0;
+    width:100vw!important;max-width:100vw;
+    height:100%!important;
+    z-index:10;
+    transform:none!important;
+    transition:none!important;
+    box-shadow:none!important;
+    flex-direction:column!important;
+  }
+
+  /* Chat wrapper: slides in from right over the sidebar */
+  .mobile-chat-wrap{
+    position:fixed!important;inset:0;
+    z-index:20;
+    transform:translateX(100%);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    will-change:transform;
+    background:var(--bg);
+  }
+  .mobile-chat-wrap.active{transform:translateX(0)!important}
+
+  /* No backdrop overlay needed (not a drawer anymore) */
+  .sidebar-overlay{display:none!important}
 
   /* Mobile topbar */
   .mobile-topbar{display:flex!important}
