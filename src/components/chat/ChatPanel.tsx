@@ -364,6 +364,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
   },[pickerMsgId]);
   const searchInputRef=useRef<HTMLInputElement>(null);
   const [recording,setRecording]=useState(false);
+  const [showScrollBtn,setShowScrollBtn]=useState(false);
   const fileInputRef=useRef(null);
   const cameraInputRef=useRef(null);
   const attachBtnRef=useRef(null);
@@ -400,6 +401,18 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     };
     document.addEventListener('wheel',handler,{passive:false,capture:true});
     return()=>document.removeEventListener('wheel',handler,{capture:true});
+  },[]);
+
+  // Show scroll-to-bottom button when user scrolls up
+  useEffect(()=>{
+    const el=messagesRef.current;
+    if(!el) return;
+    const onScroll=()=>{
+      const distFromBottom=el.scrollHeight-el.scrollTop-el.clientHeight;
+      setShowScrollBtn(distFromBottom>120);
+    };
+    el.addEventListener('scroll',onScroll,{passive:true});
+    return()=>el.removeEventListener('scroll',onScroll);
   },[]);
   const inputRef=useRef(null);
   const mediaRecRef=useRef(null);
@@ -1092,6 +1105,23 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
         })()}
 
         {/* ── Block strip ── */}
+        {/* Scroll-to-bottom button */}
+        {showScrollBtn&&(
+          <button
+            onClick={()=>{const el=messagesRef.current;if(el){el.scrollTo({top:el.scrollHeight,behavior:'smooth'});}}}
+            style={{position:'absolute',bottom:86,right:16,zIndex:8,
+              width:38,height:38,borderRadius:'50%',border:'none',cursor:'pointer',
+              background:'var(--panel)',boxShadow:'0 2px 12px rgba(0,0,0,.45)',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              color:'var(--text)',fontSize:18,transition:'opacity .2s,transform .2s',
+              animation:'fadeIn .15s ease'}}
+            onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.1)';}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';}}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        )}
         <div className="chat-passthrough" style={{position:'absolute',bottom:70,left:0,right:0,zIndex:5}}>
           <div>
             <BlockStrip blockNum={currentBlock()} className="block-strip-bar"/>
