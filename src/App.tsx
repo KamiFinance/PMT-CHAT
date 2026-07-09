@@ -1974,22 +1974,19 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
   useEffect(() => {
     if (!wallet?.address || isDemo || !wallet.username) return;
     if (sessionPasswordRef.current) return; // already have password from fresh login
-    // Don't prompt MetaMask/WalletConnect users — they use a derived key, no password needed
-    if ((wallet as any).isMetaMask) return;
+    // Don't prompt external wallet users (MetaMask/WalletConnect/Tangem)
+    // privateKey is reliably 'metamask' for all external wallets regardless of isMetaMask flag
+    if (!wallet.privateKey || wallet.privateKey === 'metamask') return;
     const uname = wallet.username.toLowerCase();
-    // Small delay so UI settles before showing the prompt
     const t = setTimeout(() => {
       fetch(`/api/auth?username=${encodeURIComponent(uname)}`)
         .then(r => r.json())
         .then(record => {
-          // Show prompt whether backup exists or not:
-          // - No backup: create first backup
-          // - Backup exists but password gone: resume auto-backup (happens after iOS app close)
-          const promptKey = `pmt_backup_prompted_${wallet?.address?.toLowerCase()}_session`;
-          // Rate-limit to once per session (not once per day) so it re-prompts on every app open
-          const alreadyPromptedThisSession = sessionStorage.getItem(promptKey);
-          if (alreadyPromptedThisSession) return;
-          sessionStorage.setItem(promptKey, '1');
+          // Rate-limit: at most once per hour (localStorage persists across sessions)
+          const promptKey = `pmt_backup_prompted_${wallet?.address?.toLowerCase()}`;
+          const lastPrompt = localStorage.getItem(promptKey);
+          if (lastPrompt && Date.now() - parseInt(lastPrompt) < 3600000) return;
+          localStorage.setItem(promptKey, String(Date.now()));
           setShowBackupPrompt(true);
         })
         .catch(() => {});
