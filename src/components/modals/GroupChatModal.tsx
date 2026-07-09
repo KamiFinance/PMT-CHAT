@@ -1,4 +1,6 @@
 // @ts-nocheck
+import ImageCropModal from '../ui/ImageCropModal';
+// @ts-nocheck
 import React, { useState, useRef, useEffect } from 'react';
 import ProfilePic from '../ui/ProfilePic';
 
@@ -54,6 +56,7 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
   const [isAnnouncement, setIsAnnouncement] = useState(existingGroup?.isAnnouncement || false);
 
   const fileRef = useRef(null);
+  const [cropFile, setCropFile] = useState<File|null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const handleDeleteGroup = async () => {
@@ -275,7 +278,8 @@ export default function GroupChatModal({ contacts, onClose, onCreate, myAddress,
                   }
                   <div style={{ position: 'absolute', bottom: 2, right: 2, background: 'var(--accent)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>✎</div>
                 </div>
-                <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleAvatar(e.target.files[0])} />
+                {cropFile&&<ImageCropModal file={cropFile} onDone={(b64)=>{setAvatarUrl(b64);setCropFile(null);}} onCancel={()=>setCropFile(null)}/>}
+                <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e=>{if(e.target.files[0]){setCropFile(e.target.files[0]);e.target.value="";}}} />
                 <div style={{ flex: 1 }}>
                   <div style={label}>GROUP PICTURE</div>
                   <div style={{ fontSize: 12, color: 'var(--text2)' }}>Click the circle to upload a group photo</div>

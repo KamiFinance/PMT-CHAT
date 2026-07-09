@@ -1,3 +1,4 @@
+import ImageCropModal from '../ui/ImageCropModal';
 // @ts-nocheck
 import Avatar from '../ui/Avatar';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -12,6 +13,7 @@ export default function ProfileModal({profile,onClose,onSave}){
   const [avatar,setAvatar]=useState(profile.avatarUrl||null);
   const [dragging,setDragging]=useState(false);
   const fileRef=useRef(null);
+  const [cropFile,setCropFile]=React.useState<File|null>(null);
 
   const handleFile=file=>{
     if(!file||!file.type.startsWith('image/'))return;
@@ -69,8 +71,9 @@ export default function ProfileModal({profile,onClose,onSave}){
               <span style={{color:'#fff',fontSize:11,fontFamily:'var(--mono)'}}>CHANGE</span>
             </div>
           </div>
+          {cropFile&&<ImageCropModal file={cropFile} onDone={(b64)=>{setAvatar(b64);setCropFile(null);}} onCancel={()=>setCropFile(null)}/>}
           <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}}
-            onChange={e=>handleFile(e.target.files[0])}/>
+            onChange={e=>{if(e.target.files[0]){setCropFile(e.target.files[0]);e.target.value="";}}}/>  
           <div style={{fontSize:11,color:'var(--muted)'}}>Click or drag & drop an image</div>
           {avatar&&(
             <button onClick={()=>setAvatar(null)}
