@@ -307,6 +307,8 @@ export default async function handler(req, res) {
       const members = (grp.members || []).map(m => m.toLowerCase()).filter(m => m && m !== sender);
       // Strip heavy fields for inbox delivery
       const { b64Data, audioUrl, audioB64, fileData, imgData, uploading, _toAddr, ...lean } = message;
+      // Ensure senderName is stored for clean history loads (Android/history path)
+      if (!lean.senderName && lean.fromName) lean.senderName = lean.fromName;
       // Fanout via Redis pipeline — all writes in a single HTTP round trip to Upstash
       const msgJson = JSON.stringify(lean);
       const histKey = `pmt:group:history:${groupId}`;

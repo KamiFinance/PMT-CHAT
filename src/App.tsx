@@ -1384,7 +1384,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
               .filter((m: any) => m.id && !existingIds.has(m.id))
               .map((m: any) => ({
                 ...m, out: m.from?.toLowerCase() === myAddr?.toLowerCase(),
-                confirms: 3, pending: false, read: true
+                confirms: 3, pending: false, read: true,
+                senderName: m.senderName || m.fromName || m.from?.slice(0, 8) || 'Unknown',
               }));
             if (!newMsgs.length) return prev;
             const merged = [...existing, ...newMsgs].sort((a: any, b: any) => (a.ts||0) - (b.ts||0));
@@ -1959,8 +1960,10 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
             const newMsgs = d.messages
               .filter((m: any) => m.id && !existingIds.has(m.id))
               .map((m: any) => ({
-                ...m, out: m.from?.toLowerCase() === myAddr,
-                confirms: 3, pending: false, read: true
+                ...m,
+                out: m.from?.toLowerCase() === myAddr,
+                confirms: 3, pending: false, read: true,
+                senderName: m.senderName || m.fromName || m.from?.slice(0, 8) || 'Unknown',
               }));
             if (!newMsgs.length) return prev;
             const merged = [...existing, ...newMsgs].sort((a: any, b: any) => (a.ts||0) - (b.ts||0));
