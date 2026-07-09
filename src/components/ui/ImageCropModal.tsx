@@ -5,24 +5,36 @@ import { createPortal } from 'react-dom';
 const SIZE = 300; // preview circle diameter px
 
 export default function ImageCropModal({ file, onDone, onCancel }) {
-  const [imgUrl, setImgUrl]           = useState(null);
-  const [imgNat, setImgNat]           = useState({ w: 1, h: 1 });
-  const [scale, setScale]             = useState(1);
-  const [offset, setOffset]           = useState({ x: 0, y: 0 });
-  const dragging                      = useRef(false);
-  const lastPos                       = useRef({ x: 0, y: 0 });
-  const lastPinchDist                 = useRef(null);
-  const containerRef                  = useRef(null);
+  const [imgUrl, setImgUrl]   = useState(null);
+  const [imgNat, setImgNat]   = useState({ w: 1, h: 1 });
+  const [scale, setScale]     = useState(1);
+  const [offset, setOffset]   = useState({ x: 0, y: 0 });
+  const dragging               = useRef(false);
+  const lastPos                = useRef({ x: 0, y: 0 });
+  const lastPinchDist          = useRef(null);
+  const containerRef           = useRef(null);
 
-  // Load file → object URL
+  // ── Clamp offset so the image always fully covers the circle ──────────
+  const clamp = useCallback((ox, oy, sc, nat) => {
+    const imgW = nat.w * sc;
+    const imgH = nat.h * sc;
+    const maxX = Math.max(0, (imgW - SIZE) / 2);
+    const maxY = Math.max(0, (imgH - SIZE) / 2);
+    return {
+      x: Math.max(-maxX, Math.min(maxX, ox)),
+      y: Math.max(-maxY, Math.min(maxY, oy)),
+    };
+  }, []);
+
+  // ── Load file ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!file) return;
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      setImgNat({ w: img.naturalWidth, h: img.naturalHeight });
-      // Initial scale: cover the circle
-      const initScale = SIZE / Math.min(img.naturalWidth, img.naturalHeight);
+      const nat = { w: img.naturalWidth, h: img.naturalHeight };
+      setImgNat(nat);
+      const initScale = SIZE / Math.min(nat.w, nat.h);
       setScale(initScale);
       setOffset({ x: 0, y: 0 });
       setImgUrl(url);
@@ -31,7 +43,7 @@ export default function ImageCropModal({ file, onDone, onCancel }) {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  // Export cropped circle as JPEG base64
+  // ── Export crop ───────────────────────────────────────────────────────
   const handleDone = useCallback(() => {
     if (!imgUrl) return;
     const img = new Image();
@@ -40,8 +52,8 @@ export default function ImageCropModal({ file, onDone, onCancel }) {
       const canvas = document.createElement('canvas');
       canvas.width = OUT; canvas.height = OUT;
       const ctx = canvas.getContext('2d');
-      // Map circle center back to source image coords
-      const srcR  = (SIZE / 2) / scale;          // radius in source px
+      // What's visible in the circle → map to source image coords
+      const srcR  = (SIZE / 2) / scale;
       const srcCX = imgNat.w / 2 - offset.x / scale;
       const srcCY = imgNat.h / 2 - offset.y / scale;
       ctx.drawImage(img, srcCX - srcR, srcCY - srcR, srcR * 2, srcR * 2, 0, 0, OUT, OUT);
@@ -50,11 +62,13 @@ export default function ImageCropModal({ file, onDone, onCancel }) {
     img.src = imgUrl;
   }, [imgUrl, imgNat, scale, offset, onDone]);
 
-  // ── Mouse ──────────────────────────────────────────────────────────────
+  // ── Mouse ─────────────────────────────────────────────────────────────
   const onMouseDown = (e) => { dragging.current = true; lastPos.current = { x: e.clientX, y: e.clientY }; };
   const onMouseMove = (e) => {
     if (!dragging.current) return;
-    setOffset(o => ({ x: o.x + e.clientX - lastPos.current.x, y: o.y + e.clientY - lastPos.current.y }));
+    const nx = offset.x + e.clientX - lastPos.current.x;
+    const ny = offset.y + e.clientY - lastPos.current.y;
+    setOffset(clamp(nx, ny, scale, imgNat));
     lastPos.current = { x: e.clientX, y: e.clientY };
   };
   const onMouseUp = () => { dragging.current = false; };
@@ -62,10 +76,15 @@ export default function ImageCropModal({ file, onDone, onCancel }) {
   const onWheel = (e) => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    setScale(s => Math.max(SIZE / Math.max(imgNat.w, imgNat.h), Math.min(s * factor, 12)));
+    setScale(s => {
+      const minS = SIZE / Math.min(imgNat.w, imgNat.h);
+      const newS = Math.max(minS, Math.min(s * factor, 12));
+      setOffset(o => clamp(o.x, o.y, newS, imgNat));
+      return newS;
+    });
   };
 
-  // ── Touch ──────────────────────────────────────────────────────────────
+  // ── Touch ─────────────────────────────────────────────────────────────
   const getTouchDist = (t) => {
     const dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
@@ -83,18 +102,25 @@ export default function ImageCropModal({ file, onDone, onCancel }) {
   const onTouchMove = (e) => {
     e.preventDefault();
     if (e.touches.length === 1 && dragging.current) {
-      setOffset(o => ({ x: o.x + e.touches[0].clientX - lastPos.current.x, y: o.y + e.touches[0].clientY - lastPos.current.y }));
+      const nx = offset.x + e.touches[0].clientX - lastPos.current.x;
+      const ny = offset.y + e.touches[0].clientY - lastPos.current.y;
+      setOffset(clamp(nx, ny, scale, imgNat));
       lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     } else if (e.touches.length === 2 && lastPinchDist.current) {
       const dist = getTouchDist(e.touches);
       const factor = dist / lastPinchDist.current;
-      setScale(s => Math.max(SIZE / Math.max(imgNat.w, imgNat.h), Math.min(s * factor, 12)));
+      setScale(s => {
+        const minS = SIZE / Math.min(imgNat.w, imgNat.h);
+        const newS = Math.max(minS, Math.min(s * factor, 12));
+        setOffset(o => clamp(o.x, o.y, newS, imgNat));
+        return newS;
+      });
       lastPinchDist.current = dist;
     }
   };
   const onTouchEnd = () => { dragging.current = false; lastPinchDist.current = null; };
 
-  // ── Attach non-passive wheel listener ─────────────────────────────────
+  // ── Non-passive wheel listener ────────────────────────────────────────
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -104,28 +130,34 @@ export default function ImageCropModal({ file, onDone, onCancel }) {
 
   const imgW = imgNat.w * scale;
   const imgH = imgNat.h * scale;
+  const minScale = SIZE / Math.min(imgNat.w, imgNat.h);
+
+  const setScaleAndClamp = (newS) => {
+    const clamped = Math.max(minScale, Math.min(newS, 12));
+    setScale(clamped);
+    setOffset(o => clamp(o.x, o.y, clamped, imgNat));
+  };
 
   return createPortal(
-    <div style={{ position:'fixed', inset:0, zIndex:3000, background:'rgba(0,0,0,.88)',
-      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:20 }}>
+    <div style={{ position:'fixed', inset:0, zIndex:3000, background:'rgba(0,0,0,.92)',
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:20,
+      padding:16 }}>
 
-      {/* Title */}
-      <div style={{ fontSize:16, fontWeight:600, color:'#fff', letterSpacing:'-0.01em' }}>
-        Move and Scale
+      <div style={{ fontSize:16, fontWeight:600, color:'#fff' }}>Move and Scale</div>
+      <div style={{ fontSize:12, color:'rgba(255,255,255,.45)', marginTop:-12 }}>
+        Drag to reposition · Scroll or pinch to zoom
       </div>
 
-      {/* Grid lines to help positioning */}
+      {/* Circle preview */}
       <div style={{ position:'relative' }}>
-        {/* Outer dim ring */}
-        <div style={{ position:'absolute', inset: -40, borderRadius:'50%',
-          boxShadow:'0 0 0 9999px rgba(0,0,0,.6)', pointerEvents:'none', zIndex:2 }}/>
-        {/* Circle crop area */}
+        {/* Shade outside the circle */}
+        <div style={{ position:'absolute', inset:-60, borderRadius:'50%',
+          boxShadow:'0 0 0 9999px rgba(0,0,0,.55)', pointerEvents:'none', zIndex:2 }}/>
         <div
           ref={containerRef}
           style={{ width:SIZE, height:SIZE, borderRadius:'50%', overflow:'hidden',
             position:'relative', cursor: dragging.current ? 'grabbing' : 'grab',
-            border:'2.5px solid rgba(255,255,255,.5)', touchAction:'none',
-            background:'#111' }}
+            border:'2.5px solid rgba(255,255,255,.6)', touchAction:'none', background:'#111' }}
           onMouseDown={onMouseDown} onMouseMove={onMouseMove}
           onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
           onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
@@ -141,32 +173,35 @@ export default function ImageCropModal({ file, onDone, onCancel }) {
         </div>
       </div>
 
-      {/* Zoom slider */}
+      {/* Zoom controls */}
       <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-        <button onClick={() => setScale(s => Math.max(SIZE/Math.max(imgNat.w,imgNat.h), s * 0.85))}
+        <button onClick={() => setScaleAndClamp(scale * 0.85)}
           style={{ width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,.15)',
-            border:'none', color:'#fff', fontSize:24, cursor:'pointer', display:'flex',
-            alignItems:'center', justifyContent:'center', lineHeight:1 }}>−</button>
-        <input type="range" min={SIZE/Math.max(imgNat.w,imgNat.h)*100} max={1200}
-          value={Math.round(scale*100)}
-          onChange={e => setScale(Number(e.target.value)/100)}
-          style={{ width:140, accentColor:'var(--accent)' }}/>
-        <button onClick={() => setScale(s => Math.min(s * 1.15, 12))}
+            border:'none', color:'#fff', fontSize:24, cursor:'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center' }}>−</button>
+        <input type="range"
+          min={Math.round(minScale * 100)} max={1200}
+          value={Math.round(scale * 100)}
+          onChange={e => setScaleAndClamp(Number(e.target.value) / 100)}
+          style={{ width:140, accentColor:'var(--accent,#faff63)' }}/>
+        <button onClick={() => setScaleAndClamp(scale * 1.15)}
           style={{ width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,.15)',
-            border:'none', color:'#fff', fontSize:24, cursor:'pointer', display:'flex',
-            alignItems:'center', justifyContent:'center', lineHeight:1 }}>+</button>
+            border:'none', color:'#fff', fontSize:24, cursor:'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
       </div>
 
       {/* Actions */}
       <div style={{ display:'flex', gap:12 }}>
         <button onClick={onCancel}
-          style={{ padding:'11px 32px', background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.2)',
-            borderRadius:10, color:'#fff', fontSize:14, cursor:'pointer' }}>
+          style={{ padding:'11px 32px', background:'rgba(255,255,255,.1)',
+            border:'1px solid rgba(255,255,255,.2)', borderRadius:10,
+            color:'#fff', fontSize:14, cursor:'pointer' }}>
           Cancel
         </button>
         <button onClick={handleDone}
-          style={{ padding:'11px 32px', background:'var(--accent)', border:'none',
-            borderRadius:10, color:'#000', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+          style={{ padding:'11px 32px', background:'var(--accent,#faff63)',
+            border:'none', borderRadius:10, color:'#000',
+            fontSize:14, fontWeight:700, cursor:'pointer' }}>
           Use Photo
         </button>
       </div>
