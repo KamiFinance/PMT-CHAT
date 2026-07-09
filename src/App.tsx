@@ -1386,6 +1386,10 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                 ...m, out: m.from?.toLowerCase() === myAddr?.toLowerCase(),
                 confirms: 3, pending: false, read: true,
                 senderName: m.senderName || m.fromName || m.from?.slice(0, 8) || 'Unknown',
+                // Reconstruct media URLs for voice (IPFS URL) and images
+                ...(m.type === 'voice' && !m.audioUrl && m.ipfsCid ? { audioUrl: `https://gateway.pinata.cloud/ipfs/${m.ipfsCid}` } : {}),
+                ...(m.type === 'voice' && !m.audioUrl && m.ipfsUrl ? { audioUrl: m.ipfsUrl } : {}),
+                ...((m.type === 'image' || m.type === 'file') && !m.fileUrl && m.ipfsCid ? { fileUrl: `https://gateway.pinata.cloud/ipfs/${m.ipfsCid}` } : {}),
               }));
             if (!newMsgs.length) return prev;
             const merged = [...existing, ...newMsgs].sort((a: any, b: any) => (a.ts||0) - (b.ts||0));
@@ -1964,6 +1968,10 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
                 out: m.from?.toLowerCase() === myAddr,
                 confirms: 3, pending: false, read: true,
                 senderName: m.senderName || m.fromName || m.from?.slice(0, 8) || 'Unknown',
+                // Reconstruct media URLs for voice (IPFS URL) and images
+                ...(m.type === 'voice' && !m.audioUrl && m.ipfsCid ? { audioUrl: `https://gateway.pinata.cloud/ipfs/${m.ipfsCid}` } : {}),
+                ...(m.type === 'voice' && !m.audioUrl && m.ipfsUrl ? { audioUrl: m.ipfsUrl } : {}),
+                ...((m.type === 'image' || m.type === 'file') && !m.fileUrl && m.ipfsCid ? { fileUrl: `https://gateway.pinata.cloud/ipfs/${m.ipfsCid}` } : {}),
               }));
             if (!newMsgs.length) return prev;
             const merged = [...existing, ...newMsgs].sort((a: any, b: any) => (a.ts||0) - (b.ts||0));

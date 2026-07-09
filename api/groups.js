@@ -306,7 +306,17 @@ export default async function handler(req, res) {
       const sender = (message.from || '').toLowerCase();
       const members = (grp.members || []).map(m => m.toLowerCase()).filter(m => m && m !== sender);
       // Strip heavy fields for inbox delivery
-      const { b64Data, audioUrl, audioB64, fileData, imgData, uploading, _toAddr, ...lean } = message;
+      // Strip heavy fields but keep media data when there is no IPFS fallback
+      const { audioUrl, uploading, _toAddr, fileData, imgData, ...lean } = message;
+      // Strip b64Data only if IPFS CID exists (recipient can fetch from IPFS)
+      // or if the data is very large (> 200KB); otherwise keep it for inline display
+      if (lean.b64Data && (lean.ipfsCid || (typeof lean.b64Data === 'string' && lean.b64Data.length > 200000))) {
+        delete lean.b64Data;
+      }
+      // Strip audioB64 only if IPFS CID/URL exists (recipient can stream from IPFS)
+      if (lean.audioB64 && (lean.ipfsCid || lean.ipfsUrl)) {
+        delete lean.audioB64;
+      }
       // Ensure senderName is stored for clean history loads (Android/history path)
       if (!lean.senderName && lean.fromName) lean.senderName = lean.fromName;
       // Fanout via Redis pipeline — all writes in a single HTTP round trip to Upstash
@@ -335,7 +345,17 @@ export default async function handler(req, res) {
       const { groupId, message } = body;
       if (!groupId || !message) return res.status(400).json({ error: 'groupId and message required' });
       // Strip heavy fields to keep Redis lean (images, audio stored in IPFS)
-      const { b64Data, audioUrl, audioB64, fileData, imgData, uploading, _toAddr, ...lean } = message;
+      // Strip heavy fields but keep media data when there is no IPFS fallback
+      const { audioUrl, uploading, _toAddr, fileData, imgData, ...lean } = message;
+      // Strip b64Data only if IPFS CID exists (recipient can fetch from IPFS)
+      // or if the data is very large (> 200KB); otherwise keep it for inline display
+      if (lean.b64Data && (lean.ipfsCid || (typeof lean.b64Data === 'string' && lean.b64Data.length > 200000))) {
+        delete lean.b64Data;
+      }
+      // Strip audioB64 only if IPFS CID/URL exists (recipient can stream from IPFS)
+      if (lean.audioB64 && (lean.ipfsCid || lean.ipfsUrl)) {
+        delete lean.audioB64;
+      }
       const key = `pmt:group:history:${groupId}`;
       await redis('RPUSH', key, JSON.stringify(lean));
       await redis('LTRIM', key, -2000, -1); // keep last 2000 messages
