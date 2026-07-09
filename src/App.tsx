@@ -1371,23 +1371,26 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
           }
         }).catch(()=>{});
 
-        // Fetch group message history — use msgsRef (always fresh) to check if we need it
-        const existingMsgs = msgsRef.current?.[addr] || [];
-        if (existingMsgs.length === 0) {
-          fetch('/api/groups?action=getHistory', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ groupId })
-          }).then(r=>r.json()).then(d => {
-            if (!d.messages?.length) return;
-            setMsgs(prev => {
-              if ((prev[addr] || []).length > 0) return prev; // messages arrived in the meantime
-              const history = d.messages.map((m: any) => ({
-                ...m, out: m.from?.toLowerCase() === myAddr?.toLowerCase(), confirms: 3, pending: false, read: true
+        // Fetch group history and MERGE with local messages (fills gaps from missed deliveries)
+        fetch('/api/groups?action=getHistory', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ groupId })
+        }).then(r=>r.json()).then(d => {
+          if (!d.messages?.length) return;
+          setMsgs(prev => {
+            const existing = prev[addr] || [];
+            const existingIds = new Set(existing.map((m: any) => m.id));
+            const newMsgs = d.messages
+              .filter((m: any) => m.id && !existingIds.has(m.id))
+              .map((m: any) => ({
+                ...m, out: m.from?.toLowerCase() === myAddr?.toLowerCase(),
+                confirms: 3, pending: false, read: true
               }));
-              return { ...prev, [addr]: history };
-            });
-          }).catch(()=>{});
-        }
+            if (!newMsgs.length) return prev;
+            const merged = [...existing, ...newMsgs].sort((a: any, b: any) => (a.ts||0) - (b.ts||0));
+            return { ...prev, [addr]: merged };
+          });
+        }).catch(()=>{});
       } else if (!c.isAI) {
         // 1-on-1: fetch pins from shared Redis key
         fetch(`/api/pins?addr1=${myAddr}&addr2=${addr}`).then(r=>r.json()).then(d => {
@@ -1932,6 +1935,42 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
       if (window.innerWidth < 768) setMobileSidebarOpen(true);
     }
   }, [setContacts, setMsgs]);
+
+  // Startup: silently sync message history for all groups the user is a member of
+  // This fills any gaps from missed inbox deliveries (offline, rate limits, etc.)
+  useEffect(() => {
+    if (!wallet?.address || isDemo || contacts.length === 0) return;
+    const groups = contacts.filter((c: any) => c.isGroup && (c.groupId || c.id));
+    if (!groups.length) return;
+    const myAddr = wallet.address.toLowerCase();
+    // Stagger requests to avoid hitting rate limits (1 group per 300ms)
+    groups.forEach((grp: any, i: number) => {
+      setTimeout(() => {
+        const groupId = grp.groupId || grp.id;
+        const addr = normalizeAddress(`group_${groupId}`);
+        fetch('/api/groups?action=getHistory', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ groupId })
+        }).then(r => r.json()).then(d => {
+          if (!d.messages?.length) return;
+          setMsgs(prev => {
+            const existing = prev[addr] || [];
+            const existingIds = new Set(existing.map((m: any) => m.id));
+            const newMsgs = d.messages
+              .filter((m: any) => m.id && !existingIds.has(m.id))
+              .map((m: any) => ({
+                ...m, out: m.from?.toLowerCase() === myAddr,
+                confirms: 3, pending: false, read: true
+              }));
+            if (!newMsgs.length) return prev;
+            const merged = [...existing, ...newMsgs].sort((a: any, b: any) => (a.ts||0) - (b.ts||0));
+            return { ...prev, [addr]: merged };
+          });
+        }).catch(() => {});
+      }, i * 300);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet?.address, isDemo, contacts.length]);
 
   // On mount: if session was restored from localStorage but no password in memory,
   // show prompt so the user can re-enter password and resume auto-backup.
