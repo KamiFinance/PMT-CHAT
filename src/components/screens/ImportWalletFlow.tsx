@@ -289,11 +289,11 @@ export default function ImportWalletFlow({onWallet,onBack}){
               <div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',
                 borderRadius:8,padding:'8px 12px',fontSize:12,color:'var(--danger)'}}>{pwdErr}</div>
             )}
-            <button onClick={finish} disabled={!username.trim()||!password||!confirmPwd||finishing}
+            <button onClick={finish} disabled={(!existingAccount&&!username.trim())||!password||(!existingAccount&&!confirmPwd)||finishing}
               style={{padding:'13px',background:'var(--accent)',border:'none',borderRadius:10,
                 color:'#0a0c14',fontWeight:600,fontSize:14,cursor:finishing?'default':'pointer',
                 display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-                opacity:!username.trim()||!password||!confirmPwd||finishing?0.7:1}}>
+                opacity:(!existingAccount&&!username.trim())||!password||(!existingAccount&&!confirmPwd)||finishing?0.7:1}}>
               {finishing
                 ?<><span style={{width:14,height:14,border:'2px solid rgba(0,0,0,.3)',borderTopColor:'#0a0c14',
                     borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}}/>Securing wallet...</>
