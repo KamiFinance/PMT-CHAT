@@ -21,6 +21,24 @@ async function readBody(req) {
   return JSON.parse(body);
 }
 
+async function redisPipeline(commands) {
+  const url = process.env.UPSTASH_KV_REST_API_URL
+    || process.env.KV_REST_API_URL
+    || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_KV_REST_API_TOKEN
+    || process.env.KV_REST_API_TOKEN
+    || process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) throw new Error('No Redis REST credentials found');
+  const res = await fetch(`${url}/pipeline`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(commands),
+  });
+  if (!res.ok) throw new Error(`Redis pipeline HTTP ${res.status}`);
+  return res.json();
+}
+
+
 export default async function handler(req, res) {
   securityHeaders(res);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -289,15 +307,18 @@ export default async function handler(req, res) {
       const members = (grp.members || []).map(m => m.toLowerCase()).filter(m => m && m !== sender);
       // Strip heavy fields for inbox delivery
       const { b64Data, audioUrl, audioB64, fileData, imgData, uploading, _toAddr, ...lean } = message;
-      // Fanout: push to each member's personal inbox in parallel
-      await Promise.all(members.map(m =>
-        redis('RPUSH', `pmt:${m}`, JSON.stringify(lean))
-          .then(() => redis('EXPIRE', `pmt:${m}`, '604800'))
-      ));
-      // Store in group history
+      // Fanout via Redis pipeline — all writes in a single HTTP round trip to Upstash
+      const msgJson = JSON.stringify(lean);
       const histKey = `pmt:group:history:${groupId}`;
-      await redis('RPUSH', histKey, JSON.stringify(lean));
-      await redis('LTRIM', histKey, -2000, -1);
+      const pipeline = [
+        ...members.flatMap(m => [
+          ['RPUSH', `pmt:${m}`, msgJson],
+          ['EXPIRE', `pmt:${m}`, '604800'],
+        ]),
+        ['RPUSH', histKey, msgJson],
+        ['LTRIM', histKey, -2000, -1],
+      ];
+      await redisPipeline(pipeline);
       // Auto-add sender to member list if missing
       if (sender && !grp.members.map(m => m.toLowerCase()).includes(sender)) {
         grp.members.push(sender);
