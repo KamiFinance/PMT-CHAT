@@ -847,7 +847,7 @@ export default function ChatPanel({contact,messages,onSend,onSendETH,isDemo,myAd
     <>
       {/* iOS PWA safe area spacer — pushes content below status bar reliably */}
       
-      <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact} onSendETH={onSendETH} isDemo={isDemo} needsPasswordToSend={needsPasswordToSend}
+      <MobileTopbar contact={contact} onBack={onBack||onOpenSidebar} onOpenSidebar={onOpenSidebar} onViewContact={onViewContact} onSendETH={onSendETH} isDemo={isDemo} needsPasswordToSend={needsPasswordToSend} onManageGroup={onManageGroup} myAddress={myAddress}
         searchActive={searchActive}
         pinnedMsgs={pinnedMsgs}
         pinnedIdx={pinnedIdx}
