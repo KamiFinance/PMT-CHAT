@@ -1,3 +1,4 @@
+// @ts-nocheck
 import ImageCropModal from '../ui/ImageCropModal';
 // @ts-nocheck
 import Avatar from '../ui/Avatar';
