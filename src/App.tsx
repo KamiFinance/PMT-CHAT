@@ -1305,56 +1305,35 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
             ...(grpData.roles ? { roles: grpData.roles } : {}),
           } : c));
         }
-        // Relay to each member except self — track delivery to mark message as sent
-        const relayPromises = members
-          .filter(memberAddr => memberAddr && memberAddr !== normalizeAddress(w.address))
-          .map(memberAddr =>
-            fetch(`/api/inbox?address=${memberAddr}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(inboxMsg),
-            }).catch(() => null)
-          );
-        // Mark message as delivered once at least one relay succeeds
-        Promise.allSettled(relayPromises).then(results => {
-          const anyOk = results.some(r => r.status === 'fulfilled' && r.value?.ok);
-          if (anyOk || relayPromises.length === 0) {
+        // Single broadcast call — server fans out to all members + stores in history
+        // Avoids N-1 client-side requests that hit rate limits in large groups
+        fetch('/api/groups?action=broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId, message: inboxMsg }),
+        }).then(r => r.ok ? r.json() : null).then(d => {
+          if (d?.ok) {
             const groupAddr = normalizeAddress(`group_${groupId}`);
             setMsgs(p => ({ ...p, [groupAddr]: (p[groupAddr] ?? []).map(m =>
               m.id === msg.id ? { ...m, pending: false, confirms: 1 } : m
             )}));
           }
-        });
-        // Store in server-side group history so new members see it
-        fetch('/api/groups?action=storeMessage', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ groupId, message: inboxMsg }),
         }).catch(() => {});
       } catch {
         // Fallback to local member list
         const members: string[] = (grp.members ?? []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
-        const fallbackPromises = members
-          .filter(memberAddr => memberAddr && memberAddr !== normalizeAddress(w.address))
-          .map(memberAddr =>
-            fetch(`/api/inbox?address=${memberAddr}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(inboxMsg),
-            }).catch(() => null)
-          );
-        Promise.allSettled(fallbackPromises).then(results => {
-          const anyOk = results.some(r => r.status === 'fulfilled' && r.value?.ok);
-          if (anyOk || fallbackPromises.length === 0) {
+        // Fallback: still use broadcast (server reads fresh member list from Redis)
+        fetch('/api/groups?action=broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId, message: inboxMsg }),
+        }).then(r => r.ok ? r.json() : null).then(d => {
+          if (d?.ok) {
             const groupAddr = normalizeAddress(`group_${groupId}`);
             setMsgs(p => ({ ...p, [groupAddr]: (p[groupAddr] ?? []).map(m =>
               m.id === msg.id ? { ...m, pending: false, confirms: 1 } : m
             )}));
           }
-        });
-        // Store in history even in fallback path
-        fetch('/api/groups?action=storeMessage', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ groupId, message: inboxMsg }),
         }).catch(() => {});
       }
     }
@@ -1513,11 +1492,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     } else {
       const grp = activeRef.current;
       const groupId = grp.groupId || grp.id;
-      const members: string[] = (grp.members || []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
-      members.filter(m => m !== normalizeAddress(myAddr)).forEach(m => {
-        fetch('/api/inbox?address=' + m, { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ ...deleteNotif, groupId }) }).catch(() => {});
-      });
+      fetch('/api/groups?action=broadcast', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ groupId, message: { ...deleteNotif, groupId } }) }).catch(() => {});
     }
   }, [isDemo]);
 
@@ -1550,13 +1526,8 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
     } else {
       const grp = activeRef.current;
       const groupId = grp.groupId || grp.id;
-      const members: string[] = (grp.members || []).map((m: any) => normalizeAddress(typeof m === 'string' ? m : ''));
-      members.filter(m => m !== normalizeAddress(myAddr)).forEach(m => {
-        fetch('/api/inbox?address=' + m, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...editSync, groupId }),
-        }).catch(() => {});
-      });
+      fetch('/api/groups?action=broadcast', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ groupId, message: { ...editSync, groupId } }) }).catch(() => {});
     }
   }, [isDemo]);
 
@@ -1595,15 +1566,9 @@ Answer questions about PMT, PMTchain, the app, or anything else the user asks.`,
         // Group forward: relay to each member individually (same as sendMsg group path)
         const groupId = targetContact.groupId || targetContact.id;
         const groupInboxMsg = { ...inboxMsg, groupId, groupName: targetContact.name, groupAvatarUrl: (targetContact as any).avatarUrl ?? null };
-        const relayToMembers = (members: string[]) => {
-          members.forEach(memberAddr => {
-            if (!memberAddr || normalizeAddress(memberAddr) === normalizeAddress(myAddr)) return;
-            fetch(`/api/inbox?address=${normalizeAddress(memberAddr)}`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(groupInboxMsg),
-            }).catch(() => {});
-          });
-          fetch('/api/groups?action=storeMessage', {
+        const relayToMembers = (_members: string[]) => {
+          // Use server-side broadcast for reliable fanout
+          fetch('/api/groups?action=broadcast', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ groupId, message: groupInboxMsg }),
           }).catch(() => {});

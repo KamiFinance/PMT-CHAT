@@ -277,6 +277,36 @@ export default async function handler(req, res) {
       return res.json({ links: links.filter(Boolean) });
     }
 
+    // Broadcast a group message to all members + store in history (single server-side fanout)
+    if (action === 'broadcast') {
+      const { groupId, message } = body;
+      if (!groupId || !message) return res.status(400).json({ error: 'groupId and message required' });
+      const data = await redis('GET', `pmt:group:${groupId}`);
+      if (!data) return res.status(404).json({ error: 'Group not found' });
+      const grp = JSON.parse(data);
+      // Deliver to every member except the sender
+      const sender = (message.from || '').toLowerCase();
+      const members = (grp.members || []).map(m => m.toLowerCase()).filter(m => m && m !== sender);
+      // Strip heavy fields for inbox delivery
+      const { b64Data, audioUrl, audioB64, fileData, imgData, uploading, _toAddr, ...lean } = message;
+      // Fanout: push to each member's personal inbox in parallel
+      await Promise.all(members.map(m =>
+        redis('RPUSH', `pmt:${m}`, JSON.stringify(lean))
+          .then(() => redis('EXPIRE', `pmt:${m}`, '604800'))
+      ));
+      // Store in group history
+      const histKey = `pmt:group:history:${groupId}`;
+      await redis('RPUSH', histKey, JSON.stringify(lean));
+      await redis('LTRIM', histKey, -2000, -1);
+      // Auto-add sender to member list if missing
+      if (sender && !grp.members.map(m => m.toLowerCase()).includes(sender)) {
+        grp.members.push(sender);
+        await redis('SET', `pmt:group:${groupId}`, JSON.stringify(grp));
+        await redis('SADD', `pmt:user:groups:${sender}`, groupId);
+      }
+      return res.json({ ok: true, delivered: members.length });
+    }
+
     // Store a group message in server-side history (fire-and-forget from client)
     if (action === 'storeMessage') {
       const { groupId, message } = body;
