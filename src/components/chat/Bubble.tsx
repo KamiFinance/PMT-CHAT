@@ -401,7 +401,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
         backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)'}}
         onClick={()=>onCloseMenus&&onCloseMenus()}
         onTouchStart={(e)=>{e.stopPropagation();onCloseMenus&&onCloseMenus();}}/>
-      <div style={{position:'fixed',zIndex:201,
+      <div style={{position:'fixed',zIndex:204,
         bottom: window.innerHeight - (bubblePos.top+liftDelta) + 8,
         ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left})}}
         onMouseDown={(e)=>e.stopPropagation()}
@@ -427,7 +427,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
           </button>
         </div>
       </div>
-      <div style={{position:'fixed',zIndex:200,
+      <div style={{position:'fixed',zIndex:203,
         top: bubblePos.bottom+liftDelta+6,
         ...(isOut ? {right: window.innerWidth - bubblePos.right} : {left: bubblePos.left}),
         background:'var(--panel)',border:'1px solid var(--border)',borderRadius:12,
