@@ -766,8 +766,8 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
 
       {ctxMenuPortal}
 
-            {/* Delete confirmation popup */}
-      {delConfirmOpen&&onDelete&&(
+            {/* Delete confirmation popup — rendered as portal to escape any transformed/stacking parents */}
+      {delConfirmOpen&&onDelete&&createPortal(
         <div style={{position:'fixed',inset:0,zIndex:300,display:'flex',alignItems:'center',justifyContent:'center'}}
           onClick={()=>onCloseMenus&&onCloseMenus()}>
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:14,
@@ -800,7 +800,7 @@ export default function Bubble({msg,isOut,contact,myAddress,onReact,onReply,onPi
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
     {showSenderProfile&&(
       <SenderProfileCard
